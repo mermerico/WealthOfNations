@@ -1,107 +1,144 @@
-import { useState } from 'react';
-import type { GameState, Player, CommodityType, MarketState } from '../types/gameState';
-import { generateGrid } from '../utils/hexUtils';
-import { gameReducerWithChecks } from '../utils/gameReducer';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { GameState } from '../types/gameState';
+import { createInitialGameState, applyGameAction } from '../shared/gameEngine';
 
-const INITIAL_MARKETS: Record<CommodityType, MarketState> = {
-    Food: { stock: 4, priceIndex: 4 },
-    Energy: { stock: 4, priceIndex: 4 },
-    Labor: { stock: 4, priceIndex: 4 },
-    Ore: { stock: 4, priceIndex: 4 },
-    Capital: { stock: 4, priceIndex: 4 }
-};
+type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 
-const INITIAL_PLAYER_1: Player = {
-    id: 'p1',
-    name: 'Player 1',
-    color: '#3b82f6',
-    resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
-    money: 0,
-    loans: 0,
-    flags: 18,
-    ready: true,
-    flag: 'anglica.svg',
-    hasPassed: false
-};
+const DEFAULT_SERVER_URL = import.meta.env.VITE_GAME_SERVER_URL ?? 'ws://localhost:4000';
 
-const INITIAL_PLAYER_2: Player = {
-    id: 'p2',
-    name: 'Player 2',
-    color: '#ef4444',
-    resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
-    money: 0,
-    loans: 0,
-    flags: 18,
-    ready: true,
-    flag: 'bolshevica.svg',
-    hasPassed: false
-};
-
-const INITIAL_PLAYER_3: Player = {
-    id: 'p3',
-    name: 'Player 3',
-    color: '#10b981',
-    resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
-    money: 0,
-    loans: 0,
-    flags: 18,
-    ready: true,
-    flag: 'bharat.svg',
-    hasPassed: false
-};
+function createClientId(): string {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return `client-${crypto.randomUUID()}`;
+    }
+    return `client-${Math.random().toString(36).slice(2)}`;
+}
 
 export function useGameEngine() {
-    // Randomly select first player
-    const randomFirstPlayer = Math.floor(Math.random() * 3);
+    const [gameState, setGameState] = useState<GameState>(() => createInitialGameState());
+    const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+    const [lastError, setLastError] = useState<string | null>(null);
+    const [playerCount, setPlayerCount] = useState<number>(1);
+    const socketRef = useRef<WebSocket | null>(null);
+    const playerIdRef = useRef<string>(createClientId());
 
-    const [gameState, setGameState] = useState<GameState>({
-        players: [INITIAL_PLAYER_1, INITIAL_PLAYER_2, INITIAL_PLAYER_3],
-        board: generateGrid(4),
-        markets: INITIAL_MARKETS,
-        phase: 'Setup',
-        setupPhase: {
-            step: 'determineFirstPlayer',
-            firstPlayerIndex: randomFirstPlayer,
-            draftRound: 0,
-            currentDrafterIndex: randomFirstPlayer,
-            takenPackageIds: [],
-            pendingPlacement: null
-        },
-        currentTurnPlayerIndex: randomFirstPlayer,
-        firstPlayerIndex: randomFirstPlayer,
-        round: 1,
-        consecutivePasses: 0,
-        tilesRemaining: {
-            Farm: 15,
-            Generator: 9,
-            Academy: 9,
-            Mine: 9,
-            Factory: 9,
-            Bank: 9
-        },
-        isLastRound: false,
-        gameEnded: false,
-        initialFlagsPerPlayer: 18,
-        initialTiles: {
-            Farm: 15,
-            Generator: 9,
-            Academy: 9,
-            Mine: 9,
-            Factory: 9,
-            Bank: 9
+    useEffect(() => {
+        setConnectionState('connecting');
+        setLastError(null);
+
+        if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
+            setConnectionState('disconnected');
+            setPlayerCount(1);
+            setLastError('WebSocket not supported in this environment');
+            return () => undefined;
         }
-    });
 
-    const handleAction = (action: string, payload?: any) => {
+        const socket = new WebSocket(DEFAULT_SERVER_URL);
+        socketRef.current = socket;
+
+        socket.onopen = () => {
+            setConnectionState('connected');
+            socket.send(JSON.stringify({
+                type: 'join',
+                playerId: playerIdRef.current
+            }));
+        };
+
+        socket.onmessage = event => {
+            try {
+                const data = JSON.parse(event.data);
+                switch (data.type) {
+                    case 'state':
+                        if (data.state) {
+                            setGameState(data.state as GameState);
+                            setLastError(null);
+                        }
+                        break;
+                    case 'roomInfo':
+                        if (typeof data.playerCount === 'number') {
+                            setPlayerCount(Math.max(1, data.playerCount));
+                        }
+                        break;
+                    case 'error':
+                        if (typeof data.message === 'string') {
+                            setLastError(data.message);
+                        }
+                        break;
+                    case 'ack':
+                        setLastError(null);
+                        break;
+                    default:
+                        break;
+                }
+            } catch (error) {
+                console.error('Failed to process server message', error);
+                setLastError('Failed to process server message');
+            }
+        };
+
+        socket.onerror = event => {
+            console.error('WebSocket error', event);
+            setConnectionState('disconnected');
+            setPlayerCount(1);
+            setLastError('Connection error');
+        };
+
+        socket.onclose = () => {
+            setConnectionState('disconnected');
+            setPlayerCount(1);
+        };
+
+        return () => {
+            socketRef.current = null;
+            socket.close();
+        };
+    }, []);
+
+    const handleAction = useCallback((action: string, payload?: any) => {
+        const socket = socketRef.current;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'action',
+                playerId: playerIdRef.current,
+                action,
+                payload
+            }));
+            return;
+        }
+
+        setConnectionState('disconnected');
+        setPlayerCount(1);
         setGameState(prev => {
-            // Delegate everything to gameReducerWithChecks
-            const result = gameReducerWithChecks(prev, action, payload);
-            return result.success && result.newState ? result.newState : prev;
+            const result = applyGameAction(prev, action, payload);
+            if (!result.success || !result.newState) {
+                setLastError(result.message ?? 'Action rejected');
+                return prev;
+            }
+            return result.newState;
         });
-    };
+    }, []);
+
+    const startNewGame = useCallback(() => {
+        const socket = socketRef.current;
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'startGame',
+                playerId: playerIdRef.current
+            }));
+            return;
+        }
+
+        setConnectionState('disconnected');
+        setPlayerCount(1);
+        setLastError(null);
+        setGameState(createInitialGameState());
+    }, []);
 
     return {
         gameState,
-        handleAction
+        handleAction,
+        startNewGame,
+        connectionState,
+        lastError,
+        playerCount
     };
 }
