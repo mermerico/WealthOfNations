@@ -4,7 +4,22 @@ import { createInitialGameState, applyGameAction } from '../shared/gameEngine';
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 
-const DEFAULT_SERVER_URL = import.meta.env.VITE_GAME_SERVER_URL ?? 'ws://localhost:4000';
+function resolveDefaultServerUrl(): string {
+    const envUrl = import.meta.env.VITE_GAME_SERVER_URL;
+    if (envUrl) {
+        return envUrl;
+    }
+
+    if (typeof window !== 'undefined' && typeof window.location !== 'undefined') {
+        const { protocol, hostname } = window.location;
+        const scheme = protocol === 'https:' ? 'wss' : 'ws';
+        return `${scheme}://${hostname}:4000`;
+    }
+
+    return 'ws://localhost:4000';
+}
+
+const DEFAULT_SERVER_URL = resolveDefaultServerUrl();
 
 function createClientId(): string {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {

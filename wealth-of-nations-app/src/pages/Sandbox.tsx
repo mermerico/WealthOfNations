@@ -21,7 +21,6 @@ import { getAvailablePackages } from '../utils/packageDefinitions';
 export const Sandbox: React.FC = () => {
     // Game Engine State
     const { gameState, handleAction, startNewGame, connectionState, lastError, playerCount } = useGameEngine();
-    const canStartRemoteGame = connectionState === 'connected' && playerCount >= 3;
 
     // UI State
     const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
@@ -892,26 +891,9 @@ export const Sandbox: React.FC = () => {
                     <span>Players connected: {playerCount}</span>
                     <span>Server: {connectionState}</span>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {lastError && (
-                        <span style={{ color: '#f87171' }}>{lastError}</span>
-                    )}
-                    <button
-                        onClick={startNewGame}
-                        disabled={!canStartRemoteGame}
-                        style={{
-                            padding: '6px 14px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            cursor: canStartRemoteGame ? 'pointer' : 'not-allowed',
-                            background: canStartRemoteGame ? '#22c55e' : '#374151',
-                            color: canStartRemoteGame ? '#0b1120' : '#9ca3af',
-                            fontWeight: 600
-                        }}
-                    >
-                        Start New Game
-                    </button>
-                </div>
+                {lastError && (
+                    <span style={{ color: '#f87171' }}>{lastError}</span>
+                )}
             </div>
 
             {/* Control Panel (Top Header - Phase/Round Info + Top Level Actions like Pass) */}

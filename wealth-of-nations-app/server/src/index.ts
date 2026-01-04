@@ -180,11 +180,6 @@ wss.on('connection', socket => {
                     return;
                 }
 
-                if (room.clients.size < 3) {
-                    sendError(socket, 'Need three players connected to start a new game');
-                    return;
-                }
-
                 room.state = createInitialGameState();
                 sendAck(socket, 'New game started');
                 broadcastState();
