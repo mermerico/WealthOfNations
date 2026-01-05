@@ -73,30 +73,8 @@ function AppShell() {
   }
 
   if (showGame) {
-    const lobbyCode = lobby?.code;
     return (
-      <div className="game-shell">
-        <header className="game-header">
-          {showRemoteGame && lobbyCode ? (
-            <span>
-              <span className="code-pill">{lobbyCode}</span>
-              Online Game ({playerCount} players)
-            </span>
-          ) : (
-            <span>Local Hotseat Game</span>
-          )}
-          <div>
-            {showRemoteGame ? (
-              <button onClick={handleLeaveLobby}>Leave Game</button>
-            ) : (
-              <button onClick={handleExitLocalGame}>Return to Menu</button>
-            )}
-          </div>
-        </header>
-        <div className="game-container">
-          <Sandbox />
-        </div>
-      </div>
+      <Sandbox />
     );
   }
 

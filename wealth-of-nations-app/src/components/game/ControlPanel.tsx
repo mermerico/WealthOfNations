@@ -5,9 +5,10 @@ interface ControlPanelProps {
     gameState: GameState;
     onAction: (action: string, payload?: any) => void;
     canAct?: boolean;
+    lobbyCode?: string;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -47,6 +48,30 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
                     </div>
                 </div>
             </div>
+
+            {/* Lobby Code - Centered */}
+            {lobbyCode && (
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flex: 1
+                }}>
+                    <div style={{
+                        padding: '6px 16px',
+                        borderRadius: '8px',
+                        background: 'rgba(139, 92, 246, 0.2)',
+                        border: '1px solid rgba(139, 92, 246, 0.4)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px'
+                    }}>
+                        <span style={{ fontSize: '9px', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lobby</span>
+                        <span style={{ fontWeight: 'bold', fontSize: '16px', letterSpacing: '0.3em', color: '#c4b5fd' }}>{lobbyCode}</span>
+                    </div>
+                </div>
+            )}
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px' }}>

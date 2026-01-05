@@ -29,7 +29,8 @@ export const Sandbox: React.FC = () => {
         playerCount,
         mode,
         selfPlayer,
-        requestRematch
+        requestRematch,
+        lobby
     } = useGameEngineContext();
 
     // UI State
@@ -926,27 +927,8 @@ export const Sandbox: React.FC = () => {
                 </div>
             )}
 
-            <div style={{
-                background: '#0f172a',
-                color: '#d1d5db',
-                padding: '10px 16px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                borderBottom: '1px solid #1f2937'
-            }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                    <span>Players connected: {playerCount}</span>
-                    <span>Server: {connectionState}</span>
-                </div>
-                {lastError && (
-                    <span style={{ color: '#f87171' }}>{lastError}</span>
-                )}
-            </div>
-
             {/* Control Panel (Top Header - Phase/Round Info + Top Level Actions like Pass) */}
-            <ControlPanel gameState={gameState} onAction={handleActionWrapper} canAct={canAct} />
+            <ControlPanel gameState={gameState} onAction={handleActionWrapper} canAct={canAct} lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined} />
 
             {/* Main Layout - 4 Columns */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>

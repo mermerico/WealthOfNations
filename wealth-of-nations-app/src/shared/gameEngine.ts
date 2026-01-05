@@ -107,7 +107,7 @@ export function createInitialGameState(options: InitialGameStateOptions = {}): G
         markets: cloneMarkets(DEFAULT_MARKETS),
         phase: 'Setup',
         setupPhase: {
-            step: 'determineFirstPlayer',
+            step: 'selectPackage',
             firstPlayerIndex,
             draftRound: 0,
             currentDrafterIndex: firstPlayerIndex,
