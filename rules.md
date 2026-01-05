@@ -97,34 +97,34 @@ Players begin by drafting **Packages**. There are **Industry Packages** (tiles/m
 
 **Drafting Order:**
 
-* **3 Players:**
+* **3 Players:** 4 rounds
 * Round 1 (Clockwise from First): 1 Industry Package.
 * Round 2 (Counter-clockwise from Last): 1 Industry OR 1 Commodity Package.
 * Round 3 (Clockwise from First): 1 Industry OR 1 Commodity Package.
-* Round 4 (Counter-clockwise from Last): 1 Industry OR 1 Commodity Package .
+* Round 4 (Counter-clockwise from Last): 1 Industry OR 1 Commodity Package.
 
 
 
 
-* **4 Players:**
+* **4 Players:** 3 rounds
 * Round 1 (CW): 1 Industry Package.
 * Round 2 (CCW): 1 Industry OR 1 Commodity Package.
-* Round 3 (CW): 1 Industry OR 1 Commodity Package .
+* Round 3 (CW): 1 Industry OR 1 Commodity Package.
 
 
 
 
-* **5 Players:**
+* **5 Players:** 2 rounds
 * *Note: Industry Package 2 is removed.*
 * Round 1 (CW): 1 Industry Package.
-* Round 2 (CCW): 1 Commodity Package .
+* Round 2 (CCW): 1 Commodity Package.
 
 
 
 
-* **6 Players:**
+* **6 Players:** 2 rounds
 * Round 1 (CW): 1 Industry Package.
-* Round 2 (CCW): 1 Commodity Package .
+* Round 2 (CCW): 1 Commodity Package.
 
 
 

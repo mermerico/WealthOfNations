@@ -10,7 +10,7 @@ import { TILE_DEFINITIONS } from './tileDefinitions';
 import { MARKET_STEPS } from './marketDefinitions';
 import { isValidPlacement } from './placementLogic';
 import { getAvailablePackages } from './packageDefinitions';
-import { getDraftOrder } from './setupLogic';
+import { getDraftOrder, getDraftRoundInfo } from './setupLogic';
 import { isValidSetupPlacement } from './setupPlacementLogic';
 import { generateGrid } from './hexUtils';
 
@@ -174,7 +174,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 if (currentIndex === draftOrder.length - 1) {
                     // Round complete
                     const nextRound = draftRound + 1;
-                    if (nextRound >= 2) {
+                    const { totalRounds } = getDraftRoundInfo(playerCount, nextRound);
+                    if (nextRound >= totalRounds) {
                         // Setup complete
                         return {
                             success: true,
@@ -459,7 +460,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 if (currentIndex === draftOrder.length - 1) {
                     // Round complete
                     const nextRound = draftRound + 1;
-                    if (nextRound >= 2) {
+                    const { totalRounds } = getDraftRoundInfo(playerCount, nextRound);
+                    if (nextRound >= totalRounds) {
                         // Setup complete
                         return {
                             success: true,
