@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+# Wealth of Nations
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Wealth of Nations is a web adaptation of the tabletop game centered on industrial production and global trade. The client is written with React 19 and TypeScript, while a minimal Node WebSocket relay keeps every connected browser in sync. If the relay cannot be reached, the app transparently falls back to a local, single-browser game state.
 
-Currently, two official plugins are available:
+## Key Capabilities
+- Complete game reducer shared between the browser and the server for deterministic results
+- SVG-driven hex map with tool overlays, bloc visualization, and automation support
+- WebSocket relay that rebroadcasts the authoritative game state to every participant
+- Environment-driven configuration for remote access, custom hosts, and deployment targets
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Repository Layout
+```
+.
+├── public/                 # Static assets (flags, favicon, manifest)
+├── src/
+│   ├── components/         # Board, markets, roster, dashboard, and UI primitives
+│   ├── hooks/              # useGameEngine hook with WebSocket + local fallback
+│   ├── pages/              # Sandbox entry point and production integration tests
+│   ├── shared/             # Reducer wrapper shared by client and server
+│   └── utils/              # Core game logic (placement, production, markets, setup)
+├── server/                 # Node WebSocket relay powered by tsx
+├── package.json            # Client scripts (build, test, lint, dev)
+└── server/package.json     # Server scripts (dev, typecheck)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Prerequisites
+- Node.js 20.x or newer (Vite 7 and the WebSocket server expect a modern runtime)
+- npm 10.x (bundled with recent Node LTS releases)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Installation
+1. Install client dependencies: `npm install`
+2. Install server dependencies: `cd server && npm install`
+3. Duplicate `.env.local` if you need per-environment overrides
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Recommended Workflow
+1. Run automated tests before coding: `npm run test`
+2. Verify the TypeScript build: `npm run build`
+3. Start the WebSocket relay (default port 4000): `cd server && npm run dev`
+4. Launch the client in another terminal when you need interactive testing: `npm run dev`
+5. Stop both processes with `Ctrl+C` when finished
+
+## Environment Configuration
+- `VITE_GAME_SERVER_URL`: Override the client WebSocket endpoint (defaults to `ws(s)://<current-host>:4000`)
+- `VITE_ALLOWED_HOSTS`: Comma-separated list of hostnames Vite should trust when running the dev server remotely
+- `PORT`: Optional override for the relay (defaults to 4000). Forward this port for remote players
+
+Store overrides in `.env.local` to keep secrets out of version control.
+
+## Tests and Quality Checks
+- `npm run test`: Runs Vitest suites covering placement, production, setup, and integration scenarios
+- `npm run lint`: Applies ESLint to the client source tree
+- `npm run build`: Type-checks and generates the production bundle
+- `cd server && npm run typecheck`: Validates the server TypeScript project
+
+## Production Build
+1. Execute `npm run build`
+2. Serve the generated `dist/` directory with your preferred static host
+3. Run the WebSocket relay (`npm run dev` in `server/`) or bundle it for your infrastructure
+4. Ensure clients can reach the relay URL you configured via `VITE_GAME_SERVER_URL`
+
+## Remote Play Notes
+- The relay maintains a single shared room; every join event triggers a fresh state sync and player-count broadcast
+- Client IDs are session-based, and reconnects clean up stale sockets automatically
+- Browsers fall back to local simulation if the relay is unavailable, enabling offline practice
+- When exposing the relay outside your network, forward port 4000 and list the public hostname in `VITE_ALLOWED_HOSTS`
+
+## Game Mechanics Snapshot
+- Rounds cycle through Trade, Develop, and Produce phases enforced by the reducer in `src/utils/gameReducer.ts`
+- Commodity markets respond to supply and demand via data in `src/utils/marketDefinitions.ts`
+- Bloc production counts edge and corner dots, plus automation bonuses, within `src/utils/production.ts`
+- Setup and placement validation live in `src/utils/setupLogic.ts` and `src/utils/placementLogic.ts`, mirroring the tabletop ruleset
+
+Consult `rules.md` at the repository root for the full rule reference and `AUTOMATION_FIX.md` for implementation notes.
