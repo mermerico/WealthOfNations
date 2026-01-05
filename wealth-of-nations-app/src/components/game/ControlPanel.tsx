@@ -51,8 +51,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
 
             {/* Lobby Code - Centered */}
             {lobbyCode && (
-                <div style={{ 
-                    display: 'flex', 
+                <div style={{
+                    display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flex: 1
