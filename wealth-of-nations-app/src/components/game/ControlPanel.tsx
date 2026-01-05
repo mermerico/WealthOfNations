@@ -6,9 +6,10 @@ interface ControlPanelProps {
     onAction: (action: string, payload?: any) => void;
     canAct?: boolean;
     lobbyCode?: string;
+    onLeave?: () => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode, onLeave }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -74,7 +75,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
             )}
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 {/* New Game Button - always visible */}
                 <button
                     disabled={!canAct}
@@ -100,6 +101,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
                     <span style={{ color: '#f87171', fontWeight: 'bold' }}>
                         Waiting for your turn
                     </span>
+                )}
+
+                {onLeave && (
+                    <button
+                        onClick={onLeave}
+                        style={{
+                            background: '#dc2626',
+                            borderColor: '#991b1b',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Leave Game
+                    </button>
                 )}
             </div>
         </div>

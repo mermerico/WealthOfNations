@@ -24,13 +24,11 @@ export const Sandbox: React.FC = () => {
         gameState,
         handleAction: dispatchAction,
         startNewGame,
-        connectionState,
-        lastError,
-        playerCount,
         mode,
         selfPlayer,
         requestRematch,
-        lobby
+        lobby,
+        leaveLobby
     } = useGameEngineContext();
 
     // UI State
@@ -928,7 +926,13 @@ export const Sandbox: React.FC = () => {
             )}
 
             {/* Control Panel (Top Header - Phase/Round Info + Top Level Actions like Pass) */}
-            <ControlPanel gameState={gameState} onAction={handleActionWrapper} canAct={canAct} lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined} />
+            <ControlPanel
+                gameState={gameState}
+                onAction={handleActionWrapper}
+                canAct={canAct}
+                lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
+                onLeave={mode === 'remote' ? leaveLobby : () => window.location.reload()}
+            />
 
             {/* Main Layout - 4 Columns */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>

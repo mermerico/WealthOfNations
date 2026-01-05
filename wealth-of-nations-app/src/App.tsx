@@ -20,7 +20,6 @@ function AppShell() {
     leaveLobby,
     renamePlayer,
     setReadyState,
-    playerCount,
     lastUsedName,
     lastLobbyCode
   } = useGameEngineContext();
@@ -36,11 +35,6 @@ function AppShell() {
   const handleStartLocalGame = () => {
     startLocalGame();
     setLocalActive(true);
-  };
-
-  const handleExitLocalGame = () => {
-    startLocalGame();
-    setLocalActive(false);
   };
 
   const handleLeaveLobby = () => {
