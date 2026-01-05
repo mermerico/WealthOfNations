@@ -4,9 +4,10 @@ import type { GameState } from '../../types/gameState';
 interface ControlPanelProps {
     gameState: GameState;
     onAction: (action: string, payload?: any) => void;
+    canAct?: boolean;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -51,11 +52,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction 
             <div style={{ display: 'flex', gap: '10px' }}>
                 {/* New Game Button - always visible */}
                 <button
+                    disabled={!canAct}
                     onClick={() => onAction('startSetup')}
                     style={{
                         background: '#10b981',
                         borderColor: '#059669',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        opacity: canAct ? 1 : 0.5,
+                        cursor: canAct ? 'pointer' : 'not-allowed'
                     }}
                 >
                     New Game
@@ -64,6 +68,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction 
                 {gameState.phase === 'Setup' && (
                     <span style={{ color: '#10b981', fontWeight: 'bold' }}>
                         Setup in Progress...
+                    </span>
+                )}
+
+                {!canAct && (
+                    <span style={{ color: '#f87171', fontWeight: 'bold' }}>
+                        Waiting for your turn
                     </span>
                 )}
             </div>

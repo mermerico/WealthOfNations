@@ -6,9 +6,10 @@ import './SetupPhase.css';
 interface SetupPhaseProps {
     gameState: GameState;
     onSelectPackage: (packageId: string) => void;
+    canAct?: boolean;
 }
 
-export default function SetupPhase({ gameState, onSelectPackage }: SetupPhaseProps) {
+export default function SetupPhase({ gameState, onSelectPackage, canAct = true }: SetupPhaseProps) {
     if (!gameState.setupPhase) return null;
 
     const { step, draftRound, takenPackageIds } = gameState.setupPhase;
@@ -34,7 +35,11 @@ export default function SetupPhase({ gameState, onSelectPackage }: SetupPhasePro
                             <PackageCard
                                 key={pkg.id}
                                 package={pkg}
-                                onSelect={() => onSelectPackage(pkg.id)}
+                                onSelect={() => {
+                                    if (!canAct) return;
+                                    onSelectPackage(pkg.id);
+                                }}
+                                disabled={!canAct}
                             />
                         ))}
                     </div>

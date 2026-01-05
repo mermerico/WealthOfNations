@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '../types/gameState';
 import { createInitialGameState, applyGameAction } from '../shared/gameEngine';
+import type { LobbySnapshot, LobbyPlayer, ClientMessage, ServerMessage } from '../shared/networkTypes';
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
+type EngineMode = 'local' | 'remote';
+
+const CLIENT_ID_STORAGE_KEY = 'won-client-id';
+const LAST_LOBBY_STORAGE_KEY = 'won-lobby-code';
+const LAST_NAME_STORAGE_KEY = 'won-player-name';
 
 function resolveDefaultServerUrl(): string {
     const envUrl = import.meta.env.VITE_GAME_SERVER_URL;
@@ -28,13 +34,94 @@ function createClientId(): string {
     return `client-${Math.random().toString(36).slice(2)}`;
 }
 
+function getStorageItem(key: string): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        return window.localStorage.getItem(key);
+    } catch {
+        return null;
+    }
+}
+
+function setStorageItem(key: string, value: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.setItem(key, value);
+    } catch {
+        // Swallow storage errors silently
+    }
+}
+
+function removeStorageItem(key: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        window.localStorage.removeItem(key);
+    } catch {
+        // Ignore storage errors
+    }
+}
+
+function getPersistentClientId(): string {
+    const stored = getStorageItem(CLIENT_ID_STORAGE_KEY);
+    if (stored) {
+        return stored;
+    }
+    const generated = createClientId();
+    setStorageItem(CLIENT_ID_STORAGE_KEY, generated);
+    return generated;
+}
+
+function parseServerMessage(raw: MessageEvent['data']): ServerMessage | null {
+    const text = typeof raw === 'string'
+        ? raw
+        : raw && typeof raw === 'object' && 'toString' in raw
+            ? raw.toString()
+            : '';
+
+    try {
+        const parsed = JSON.parse(text);
+        if (parsed && typeof parsed.type === 'string') {
+            return parsed as ServerMessage;
+        }
+    } catch (error) {
+        console.error('Failed to parse server message', error);
+    }
+    return null;
+}
+
 export function useGameEngine() {
     const [gameState, setGameState] = useState<GameState>(() => createInitialGameState());
     const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
     const [lastError, setLastError] = useState<string | null>(null);
-    const [playerCount, setPlayerCount] = useState<number>(1);
+    const [mode, setMode] = useState<EngineMode>('local');
+    const [lobby, setLobby] = useState<LobbySnapshot | null>(null);
+    const [selfPlayer, setSelfPlayer] = useState<LobbyPlayer | null>(null);
+
     const socketRef = useRef<WebSocket | null>(null);
-    const playerIdRef = useRef<string>(createClientId());
+    const clientIdRef = useRef<string>(getPersistentClientId());
+    const lastLobbyCodeRef = useRef<string | null>(getStorageItem(LAST_LOBBY_STORAGE_KEY));
+    const lastPlayerNameRef = useRef<string | null>(getStorageItem(LAST_NAME_STORAGE_KEY));
+
+    const sendMessage = useCallback((message: ClientMessage) => {
+        const socket = socketRef.current;
+        console.log('[sendMessage] Attempting to send', message.type, 'socket:', socket ? `readyState=${socket.readyState}` : 'null');
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.log('[sendMessage] Failed - socket not ready');
+            setConnectionState('disconnected');
+            setLastError('Not connected to server');
+            return false;
+        }
+
+        try {
+            socket.send(JSON.stringify(message));
+            console.log('[sendMessage] Message sent successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to send message', error);
+            setLastError('Failed to send message');
+            return false;
+        }
+    }, []);
 
     useEffect(() => {
         setConnectionState('connecting');
@@ -42,7 +129,6 @@ export function useGameEngine() {
 
         if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
             setConnectionState('disconnected');
-            setPlayerCount(1);
             setLastError('WebSocket not supported in this environment');
             return () => undefined;
         }
@@ -50,110 +136,311 @@ export function useGameEngine() {
         const socket = new WebSocket(DEFAULT_SERVER_URL);
         socketRef.current = socket;
 
+        console.log('[useGameEngine] Attempting WebSocket connection to', DEFAULT_SERVER_URL);
+
         socket.onopen = () => {
+            console.log('[useGameEngine] WebSocket connected successfully');
             setConnectionState('connected');
-            socket.send(JSON.stringify({
-                type: 'join',
-                playerId: playerIdRef.current
-            }));
+            setLastError(null);
+
+            const lobbyCode = lastLobbyCodeRef.current;
+            if (lobbyCode) {
+                sendMessage({
+                    type: 'joinLobby',
+                    clientId: clientIdRef.current,
+                    code: lobbyCode,
+                    name: lastPlayerNameRef.current || ''
+                });
+            }
         };
 
         socket.onmessage = event => {
-            try {
-                const data = JSON.parse(event.data);
-                switch (data.type) {
-                    case 'state':
-                        if (data.state) {
-                            setGameState(data.state as GameState);
-                            setLastError(null);
-                        }
-                        break;
-                    case 'roomInfo':
-                        if (typeof data.playerCount === 'number') {
-                            setPlayerCount(Math.max(1, data.playerCount));
-                        }
-                        break;
-                    case 'error':
-                        if (typeof data.message === 'string') {
-                            setLastError(data.message);
-                        }
-                        break;
-                    case 'ack':
-                        setLastError(null);
-                        break;
-                    default:
-                        break;
-                }
-            } catch (error) {
-                console.error('Failed to process server message', error);
+            const message = parseServerMessage(event.data);
+            if (!message) {
                 setLastError('Failed to process server message');
+                return;
+            }
+
+            switch (message.type) {
+                case 'session': {
+                    if (message.clientId && message.clientId !== clientIdRef.current) {
+                        clientIdRef.current = message.clientId;
+                        setStorageItem(CLIENT_ID_STORAGE_KEY, message.clientId);
+                    }
+
+                    if (message.lobby) {
+                        setLobby(message.lobby);
+                        setMode('remote');
+                        lastLobbyCodeRef.current = message.lobby.code;
+                        setStorageItem(LAST_LOBBY_STORAGE_KEY, message.lobby.code);
+                    } else {
+                        setLobby(null);
+                        setSelfPlayer(null);
+                        lastLobbyCodeRef.current = null;
+                        removeStorageItem(LAST_LOBBY_STORAGE_KEY);
+                        if (mode === 'remote') {
+                            setMode('local');
+                        }
+                    }
+
+                    if (message.state) {
+                        setGameState(message.state);
+                        setMode('remote');
+                    }
+
+                    break;
+                }
+
+                case 'lobbyUpdate': {
+                    setLobby(message.lobby);
+                    setMode('remote');
+                    lastLobbyCodeRef.current = message.lobby.code;
+                    setStorageItem(LAST_LOBBY_STORAGE_KEY, message.lobby.code);
+
+                    if (message.self) {
+                        setSelfPlayer(message.self);
+                        lastPlayerNameRef.current = message.self.name;
+                        setStorageItem(LAST_NAME_STORAGE_KEY, message.self.name);
+                    } else {
+                        setSelfPlayer(null);
+                    }
+                    break;
+                }
+
+                case 'state': {
+                    setGameState(message.state);
+                    setMode('remote');
+                    break;
+                }
+
+                case 'error': {
+                    setLastError(message.message);
+                    break;
+                }
+
+                case 'ack': {
+                    setLastError(null);
+                    break;
+                }
+
+                default:
+                    break;
             }
         };
 
         socket.onerror = event => {
             console.error('WebSocket error', event);
+            console.log('[useGameEngine] Socket readyState:', socket.readyState);
             setConnectionState('disconnected');
-            setPlayerCount(1);
             setLastError('Connection error');
         };
 
         socket.onclose = () => {
+            console.log('[useGameEngine] WebSocket closed');
             setConnectionState('disconnected');
-            setPlayerCount(1);
+            if (socketRef.current === socket) {
+                socketRef.current = null;
+            }
         };
 
         return () => {
-            socketRef.current = null;
+            console.log('[useGameEngine] Cleanup called, closing WebSocket');
+            if (socketRef.current === socket) {
+                socketRef.current = null;
+            }
             socket.close();
         };
     }, []);
 
-    const handleAction = useCallback((action: string, payload?: any) => {
-        const socket = socketRef.current;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                type: 'action',
-                playerId: playerIdRef.current,
+    const handleAction = useCallback((action: string, payload?: unknown) => {
+        if (mode === 'remote' && lobby?.phase === 'inGame') {
+            const success = sendMessage({
+                type: 'gameAction',
+                clientId: clientIdRef.current,
                 action,
                 payload
-            }));
+            });
+            if (!success) {
+                setLastError('Action failed: disconnected');
+            }
             return;
         }
 
-        setConnectionState('disconnected');
-        setPlayerCount(1);
         setGameState(prev => {
             const result = applyGameAction(prev, action, payload);
             if (!result.success || !result.newState) {
                 setLastError(result.message ?? 'Action rejected');
                 return prev;
             }
+            setLastError(null);
             return result.newState;
         });
-    }, []);
+    }, [lobby, mode, sendMessage]);
 
-    const startNewGame = useCallback(() => {
-        const socket = socketRef.current;
-        if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(JSON.stringify({
-                type: 'startGame',
-                playerId: playerIdRef.current
-            }));
-            return;
-        }
-
-        setConnectionState('disconnected');
-        setPlayerCount(1);
-        setLastError(null);
+    const startLocalGame = useCallback(() => {
+        setMode('local');
+        setLobby(null);
+        setSelfPlayer(null);
+        lastLobbyCodeRef.current = null;
+        removeStorageItem(LAST_LOBBY_STORAGE_KEY);
         setGameState(createInitialGameState());
     }, []);
 
+    const startNewGame = useCallback(() => {
+        if (mode === 'remote' && lobby) {
+            sendMessage({
+                type: 'startGame',
+                clientId: clientIdRef.current
+            });
+            return;
+        }
+        startLocalGame();
+    }, [lobby, mode, sendMessage, startLocalGame]);
+
+    const requestRematch = useCallback(() => {
+        if (mode === 'remote' && lobby) {
+            sendMessage({
+                type: 'rematch',
+                clientId: clientIdRef.current
+            });
+            return;
+        }
+        startLocalGame();
+    }, [lobby, mode, sendMessage, startLocalGame]);
+
+    const createLobby = useCallback((name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) {
+            setLastError('Name is required to create a lobby');
+            return false;
+        }
+
+        const success = sendMessage({
+            type: 'createLobby',
+            clientId: clientIdRef.current,
+            name: trimmed
+        });
+
+        if (success) {
+            lastPlayerNameRef.current = trimmed;
+            setStorageItem(LAST_NAME_STORAGE_KEY, trimmed);
+            setMode('remote');
+        }
+
+        return success;
+    }, [sendMessage]);
+
+    const joinLobby = useCallback((code: string, name: string) => {
+        const formattedCode = code.trim().toUpperCase();
+        const trimmedName = name.trim();
+
+        if (!formattedCode) {
+            setLastError('Lobby code is required');
+            return false;
+        }
+
+        if (!trimmedName) {
+            setLastError('Name is required to join a lobby');
+            return false;
+        }
+
+        const success = sendMessage({
+            type: 'joinLobby',
+            clientId: clientIdRef.current,
+            code: formattedCode,
+            name: trimmedName
+        });
+
+        if (success) {
+            lastPlayerNameRef.current = trimmedName;
+            setStorageItem(LAST_NAME_STORAGE_KEY, trimmedName);
+            setMode('remote');
+        }
+
+        return success;
+    }, [sendMessage]);
+
+    const leaveLobby = useCallback(() => {
+        if (mode !== 'remote' || !lobby) {
+            return true;
+        }
+
+        const success = sendMessage({
+            type: 'leaveLobby',
+            clientId: clientIdRef.current
+        });
+
+        if (success) {
+            startLocalGame();
+        }
+
+        return success;
+    }, [lobby, mode, sendMessage, startLocalGame]);
+
+    const renamePlayer = useCallback((name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) {
+            setLastError('Name cannot be empty');
+            return false;
+        }
+
+        if (mode === 'remote') {
+            const success = sendMessage({
+                type: 'renamePlayer',
+                clientId: clientIdRef.current,
+                name: trimmed
+            });
+
+            if (success) {
+                lastPlayerNameRef.current = trimmed;
+                setStorageItem(LAST_NAME_STORAGE_KEY, trimmed);
+            }
+
+            return success;
+        }
+
+        setGameState(prev => ({
+            ...prev,
+            players: prev.players.map((player, index) =>
+                index === 0 ? { ...player, name: trimmed } : player
+            )
+        }));
+        return true;
+    }, [mode, sendMessage]);
+
+    const setReadyState = useCallback((ready: boolean) => {
+        if (mode !== 'remote') {
+            return false;
+        }
+
+        return sendMessage({
+            type: 'setReady',
+            clientId: clientIdRef.current,
+            ready
+        });
+    }, [mode, sendMessage]);
+
+    const playerCount = lobby ? lobby.players.length : gameState.players.length;
+
     return {
+        clientId: clientIdRef.current,
+        mode,
+        lobby,
+        selfPlayer,
         gameState,
         handleAction,
         startNewGame,
+        requestRematch,
+        startLocalGame,
+        createLobby,
+        joinLobby,
+        leaveLobby,
+        renamePlayer,
+        setReadyState,
         connectionState,
         lastError,
-        playerCount
+        playerCount,
+        lastUsedName: lastPlayerNameRef.current || '',
+        lastLobbyCode: lastLobbyCodeRef.current
     };
 }

@@ -9,10 +9,21 @@
     flex-direction: column;
 }
 
+.package-card.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .package-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     border-color: #3b82f6;
+}
+
+.package-card.disabled:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #374151;
 }
 
 .package-header {
@@ -121,4 +132,10 @@
 
 .package-card:hover .select-button {
     background: #1d4ed8;
+}
+
+.select-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #1f2937;
 }

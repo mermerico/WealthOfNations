@@ -63,6 +63,8 @@ Store overrides in `.env.local` to keep secrets out of version control.
 - Client IDs are session-based, and reconnects clean up stale sockets automatically
 - Browsers fall back to local simulation if the relay is unavailable, enabling offline practice
 - When exposing the relay outside your network, forward port 4000 and list the public hostname in `VITE_ALLOWED_HOSTS`
+- The landing screen lets players create new lobbies, join by code, or rejoin the last lobby code that was stored locally
+- Remote turns are enforced on both the server and client; only the active seat can trigger game actions while others see a waiting overlay
 
 ## Game Mechanics Snapshot
 - Rounds cycle through Trade, Develop, and Produce phases enforced by the reducer in `src/utils/gameReducer.ts`

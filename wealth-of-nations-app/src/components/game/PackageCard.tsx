@@ -5,13 +5,30 @@ import './PackageCard.css';
 interface PackageCardProps {
     package: Package;
     onSelect: () => void;
+    disabled?: boolean;
 }
 
-export default function PackageCard({ package: pkg, onSelect }: PackageCardProps) {
+export default function PackageCard({ package: pkg, onSelect, disabled = false }: PackageCardProps) {
     const isIndustry = pkg.type === 'Industry';
 
     return (
-        <div className="package-card" onClick={onSelect}>
+        <div
+            className={`package-card${disabled ? ' disabled' : ''}`}
+            onClick={() => {
+                if (disabled) return;
+                onSelect();
+            }}
+            role="button"
+            aria-disabled={disabled}
+            tabIndex={disabled ? -1 : 0}
+            onKeyDown={event => {
+                if (disabled) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    onSelect();
+                }
+            }}
+        >
             <div className="package-header">
                 <span className="package-type-label">{pkg.type}</span>
             </div>
@@ -47,7 +64,9 @@ export default function PackageCard({ package: pkg, onSelect }: PackageCardProps
                 </div>
             )}
 
-            <button className="select-button">Select Package</button>
+            <button className="select-button" disabled={disabled}>
+                Select Package
+            </button>
         </div>
     );
 }

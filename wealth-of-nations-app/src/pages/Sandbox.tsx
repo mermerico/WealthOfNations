@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Board } from '../components/game/Board';
 import type { HexCell, IndustryType, CommodityType } from '../types/gameState';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
@@ -7,7 +7,7 @@ import { calculateProduction, calculateGlobalProduction, identifyBloc, calculate
 import { MarketBoard } from '../components/game/MarketBoard';
 import { PlayerRoster } from '../components/game/PlayerRoster';
 import { ControlPanel } from '../components/game/ControlPanel';
-import { useGameEngine } from '../hooks/useGameEngine';
+import { useGameEngineContext } from '../hooks/GameEngineProvider';
 import { ResourceIcon } from '../components/ui/ResourceIcon';
 import SetupPhase from '../components/game/SetupPhase';
 import { getValidSetupPlacements } from '../utils/setupPlacementLogic';
@@ -20,7 +20,17 @@ import { getAvailablePackages } from '../utils/packageDefinitions';
 
 export const Sandbox: React.FC = () => {
     // Game Engine State
-    const { gameState, handleAction, startNewGame, connectionState, lastError, playerCount } = useGameEngine();
+    const {
+        gameState,
+        handleAction: dispatchAction,
+        startNewGame,
+        connectionState,
+        lastError,
+        playerCount,
+        mode,
+        selfPlayer,
+        requestRematch
+    } = useGameEngineContext();
 
     // UI State
     const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
@@ -67,6 +77,43 @@ export const Sandbox: React.FC = () => {
 
     // Auto-determine tile type from pendingPlacement
     const setupTileType = gameState.setupPhase?.pendingPlacement?.tilesRemaining[0] || null;
+
+    const activePlayerId = useMemo(() => {
+        if (gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined) {
+            const drafter = gameState.players[gameState.setupPhase.currentDrafterIndex];
+            return drafter ? drafter.id : null;
+        }
+        const current = gameState.players[gameState.currentTurnPlayerIndex];
+        return current ? current.id : null;
+    }, [gameState]);
+
+    const activePlayer = useMemo(() => {
+        if (!activePlayerId) return null;
+        return gameState.players.find(p => p.id === activePlayerId) ?? null;
+    }, [gameState.players, activePlayerId]);
+
+    const canAct = useMemo(() => {
+        if (mode !== 'remote') return true;
+        if (!selfPlayer) return false;
+        if (!activePlayerId) return false;
+        return selfPlayer.playerId === activePlayerId;
+    }, [mode, selfPlayer, activePlayerId]);
+
+    const interactionLocked = mode === 'remote' && !canAct && !gameState.gameEnded;
+
+    const handleAction = useCallback((action: string, payload?: any) => {
+        if (mode === 'remote') {
+            if (!selfPlayer) {
+                console.warn(`Blocked action ${action} because client has no assigned seat.`);
+                return;
+            }
+            if (!canAct) {
+                console.warn(`Blocked action ${action} because it is not this player's turn.`);
+                return;
+            }
+        }
+        dispatchAction(action, payload);
+    }, [dispatchAction, mode, selfPlayer, canAct]);
 
     // Update setup valid placements when setup tile is selected
     useEffect(() => {
@@ -493,6 +540,7 @@ export const Sandbox: React.FC = () => {
     };
 
     const handleCellClick = (cell: HexCell) => {
+        if (interactionLocked) return;
         const id = coordsToString(cell.q, cell.r);
 
         // Setup Phase - special handling
@@ -842,13 +890,13 @@ export const Sandbox: React.FC = () => {
 
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', padding: '0', background: '#111' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0', background: '#111' }}>
             {/* Victory Screen Overlay */}
             {gameState.gameEnded && (
                 <VictoryScreen
                     players={gameState.players}
                     board={gameState.board}
-                    onNewGame={startNewGame}
+                    onNewGame={mode === 'remote' ? requestRematch : startNewGame}
                 />
             )}
 
@@ -857,6 +905,7 @@ export const Sandbox: React.FC = () => {
                 <SetupPhase
                     gameState={gameState}
                     onSelectPackage={handleSelectPackage}
+                    canAct={canAct}
                 />
             )}
 
@@ -897,10 +946,33 @@ export const Sandbox: React.FC = () => {
             </div>
 
             {/* Control Panel (Top Header - Phase/Round Info + Top Level Actions like Pass) */}
-            <ControlPanel gameState={gameState} onAction={handleActionWrapper} />
+            <ControlPanel gameState={gameState} onAction={handleActionWrapper} canAct={canAct} />
 
             {/* Main Layout - 4 Columns */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+                {interactionLocked && (
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        zIndex: 5,
+                        background: 'rgba(15, 23, 42, 0.8)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        color: '#e2e8f0',
+                        textAlign: 'center',
+                        padding: '24px'
+                    }}>
+                        <span style={{ fontSize: '18px', fontWeight: 600 }}>
+                            Waiting for {activePlayer ? activePlayer.name : 'other players'}
+                        </span>
+                        <span style={{ fontSize: '14px', color: '#c7d2fe' }}>
+                            You are connected, but only the current player can act.
+                        </span>
+                    </div>
+                )}
 
                 {/* Col 1: Players */}
                 <div style={{
