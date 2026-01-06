@@ -546,11 +546,13 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         }
                     };
                 } else if (state.phase === 'Develop') {
+                    // Reset production flag for all players
+                    const playersReadyToProduce = playersWithoutPass.map(p => ({ ...p, hasProduced: false }));
                     return {
                         success: true,
                         newState: {
                             ...state,
-                            players: playersWithoutPass,
+                            players: playersReadyToProduce,
                             phase: 'Produce',
                             consecutivePasses: 0
                         }
@@ -1223,10 +1225,16 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (state.phase !== 'Produce') return { success: false, message: 'Not in Produce phase' };
             if (!payload) return { success: false, message: 'Missing payload' };
 
-            const { activeTiles } = payload;
-            const activeSet = new Set<string>(activeTiles);
+            const { activeTiles, playerId } = payload;
+            if (!playerId) return { success: false, message: 'Missing playerId' };
 
-            let player = state.players[state.currentTurnPlayerIndex];
+            const playerIndex = state.players.findIndex(p => p.id === playerId);
+            if (playerIndex === -1) return { success: false, message: 'Player not found' };
+
+            let player = state.players[playerIndex];
+            if (player.hasProduced) return { success: false, message: 'Already produced' };
+
+            const activeSet = new Set<string>(activeTiles);
 
             const visited = new Set<string>();
             let totalFood = 0;
@@ -1278,21 +1286,23 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             player = {
                 ...player,
                 resources: updatedRes,
-                money: player.money + addedMoney
+                money: player.money + addedMoney,
+                hasProduced: true
             };
 
             const newPlayers = state.players.map((p, i) =>
-                i === state.currentTurnPlayerIndex ? player : p
+                i === playerIndex ? player : p
             );
 
-            const newConsecutivePasses = state.consecutivePasses + 1;
+            const allProduced = newPlayers.every(p => p.hasProduced);
 
-            if (newConsecutivePasses >= state.players.length) {
+            if (allProduced) {
                 const nextFirstPlayerIndex = (state.firstPlayerIndex + 1) % state.players.length;
 
-                const resetPlayers = newPlayers.map(player => ({
-                    ...player,
-                    hasPassed: false
+                const resetPlayers = newPlayers.map(p => ({
+                    ...p,
+                    hasPassed: false,
+                    hasProduced: false
                 }));
 
                 return {
@@ -1309,15 +1319,11 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 };
             }
 
-            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
-
             return {
                 success: true,
                 newState: {
                     ...state,
-                    players: newPlayers,
-                    currentTurnPlayerIndex: nextPlayerIndex,
-                    consecutivePasses: newConsecutivePasses
+                    players: newPlayers
                 }
             };
         }

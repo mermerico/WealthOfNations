@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Player } from '../../types/gameState';
 import { ResourceIcon } from '../ui/ResourceIcon';
+import './PlayerRoster.css';
 
 interface PlayerRosterProps {
     players: Player[];
@@ -59,6 +60,11 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                                 {player.hasPassed && (
                                     <span style={{ fontSize: '10px', background: '#6b7280', color: '#fff', padding: '2px 6px', borderRadius: '4px' }}>
                                         PASS
+                                    </span>
+                                )}
+                                {player.hasProduced && (
+                                    <span className="player-badge produced-badge">
+                                        DONE
                                     </span>
                                 )}
                             </div>

@@ -7,6 +7,7 @@
 1. **Run Tests First**: Execute `npm run test` to verify all tests pass
 2. **Build the Application**: Run `npm run build` to check for TypeScript/build errors
 3. **Avoid Running Dev Server**: Do NOT run `npm run dev` - the user will test functionality. Focus on ensuring tests pass and build succeeds.
+4. **Playwright Testing**: When running Playwright tests, ensure the HTML report is disabled (e.g., use `--reporter=line`) so that the command exits immediately upon completion instead of hanging to serve the report.
 
 This ensures you catch errors early and avoid debugging blank pages or runtime issues that could have been caught at build time. Let the user handle running the dev server and testing the UI.
 
