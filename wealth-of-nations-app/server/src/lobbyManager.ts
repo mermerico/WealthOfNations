@@ -357,10 +357,15 @@ export class LobbyManager {
         const activePlayerId = state.players[activePlayerIndex]?.id;
         if (!activePlayerId) return false;
 
-        if (action === 'barter') {
+        if (action === 'barter' || action === 'proposeTrade') {
             if (!payload || typeof payload !== 'object') return false;
             const proposerId = (payload as { proposerId?: string }).proposerId;
             return proposerId === seat.playerId;
+        }
+
+        if (action === 'acceptTrade' || action === 'rejectTrade') {
+            if (!state.pendingTrade) return false;
+            return state.pendingTrade.targetId === seat.playerId;
         }
 
         if (action === 'loadState' || action === 'debug' || action === 'sandboxPlaceTile') {

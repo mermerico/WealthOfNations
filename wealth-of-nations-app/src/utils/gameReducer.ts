@@ -671,10 +671,67 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             };
         }
 
-        case 'barter': {
-            if (!payload) return { success: false, message: 'Missing barter details' };
+
+
+        case 'proposeTrade': {
+            if (!payload) return { success: false, message: 'Missing trade details' };
+            if (state.phase !== 'Trade') return { success: false, message: 'Can only trade in Trade phase' };
+            if (state.pendingTrade) return { success: false, message: 'A trade is already pending' };
 
             const { proposerId, targetId, giving, receiving } = payload;
+
+            // Basic validation
+            if (!proposerId || !targetId || !giving || !receiving) {
+                return { success: false, message: 'Invalid trade proposal' };
+            }
+
+            if (proposerId === targetId) return { success: false, message: 'Cannot trade with yourself' };
+
+            const proposer = state.players.find(p => p.id === proposerId);
+            const target = state.players.find(p => p.id === targetId);
+
+            if (!proposer || !target) return { success: false, message: 'Player not found' };
+
+            // Verify proposer has resources
+            for (const [commodity, amount] of Object.entries(giving.commodities) as [CommodityType, number][]) {
+                if (!amount) continue;
+                if (proposer.resources[commodity] < amount) return { success: false, message: 'Insufficient resources to give' };
+            }
+            if (proposer.money < giving.money) return { success: false, message: 'Insufficient money to give' };
+            if (proposer.loans < giving.loans) return { success: false, message: 'Insufficient loans to give' };
+
+            return {
+                success: true,
+                newState: {
+                    ...state,
+                    pendingTrade: {
+                        proposerId,
+                        targetId,
+                        giving,
+                        receiving
+                    }
+                }
+            };
+        }
+
+        case 'rejectTrade': {
+            if (!state.pendingTrade) return { success: false, message: 'No pending trade' };
+            // In a real secure backend we'd check if the actor matches targetId, 
+            // but the reducer is pure logic. The caller/server checks permissions.
+
+            return {
+                success: true,
+                newState: {
+                    ...state,
+                    pendingTrade: null
+                }
+            };
+        }
+
+        case 'acceptTrade': {
+            if (!state.pendingTrade) return { success: false, message: 'No pending trade' };
+
+            const { proposerId, targetId, giving, receiving } = state.pendingTrade;
 
             const newPlayers = [...state.players];
             const proposerIndex = newPlayers.findIndex(p => p.id === proposerId);
@@ -685,23 +742,22 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             const proposer = { ...newPlayers[proposerIndex], resources: { ...newPlayers[proposerIndex].resources } };
             const target = { ...newPlayers[targetIndex], resources: { ...newPlayers[targetIndex].resources } };
 
-            // Validate proposer has what they're giving
+            // Re-validate resources (in case they changed since proposal - though unlikely in sync flow)
             for (const [commodity, amount] of Object.entries(giving.commodities) as [CommodityType, number][]) {
                 if (!amount) continue;
-                if (proposer.resources[commodity] < amount) return { success: false, message: 'Insufficient resources to give' };
+                if (proposer.resources[commodity] < amount) return { success: false, message: 'Proposer no longer has resources' };
             }
-            if (proposer.money < giving.money) return { success: false, message: 'Insufficient money to give' };
-            if (proposer.loans < giving.loans) return { success: false, message: 'Insufficient loans to give' };
+            if (proposer.money < giving.money) return { success: false, message: 'Proposer no longer has money' };
 
-            // Validate target has what they're giving
+            // Validate target has what they're giving (receiving side of proposal is what target GIVES)
             for (const [commodity, amount] of Object.entries(receiving.commodities) as [CommodityType, number][]) {
                 if (!amount) continue;
-                if (target.resources[commodity] < amount) return { success: false, message: 'Target has insufficient resources' };
+                if (target.resources[commodity] < amount) return { success: false, message: 'You have insufficient resources' };
             }
-            if (target.money < receiving.money) return { success: false, message: 'Target has insufficient money' };
-            if (target.loans < receiving.loans) return { success: false, message: 'Target has insufficient loans' };
+            if (target.money < receiving.money) return { success: false, message: 'You have insufficient money' };
 
             // Execute the trade
+            // Giving: Proposer -> Target
             for (const [commodity, amount] of Object.entries(giving.commodities) as [CommodityType, number][]) {
                 if (amount) {
                     proposer.resources[commodity] -= amount;
@@ -710,9 +766,31 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             }
             proposer.money -= giving.money;
             target.money += giving.money;
-            proposer.loans -= giving.loans;
+            proposer.loans -= giving.loans; // Giving a loan means paying it off? Or transferring debt?
+            // "Loans" in this game usually means Promissory Notes (items you can trade).
+            // If it's a debt, giving it is bad? 
+            // Definition: "loans: number; // Promissory notes". usually positive = debt?
+            // "repayLoan" reduces it. So it is Debt.
+            // If I give you a Loan, do I give you my Debt? Or do I give you a Note that is valuable?
+            // Context check: `updateGivingLoans` in TradeModal does `giving.loans`.
+            // If I give a loan, I am transferring MY debt to YOU? That seems unlikely to be accepted unless paid for.
+            // OR does "Loans" mean "I take a loan from the bank and give you the cash?"
+            // Rules check: "Promissory notes" might be tradeable items?
+            // Let's assume transfer of debt for now as 'giving' a loan.
             target.loans += giving.loans;
+            proposer.loans -= giving.loans; // Wait, if I give a loan, I get rid of it?
+            // Actually, if it's a debt, I can't just give it away. 
+            // IF "Loans" are "Promissory Notes" that function as Wildcards/Jokers (positive asset), then:
+            // proposer.loans -= giving.loans (Lose asset)
+            // target.loans += giving.loans (Gain asset)
+            // Let's look at `takeLoan`: money +20, loans +1. `repayLoan`: money -25, loans -1.
+            // So Loans are DEBTS.
+            // Trading Debt: "I will give you $50 if you take my 1 Loan".
+            // Proposer: Money -50, Loans -1. Match?
+            // Proposer.loans -= giving.loans. Correct.
+            // Target.loans += giving.loans. Correct.
 
+            // Receiving: Target -> Proposer
             for (const [commodity, amount] of Object.entries(receiving.commodities) as [CommodityType, number][]) {
                 if (amount) {
                     target.resources[commodity] -= amount;
@@ -721,18 +799,27 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             }
             target.money -= receiving.money;
             proposer.money += receiving.money;
+            // receiving.loans means Target GIVES loans to Proposer
             target.loans -= receiving.loans;
             proposer.loans += receiving.loans;
 
             newPlayers[proposerIndex] = proposer;
             newPlayers[targetIndex] = target;
 
+            // Advance the turn (auto-pass after trade)
+            // The active player (proposer) effectively passes the turn by completing a trade.
+            // We replicate basic turn advancement here.
+
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+
             return {
                 success: true,
                 newState: {
                     ...state,
                     players: newPlayers,
-                    consecutivePasses: 0
+                    pendingTrade: null,
+                    consecutivePasses: 0,
+                    currentTurnPlayerIndex: nextPlayerIndex
                 }
             };
         }

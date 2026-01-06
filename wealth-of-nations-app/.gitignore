@@ -7,9 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Build results
 dist
 dist-ssr
+coverage
+*.tsbuildinfo
+
+# Dependencies
+node_modules
+
+# Environment variables
+.env
+.env.*
+!.env.example
 *.local
 
 # Editor directories and files
@@ -22,3 +32,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Testing
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Misc
+.vercel

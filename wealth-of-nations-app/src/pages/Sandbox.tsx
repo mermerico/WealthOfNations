@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Board } from '../components/game/Board';
-import type { HexCell, IndustryType, CommodityType } from '../types/gameState';
+import type { HexCell, IndustryType, CommodityType, TradeOffer } from '../types/gameState';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
 import { coordsToString, stringToCoords, getNeighbors, getNeighbor } from '../utils/hexUtils';
 import { calculateProduction, calculateGlobalProduction, identifyBloc, calculateBlocCosts } from '../utils/production';
@@ -12,7 +12,7 @@ import { ResourceIcon } from '../components/ui/ResourceIcon';
 import SetupPhase from '../components/game/SetupPhase';
 import { getValidSetupPlacements } from '../utils/setupPlacementLogic';
 import { getValidPlacements } from '../utils/placementLogic';
-import { TradeModal, AcceptTradeModal, type TradeOffer } from '../components/game/TradeModal';
+import { TradeModal, AcceptTradeModal } from '../components/game/TradeModal';
 import MarketTransactionModal from '../components/game/MarketTransactionModal';
 import { MARKET_STEPS } from '../utils/marketDefinitions';
 import { VictoryScreen } from '../components/game/VictoryScreen';
@@ -55,12 +55,8 @@ export const Sandbox: React.FC = () => {
 
     // Trade Modal State
     const [showTradeModal, setShowTradeModal] = useState(false);
-    const [pendingTrade, setPendingTrade] = useState<{
-        proposerId: string;
-        targetId: string;
-        giving: TradeOffer;
-        receiving: TradeOffer;
-    } | null>(null);
+
+    // Removed local pendingTrade state in favor of gameState.pendingTrade
 
     // Market Transaction Modal State
     const [pendingMarketTransaction, setPendingMarketTransaction] = useState<{
@@ -108,13 +104,18 @@ export const Sandbox: React.FC = () => {
                 console.warn(`Blocked action ${action} because client has no assigned seat.`);
                 return;
             }
-            if (!canAct) {
+
+            // Exceptions for actions that can be taken out of turn
+            const isTradeResponse = (action === 'acceptTrade' || action === 'rejectTrade');
+            const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
+
+            if (!canAct && !(isTradeResponse && isTargetOfTrade)) {
                 console.warn(`Blocked action ${action} because it is not this player's turn.`);
                 return;
             }
         }
         dispatchAction(action, payload);
-    }, [dispatchAction, mode, selfPlayer, canAct]);
+    }, [dispatchAction, mode, selfPlayer, canAct, gameState.pendingTrade]);
 
     // Update setup valid placements when setup tile is selected
     useEffect(() => {
@@ -218,6 +219,8 @@ export const Sandbox: React.FC = () => {
 
     // Setup Handlers
     const handleSelectPackage = (packageId: string) => {
+        // Log for E2E test recording
+        console.log(`[E2E_RECORD] selectPackage: player=${player.id}, packageId=${packageId}`);
         handleAction('selectPackage', { packageId });
     };
 
@@ -249,10 +252,42 @@ export const Sandbox: React.FC = () => {
 
         // Use first valid orientation
         const orientation = validOrientations[0];
+        // Log for E2E test recording
+        console.log(`[E2E_RECORD] placeSetupTile: player=${player.id}, cellId=${cellId}, tileType=${setupTileType}, orientation=${orientation}`);
         console.log('Placing tile:', { cellId, tileType: setupTileType, orientation });
         handleAction('placeSetupTile', { cellId, tileType: setupTileType, orientation });
         setSelectedCellId(null); // Clear selection after placement
     };
+
+    // Trade Handlers
+    const handleProposeTrade = (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => {
+        handleAction('proposeTrade', {
+            proposerId: player.id,
+            targetId: targetPlayerId,
+            giving,
+            receiving
+        });
+        setShowTradeModal(false);
+    };
+
+    const handleAcceptTrade = () => {
+        handleAction('acceptTrade');
+    };
+
+    const handleRejectTrade = () => {
+        handleAction('rejectTrade');
+    };
+
+    // Determine if we should show the AcceptTradeModal
+    // For local play (hotseat), show if there is a pending trade.
+    // For remote play, show only if selfPlayer is the target.
+    const shouldShowAcceptModal = useMemo(() => {
+        if (!gameState.pendingTrade) return false;
+        if (mode === 'remote') {
+            return selfPlayer?.playerId === gameState.pendingTrade.targetId;
+        }
+        return true; // Hotseat: always show (turns enforce current player, but trade popup is for target)
+    }, [gameState.pendingTrade, mode, selfPlayer]);
 
     // -- Production Logic --
     // Per-bloc configuration
@@ -856,38 +891,7 @@ export const Sandbox: React.FC = () => {
         return true;
     };
 
-    // Trade Modal Handlers
-    const handleProposeTrade = (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => {
-        setPendingTrade({
-            proposerId: player.id,
-            targetId: targetPlayerId,
-            giving,
-            receiving
-        });
-        setShowTradeModal(false);
-    };
 
-    const handleAcceptTrade = () => {
-        if (!pendingTrade) return;
-
-        // Execute the trade
-        handleAction('barter', {
-            proposerId: pendingTrade.proposerId,
-            targetId: pendingTrade.targetId,
-            giving: pendingTrade.giving,
-            receiving: pendingTrade.receiving
-        });
-
-        // Pass the turn after successful trade
-        handleAction('pass');
-
-        setPendingTrade(null);
-    };
-
-    const handleRejectTrade = () => {
-        // Rejection doesn't pass the turn - proposer can try again
-        setPendingTrade(null);
-    };
 
 
     return (
@@ -2154,6 +2158,7 @@ export const Sandbox: React.FC = () => {
             </div>
 
             {/* Trade Modals */}
+            {/* Trade Modals */}
             {showTradeModal && (
                 <TradeModal
                     currentPlayer={player}
@@ -2163,12 +2168,12 @@ export const Sandbox: React.FC = () => {
                 />
             )}
 
-            {pendingTrade && (
+            {shouldShowAcceptModal && gameState.pendingTrade && (
                 <AcceptTradeModal
-                    proposingPlayer={gameState.players.find(p => p.id === pendingTrade.proposerId)!}
-                    receivingPlayer={gameState.players.find(p => p.id === pendingTrade.targetId)!}
-                    giving={pendingTrade.giving}
-                    receiving={pendingTrade.receiving}
+                    proposingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.proposerId)!}
+                    receivingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)!}
+                    giving={gameState.pendingTrade.giving}
+                    receiving={gameState.pendingTrade.receiving}
                     onAccept={handleAcceptTrade}
                     onReject={handleRejectTrade}
                 />
