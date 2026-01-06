@@ -41,3 +41,6 @@ node_modules
 
 # Misc
 .vercel
+
+# Game Saves
+server/saves/

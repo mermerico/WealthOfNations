@@ -7,9 +7,11 @@ interface ControlPanelProps {
     canAct?: boolean;
     lobbyCode?: string;
     onLeave?: () => void;
+    onSave?: () => void;
+    isHost?: boolean;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode, onLeave }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode, onLeave, onSave, isHost }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -82,21 +84,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                {/* New Game Button - always visible */}
-                <button
-                    disabled={!canAct}
-                    onClick={() => onAction('startSetup')}
-                    style={{
-                        background: '#10b981',
-                        borderColor: '#059669',
-                        fontSize: '12px',
-                        opacity: canAct ? 1 : 0.5,
-                        cursor: canAct ? 'pointer' : 'not-allowed'
-                    }}
-                >
-                    New Game
-                </button>
-
                 {gameState.phase === 'Setup' && (
                     <span style={{ color: '#10b981', fontWeight: 'bold' }}>
                         Setup in Progress...
@@ -120,6 +107,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
                         }}
                     >
                         Leave Game
+                    </button>
+                )}
+
+                {onSave && isHost && !gameState.gameEnded && (
+                    <button
+                        onClick={onSave}
+                        style={{
+                            background: '#6366f1',
+                            borderColor: '#4f46e5',
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        💾 Save Game
                     </button>
                 )}
             </div>

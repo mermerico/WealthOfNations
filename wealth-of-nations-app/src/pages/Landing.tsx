@@ -9,6 +9,7 @@ interface LandingProps {
     connectionState: ConnectionLabel;
     lastError: string | null;
     recentLobbyCode: string | null;
+    disbandedReason: string | null;
 }
 
 export function Landing({
@@ -17,7 +18,8 @@ export function Landing({
     onStartLocalGame,
     connectionState,
     lastError,
-    recentLobbyCode
+    recentLobbyCode,
+    disbandedReason
 }: LandingProps) {
     const [code, setCode] = useState('');
 
@@ -56,6 +58,11 @@ export function Landing({
 
     return (
         <div className="landing-container">
+            {disbandedReason && (
+                <div className="landing-disbanded-notice">
+                    ⚠️ Game ended: {disbandedReason}
+                </div>
+            )}
             <div className="landing-card">
                 <h1 className="landing-title">Wealth of Nations</h1>
                 <p className="landing-subtitle">Choose how you want to play</p>

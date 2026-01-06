@@ -12,6 +12,7 @@ function renderLanding(overrides: Partial<ComponentProps<typeof Landing>> = {}) 
         connectionState: 'connected',
         lastError: null,
         recentLobbyCode: null,
+        disbandedReason: null,
         ...overrides
     };
 
@@ -35,6 +36,7 @@ describe('Landing', () => {
             connectionState="disconnected"
             lastError={null}
             recentLobbyCode="ABCDE"
+            disbandedReason={null}
         />);
 
         const button = screen.getByRole('button', { name: /rejoin lobby/i }) as HTMLButtonElement;

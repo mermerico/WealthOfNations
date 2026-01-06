@@ -12,7 +12,7 @@ export interface LobbyPlayer {
     connected: boolean;
 }
 
-export type LobbyPhase = 'forming' | 'inGame';
+export type LobbyPhase = 'forming' | 'restoring' | 'inGame';
 
 export interface LobbySnapshot {
     code: LobbyCode;
@@ -21,6 +21,10 @@ export interface LobbySnapshot {
     players: LobbyPlayer[];
     minSeats: number;
     maxSeats: number;
+    // Present when phase is 'restoring'
+    restoringSeats?: RestoringSeat[];
+    savedRound?: number;
+    savedPhase?: string;
 }
 
 export interface CreateLobbyMessage {
@@ -74,6 +78,22 @@ export interface PingMessage {
     type: 'ping';
 }
 
+export interface SaveGameMessage {
+    type: 'saveGame';
+    clientId: string;
+}
+
+export interface ClaimSeatMessage {
+    type: 'claimSeat';
+    clientId: string;
+    seatIndex: number;
+}
+
+export interface UnclaimSeatMessage {
+    type: 'unclaimSeat';
+    clientId: string;
+}
+
 export type ClientMessage =
     | CreateLobbyMessage
     | JoinLobbyMessage
@@ -83,7 +103,10 @@ export type ClientMessage =
     | StartGameMessage
     | RematchMessage
     | GameActionMessage
-    | PingMessage;
+    | PingMessage
+    | SaveGameMessage
+    | ClaimSeatMessage
+    | UnclaimSeatMessage;
 
 export interface LobbyUpdateEnvelope {
     type: 'lobbyUpdate';
@@ -113,12 +136,36 @@ export interface SessionRestoreEnvelope {
     state?: GameState;
 }
 
+export interface GameSavedEnvelope {
+    type: 'gameSaved';
+    lobbyCode: string;
+}
+
+export interface LobbyDisbandedEnvelope {
+    type: 'lobbyDisbanded';
+    reason: string;
+}
+
 export type ServerMessage =
     | LobbyUpdateEnvelope
     | GameStateEnvelope
     | ErrorEnvelope
     | AckEnvelope
-    | SessionRestoreEnvelope;
+    | SessionRestoreEnvelope
+    | GameSavedEnvelope
+    | LobbyDisbandedEnvelope;
+
+/**
+ * Represents a seat being restored from a saved game.
+ * Contains info about the saved player state for display during seat selection.
+ */
+export interface RestoringSeat {
+    seatIndex: number;
+    savedName: string;
+    savedMoney: number;
+    savedIndustryCount: number;
+    claimedByClientId: string | null;
+}
 
 export interface LobbyRecord {
     code: LobbyCode;
@@ -126,6 +173,7 @@ export interface LobbyRecord {
     hostClientId: string;
     players: LobbySeat[];
     state: GameState | null;
+    restoringSeats?: RestoringSeat[];  // Present when phase is 'restoring'
 }
 
 export interface LobbySeat {

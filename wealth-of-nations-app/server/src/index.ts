@@ -138,7 +138,7 @@ wss.on('connection', socket => {
     const context = getContext(socket);
     console.log(`[${new Date().toISOString()}] Client connected: ${context.socketId}`);
 
-    socket.on('message', data => {
+    socket.on('message', async data => {
         const message = parseMessage(data);
         if (!message) {
             sendError(socket, 'Invalid message');
@@ -189,16 +189,58 @@ wss.on('connection', socket => {
                         detachSocketFromLobby(socket, currentLobby);
                     }
 
-                    const lifecycle = lobbyManager.joinLobby(clientId, normalizedCode, name || '');
-                    context.clientId = clientId;
-                    context.lobbyCode = normalizedCode;
+                    // Check if lobby exists
+                    const lobbyExists = lobbyManager.hasLobby(normalizedCode);
 
-                    attachSocketToLobby(socket, normalizedCode);
-                    lobbyManager.markConnection(clientId, true, context.socketId);
-                    sendSession(socket, clientId);
-                    broadcastLobby(normalizedCode);
-                    if (lifecycle.lobby.phase === 'inGame') {
-                        broadcastState(normalizedCode);
+                    if (lobbyExists) {
+                        const lobbyPhase = lobbyManager.getLobbyPhase(normalizedCode);
+                        // If game is in progress and client is not already in the lobby, reject
+                        const clientInLobby = lobbyManager.isClientInLobby(clientId, normalizedCode);
+
+                        if (lobbyPhase === 'inGame' && !clientInLobby) {
+                            throw new Error('Game already in progress. Ask a player for the save code once they save.');
+                        }
+
+                        // For 'restoring' lobbies, use joinRestoringLobby
+                        if (lobbyPhase === 'restoring') {
+                            const lifecycle = lobbyManager.joinRestoringLobby(clientId, normalizedCode, name || '');
+                            context.clientId = clientId;
+                            context.lobbyCode = normalizedCode;
+
+                            attachSocketToLobby(socket, normalizedCode);
+                            lobbyManager.markConnection(clientId, true, context.socketId);
+                            sendSession(socket, clientId);
+                            broadcastLobby(normalizedCode);
+                        } else {
+                            // For 'forming' lobbies, use regular joinLobby
+                            const lifecycle = lobbyManager.joinLobby(clientId, normalizedCode, name || '');
+                            context.clientId = clientId;
+                            context.lobbyCode = normalizedCode;
+
+                            attachSocketToLobby(socket, normalizedCode);
+                            lobbyManager.markConnection(clientId, true, context.socketId);
+                            sendSession(socket, clientId);
+                            broadcastLobby(normalizedCode);
+                            if (lifecycle.lobby.phase === 'inGame') {
+                                broadcastState(normalizedCode);
+                            }
+                        }
+                    } else {
+                        // No active lobby - check for saved game
+                        const hasSave = await lobbyManager.checkSaveExists(normalizedCode);
+                        if (hasSave) {
+                            // Enter restore flow
+                            const lifecycle = await lobbyManager.restoreFromSave(clientId, normalizedCode, name || '');
+                            context.clientId = clientId;
+                            context.lobbyCode = normalizedCode;
+
+                            attachSocketToLobby(socket, normalizedCode);
+                            lobbyManager.markConnection(clientId, true, context.socketId);
+                            sendSession(socket, clientId);
+                            broadcastLobby(normalizedCode);
+                        } else {
+                            throw new Error('No lobby or saved game found for this code');
+                        }
                     }
                     break;
                 }
@@ -209,11 +251,34 @@ wss.on('connection', socket => {
                         throw new Error('Cannot leave without an active session');
                     }
                     const lobbyCode = context.lobbyCode;
-                    lobbyManager.leaveLobby(clientId);
+                    const result = lobbyManager.leaveLobby(clientId);
+
                     if (lobbyCode) {
                         detachSocketFromLobby(socket, lobbyCode);
+                    }
+
+                    // If lobby was disbanded (player left during game), notify remaining players
+                    if (result.disbanded && result.remainingPlayers && result.lobbyCode) {
+                        const sockets = lobbySockets.get(result.lobbyCode);
+                        if (sockets) {
+                            for (const s of sockets) {
+                                if (s.readyState === WebSocket.OPEN) {
+                                    send(s, {
+                                        type: 'lobbyDisbanded',
+                                        reason: result.reason || 'A player left the game'
+                                    });
+                                    // Detach from lobby
+                                    const ctx = getContext(s);
+                                    ctx.lobbyCode = undefined;
+                                }
+                            }
+                            lobbySockets.delete(result.lobbyCode);
+                        }
+                    } else if (lobbyCode && !result.disbanded) {
+                        // Normal leave during forming phase - just update remaining players
                         broadcastLobby(lobbyCode);
                     }
+
                     context.lobbyCode = undefined;
                     sendAck(socket, 'Left lobby');
                     break;
@@ -290,6 +355,59 @@ wss.on('connection', socket => {
 
                 case 'ping': {
                     sendAck(socket, 'pong');
+                    break;
+                }
+
+                case 'saveGame': {
+                    const { clientId } = message;
+                    if (!clientId || context.clientId !== clientId) {
+                        throw new Error('Save denied');
+                    }
+                    const savedCode = await lobbyManager.saveGame(clientId);
+
+                    // Broadcast save success to all players in lobby
+                    const sockets = lobbySockets.get(savedCode);
+                    if (sockets) {
+                        for (const s of sockets) {
+                            if (s.readyState === WebSocket.OPEN) {
+                                send(s, { type: 'gameSaved', lobbyCode: savedCode });
+                            }
+                        }
+                    }
+                    // Ack the host specifically as well (optional, but good for debugging)
+                    sendAck(socket, `Game saved with code: ${savedCode}`);
+                    break;
+                }
+
+                case 'claimSeat': {
+                    const { clientId, seatIndex } = message;
+                    if (!clientId || context.clientId !== clientId) {
+                        throw new Error('Claim denied');
+                    }
+                    const lobbyCode = context.lobbyCode;
+                    if (!lobbyCode) {
+                        throw new Error('No lobby selected');
+                    }
+                    const lobby = lobbyManager.claimSeat(clientId, seatIndex);
+                    broadcastLobby(lobbyCode);
+                    // If all seats claimed and game started, broadcast state
+                    if (lobby.phase === 'inGame') {
+                        broadcastState(lobbyCode);
+                    }
+                    break;
+                }
+
+                case 'unclaimSeat': {
+                    const { clientId } = message;
+                    if (!clientId || context.clientId !== clientId) {
+                        throw new Error('Unclaim denied');
+                    }
+                    const lobbyCode = context.lobbyCode;
+                    if (!lobbyCode) {
+                        throw new Error('No lobby selected');
+                    }
+                    lobbyManager.unclaimSeat(clientId);
+                    broadcastLobby(lobbyCode);
                     break;
                 }
 

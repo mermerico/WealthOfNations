@@ -4,16 +4,19 @@ import './App.css';
 import { Sandbox } from './pages/Sandbox';
 import { Landing } from './pages/Landing';
 import { Lobby } from './pages/Lobby';
+import { RestoreLobby } from './pages/RestoreLobby';
 import { LocalSetup } from './pages/LocalSetup';
 import { GameEngineProvider, useGameEngineContext } from './hooks/GameEngineProvider';
 
 function AppShell() {
   const {
+    clientId,
     mode,
     lobby,
     selfPlayer,
     connectionState,
     lastError,
+    disbandedReason,
     startLocalGame,
     startNewGame,
     createLobby,
@@ -21,6 +24,8 @@ function AppShell() {
     leaveLobby,
     renamePlayer,
     setReadyState,
+    claimSeat,
+    unclaimSeat,
     lastLobbyCode
   } = useGameEngineContext();
 
@@ -50,9 +55,25 @@ function AppShell() {
   };
 
   const showLobby = mode === 'remote' && lobby && lobby.phase === 'forming';
+  const showRestoring = mode === 'remote' && lobby && lobby.phase === 'restoring';
   const showRemoteGame = mode === 'remote' && lobby && lobby.phase === 'inGame';
   const showLocalGame = mode === 'local' && localGameActive;
   const showGame = showRemoteGame || showLocalGame;
+
+  if (showRestoring && lobby) {
+    return (
+      <RestoreLobby
+        lobby={lobby}
+        selfPlayer={selfPlayer}
+        connectionState={connectionState}
+        lastError={lastError}
+        clientId={clientId}
+        onLeave={handleLeaveLobby}
+        onClaimSeat={claimSeat}
+        onUnclaimSeat={unclaimSeat}
+      />
+    );
+  }
 
   if (showLobby && lobby) {
     return (
@@ -100,6 +121,7 @@ function AppShell() {
       connectionState={connectionState}
       lastError={lastError}
       recentLobbyCode={lastLobbyCode}
+      disbandedReason={disbandedReason}
     />
   );
 }

@@ -96,6 +96,8 @@ export function useGameEngine() {
     const [mode, setMode] = useState<EngineMode>('local');
     const [lobby, setLobby] = useState<LobbySnapshot | null>(null);
     const [selfPlayer, setSelfPlayer] = useState<LobbyPlayer | null>(null);
+    const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+    const [disbandedReason, setDisbandedReason] = useState<string | null>(null);
 
     const socketRef = useRef<WebSocket | null>(null);
     const clientIdRef = useRef<string>(getPersistentClientId());
@@ -220,6 +222,29 @@ export function useGameEngine() {
 
                 case 'ack': {
                     setLastError(null);
+                    break;
+                }
+
+                case 'gameSaved': {
+                    // Show success message for 3 seconds
+                    setSaveSuccess('Game saved successfully!');
+                    setTimeout(() => setSaveSuccess(null), 3000);
+                    setLastError(null);
+                    break;
+                }
+
+                case 'lobbyDisbanded': {
+                    // Another player left during game - kicked back to landing
+                    const disbandedMsg = message as { type: 'lobbyDisbanded'; reason: string };
+                    console.log('[useGameEngine] Lobby disbanded:', disbandedMsg.reason);
+                    setDisbandedReason(disbandedMsg.reason);
+                    setLobby(null);
+                    setSelfPlayer(null);
+                    setMode('local');
+                    setGameState(createInitialGameState());
+                    removeStorageItem(LAST_LOBBY_STORAGE_KEY);
+                    // Clear the reason after 5 seconds
+                    setTimeout(() => setDisbandedReason(null), 5000);
                     break;
                 }
 
@@ -411,6 +436,43 @@ export function useGameEngine() {
         });
     }, [mode, sendMessage]);
 
+    const saveGame = useCallback(() => {
+        if (mode !== 'remote' || !lobby || lobby.phase !== 'inGame') {
+            setLastError('No active game to save');
+            return false;
+        }
+
+        return sendMessage({
+            type: 'saveGame',
+            clientId: clientIdRef.current
+        });
+    }, [lobby, mode, sendMessage]);
+
+    const claimSeat = useCallback((seatIndex: number) => {
+        if (mode !== 'remote' || !lobby || lobby.phase !== 'restoring') {
+            setLastError('Not in a restoring lobby');
+            return false;
+        }
+
+        return sendMessage({
+            type: 'claimSeat',
+            clientId: clientIdRef.current,
+            seatIndex
+        });
+    }, [lobby, mode, sendMessage]);
+
+    const unclaimSeat = useCallback(() => {
+        if (mode !== 'remote' || !lobby || lobby.phase !== 'restoring') {
+            setLastError('Not in a restoring lobby');
+            return false;
+        }
+
+        return sendMessage({
+            type: 'unclaimSeat',
+            clientId: clientIdRef.current
+        });
+    }, [lobby, mode, sendMessage]);
+
     const playerCount = lobby ? lobby.players.length : gameState.players.length;
 
     return {
@@ -428,8 +490,13 @@ export function useGameEngine() {
         leaveLobby,
         renamePlayer,
         setReadyState,
+        saveGame,
+        claimSeat,
+        unclaimSeat,
         connectionState,
         lastError,
+        saveSuccess,
+        disbandedReason,
         playerCount,
         lastUsedName: lastPlayerNameRef.current || '',
         lastLobbyCode: lastLobbyCodeRef.current

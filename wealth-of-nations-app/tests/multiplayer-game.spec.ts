@@ -247,7 +247,8 @@ test.describe.serial('3-player game flow', () => {
         await activePage.getByText('🤝 Propose Trade').click();
         // Select target by name, not by index (dropdown order isn't deterministic)
         await activePage.locator('select').selectOption({ label: targetName });
-        await activePage.locator('button:has-text("+10")').first().click();
+        // Enter money amount (first number input is "One Give" money)
+        await activePage.locator('input[type="number"]').first().fill('10');
         await activePage.getByRole('button', { name: 'Propose Trade', exact: true }).click();
         await activePage.waitForTimeout(100); // Wait for trade proposal to propagate
 

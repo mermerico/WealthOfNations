@@ -29,7 +29,9 @@ export const Sandbox: React.FC = () => {
         selfPlayer,
         requestRematch,
         lobby,
-        leaveLobby
+        leaveLobby,
+        saveGame,
+        saveSuccess
     } = useGameEngineContext();
 
     // UI State
@@ -958,10 +960,33 @@ export const Sandbox: React.FC = () => {
                 canAct={canAct}
                 lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
                 onLeave={() => setShowLeaveConfirmation(true)}
+                onSave={mode === 'remote' && lobby?.phase === 'inGame' ? saveGame : undefined}
+                isHost={selfPlayer?.isHost}
             />
 
             {/* Main Layout - 4 Columns */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+                {saveSuccess && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: '#10b981',
+                        color: 'white',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        zIndex: 100,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        pointerEvents: 'none'
+                    }}>
+                        ✅ {saveSuccess}
+                    </div>
+                )}
                 {interactionLocked && (
                     <div style={{
                         position: 'absolute',

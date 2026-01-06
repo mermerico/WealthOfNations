@@ -8,8 +8,10 @@ import type {
     LobbyLifecycle,
     LobbyRecord,
     LobbySeat,
-    LobbySnapshot
+    LobbySnapshot,
+    RestoringSeat
 } from '../../src/shared/networkTypes';
+import { saveGame as saveGameToFile, loadSave, hasSave } from './saveManager';
 
 interface LobbyLookup {
     lobby: LobbyRecord;
@@ -126,33 +128,52 @@ export class LobbyManager {
         return { lobby, players: defaultPlayers.map(clonePlayer) };
     }
 
-    leaveLobby(clientId: string): void {
+    /**
+     * Result of leaving a lobby.
+     */
+    leaveLobby(clientId: string): { disbanded: boolean; reason?: string; lobbyCode?: string; remainingPlayers?: LobbySeat[] } {
         const lookup = this.lookupByClient(clientId);
-        if (!lookup) return;
+        if (!lookup) return { disbanded: false };
 
         const { lobby, seat } = lookup;
+        const lobbyCode = lobby.code;
+        const wasInGame = lobby.phase === 'inGame';
+        const leavingPlayerName = seat.name;
 
         lobby.players = lobby.players.filter(p => p !== seat);
         this.clientToLobby.delete(clientId);
         this.clientToSeat.delete(clientId);
 
+        // If lobby is now empty, delete it
         if (lobby.players.length === 0) {
             this.lobbies.delete(lobby.code);
-            return;
+            return { disbanded: true, reason: 'All players left', lobbyCode };
         }
 
+        // If game was in progress, disband the lobby and kick everyone
+        if (wasInGame) {
+            const remainingPlayers = [...lobby.players];
+            // Remove all remaining players
+            for (const player of remainingPlayers) {
+                this.clientToLobby.delete(player.clientId);
+                this.clientToSeat.delete(player.clientId);
+            }
+            this.lobbies.delete(lobby.code);
+            return {
+                disbanded: true,
+                reason: `${leavingPlayerName} left the game`,
+                lobbyCode,
+                remainingPlayers
+            };
+        }
+
+        // For forming/restoring phase, just update host if needed
         if (lobby.hostClientId === clientId) {
             const nextHost = orderSeats(lobby.players)[0];
             lobby.hostClientId = nextHost.clientId;
         }
 
-        if (lobby.phase === 'inGame') {
-            lobby.phase = 'forming';
-            lobby.state = null;
-            lobby.players.forEach(player => {
-                player.ready = false;
-            });
-        }
+        return { disbanded: false, lobbyCode };
     }
 
     renamePlayer(clientId: string, name: string): LobbyRecord {
@@ -258,7 +279,7 @@ export class LobbyManager {
 
     getLobbySnapshot(code: LobbyCode): LobbySnapshot {
         const lobby = this.requireLobby(code);
-        return {
+        const snapshot: LobbySnapshot = {
             code: lobby.code,
             phase: lobby.phase,
             hostClientId: lobby.hostClientId,
@@ -274,6 +295,15 @@ export class LobbyManager {
             minSeats: this.config.minSeats,
             maxSeats: this.config.maxSeats
         };
+
+        // Add restoring info if in restoring phase
+        if (lobby.phase === 'restoring' && lobby.restoringSeats && lobby.state) {
+            snapshot.restoringSeats = lobby.restoringSeats;
+            snapshot.savedRound = lobby.state.round;
+            snapshot.savedPhase = lobby.state.phase;
+        }
+
+        return snapshot;
     }
 
     getSeatForClient(clientId: string): LobbySeat | undefined {
@@ -291,6 +321,227 @@ export class LobbyManager {
 
     hasLobby(code: LobbyCode): boolean {
         return this.lobbies.has(code);
+    }
+
+    getLobbyPhase(code: LobbyCode): 'forming' | 'restoring' | 'inGame' | null {
+        const lobby = this.lobbies.get(code);
+        return lobby ? lobby.phase : null;
+    }
+
+    /**
+     * Check if a client is part of a specific lobby.
+     */
+    isClientInLobby(clientId: string, code: LobbyCode): boolean {
+        const lobbyCode = this.clientToLobby.get(clientId);
+        return lobbyCode === code;
+    }
+
+    /**
+     * Saves the current game to a file. Only the host can save.
+     */
+    async saveGame(clientId: string): Promise<string> {
+        const { lobby } = this.requireLookup(clientId);
+        if (lobby.hostClientId !== clientId) {
+            throw new Error('Only the host can save the game');
+        }
+        if (lobby.phase !== 'inGame' || !lobby.state) {
+            throw new Error('No active game to save');
+        }
+
+        await saveGameToFile(lobby.code, lobby.state);
+        return lobby.code;
+    }
+
+    /**
+     * Check if a save file exists for a lobby code.
+     */
+    async checkSaveExists(code: LobbyCode): Promise<boolean> {
+        return await hasSave(code);
+    }
+
+    /**
+     * Creates a restoring lobby from a saved game.
+     * The first client to join becomes the host.
+     */
+    async restoreFromSave(clientId: string, code: LobbyCode, name: string): Promise<LobbyLifecycle> {
+        // Check if there's already an active lobby with this code
+        if (this.lobbies.has(code)) {
+            throw new Error('A lobby with this code is already active');
+        }
+
+        const savedGame = await loadSave(code);
+        if (!savedGame) {
+            throw new Error('No saved game found for this code');
+        }
+
+        const { gameState } = savedGame;
+        const defaultPlayers = getDefaultPlayers().slice(0, this.config.maxSeats);
+
+        // Count industries for each player
+        const industryCounts = new Map<string, number>();
+        for (const cell of Object.values(gameState.board)) {
+            if (cell.occupant?.type === 'Industry' && cell.occupant.playerId) {
+                const current = industryCounts.get(cell.occupant.playerId) || 0;
+                industryCounts.set(cell.occupant.playerId, current + 1);
+            }
+        }
+
+        // Create restoring seats from saved players
+        const restoringSeats: RestoringSeat[] = gameState.players.map((player, index) => ({
+            seatIndex: index,
+            savedName: player.name,
+            savedMoney: player.money,
+            savedIndustryCount: industryCounts.get(player.id) || 0,
+            claimedByClientId: null
+        }));
+
+        // Create lobby seat for the first joiner (becomes host)
+        const seat: LobbySeat = {
+            clientId,
+            playerId: defaultPlayers[0].id,
+            seatIndex: -1, // Not assigned yet
+            name: name.trim() || 'Player',
+            ready: false,
+            connected: true,
+            socketId: randomUUID()
+        };
+
+        const lobby: LobbyRecord = {
+            code,
+            phase: 'restoring',
+            hostClientId: clientId,
+            players: [seat],
+            state: gameState,
+            restoringSeats
+        };
+
+        this.lobbies.set(code, lobby);
+        this.clientToLobby.set(clientId, code);
+        this.clientToSeat.set(clientId, seat);
+
+        return { lobby, players: defaultPlayers.map(clonePlayer) };
+    }
+
+    /**
+     * Join a restoring lobby (saved game restoration).
+     */
+    joinRestoringLobby(clientId: string, code: LobbyCode, name: string): LobbyLifecycle {
+        const lobby = this.requireLobby(code);
+        if (lobby.phase !== 'restoring') {
+            throw new Error('Lobby is not in restoring state');
+        }
+
+        const defaultPlayers = getDefaultPlayers().slice(0, this.config.maxSeats);
+
+        // Check if already in this lobby
+        const existingSeat = lobby.players.find(s => s.clientId === clientId);
+        if (existingSeat) {
+            existingSeat.connected = true;
+            existingSeat.socketId = randomUUID();
+            this.clientToLobby.set(clientId, code);
+            this.clientToSeat.set(clientId, existingSeat);
+            return { lobby, players: defaultPlayers.map(clonePlayer) };
+        }
+
+        // Create new seat for joiner
+        const seat: LobbySeat = {
+            clientId,
+            playerId: '',
+            seatIndex: -1,
+            name: name.trim() || 'Player',
+            ready: false,
+            connected: true,
+            socketId: randomUUID()
+        };
+
+        lobby.players.push(seat);
+        this.clientToLobby.set(clientId, code);
+        this.clientToSeat.set(clientId, seat);
+
+        return { lobby, players: defaultPlayers.map(clonePlayer) };
+    }
+
+    /**
+     * Claim a seat in a restoring lobby.
+     */
+    claimSeat(clientId: string, seatIndex: number): LobbyRecord {
+        const { lobby, seat } = this.requireLookup(clientId);
+        if (lobby.phase !== 'restoring') {
+            throw new Error('Can only claim seats during restoration');
+        }
+        if (!lobby.restoringSeats) {
+            throw new Error('No restoring seats available');
+        }
+
+        const restoringSeat = lobby.restoringSeats.find(s => s.seatIndex === seatIndex);
+        if (!restoringSeat) {
+            throw new Error('Invalid seat index');
+        }
+        if (restoringSeat.claimedByClientId && restoringSeat.claimedByClientId !== clientId) {
+            throw new Error('This seat has already been claimed');
+        }
+
+        // Unclaim any previously claimed seat
+        const previouslyClaimed = lobby.restoringSeats.find(s => s.claimedByClientId === clientId);
+        if (previouslyClaimed) {
+            previouslyClaimed.claimedByClientId = null;
+        }
+
+        // Claim the new seat
+        restoringSeat.claimedByClientId = clientId;
+        seat.seatIndex = seatIndex;
+        seat.name = restoringSeat.savedName;
+
+        // Check if all seats are claimed and start game
+        this.checkAndStartRestoredGame(lobby);
+
+        return lobby;
+    }
+
+    /**
+     * Unclaim a seat in a restoring lobby.
+     */
+    unclaimSeat(clientId: string): LobbyRecord {
+        const { lobby, seat } = this.requireLookup(clientId);
+        if (lobby.phase !== 'restoring') {
+            throw new Error('Can only unclaim seats during restoration');
+        }
+        if (!lobby.restoringSeats) {
+            throw new Error('No restoring seats available');
+        }
+
+        const claimedSeat = lobby.restoringSeats.find(s => s.claimedByClientId === clientId);
+        if (claimedSeat) {
+            claimedSeat.claimedByClientId = null;
+            seat.seatIndex = -1;
+        }
+
+        return lobby;
+    }
+
+    /**
+     * Check if all seats are claimed and transition to inGame.
+     */
+    private checkAndStartRestoredGame(lobby: LobbyRecord): void {
+        if (!lobby.restoringSeats || !lobby.state) return;
+
+        const allClaimed = lobby.restoringSeats.every(s => s.claimedByClientId !== null);
+        if (!allClaimed) return;
+
+        // Map clients to player IDs based on claimed seats
+        for (const restoringSeat of lobby.restoringSeats) {
+            const clientSeat = lobby.players.find(p => p.clientId === restoringSeat.claimedByClientId);
+            if (clientSeat) {
+                const savedPlayer = lobby.state.players[restoringSeat.seatIndex];
+                clientSeat.playerId = savedPlayer.id;
+                clientSeat.seatIndex = restoringSeat.seatIndex;
+                clientSeat.name = savedPlayer.name;
+            }
+        }
+
+        // Transition to inGame
+        lobby.phase = 'inGame';
+        delete lobby.restoringSeats;
     }
 
     private lookupByClient(clientId: string): LobbyLookup | null {
