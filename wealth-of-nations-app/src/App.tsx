@@ -4,6 +4,7 @@ import './App.css';
 import { Sandbox } from './pages/Sandbox';
 import { Landing } from './pages/Landing';
 import { Lobby } from './pages/Lobby';
+import { LocalSetup } from './pages/LocalSetup';
 import { GameEngineProvider, useGameEngineContext } from './hooks/GameEngineProvider';
 
 function AppShell() {
@@ -20,31 +21,37 @@ function AppShell() {
     leaveLobby,
     renamePlayer,
     setReadyState,
-    lastUsedName,
     lastLobbyCode
   } = useGameEngineContext();
 
-  const [localActive, setLocalActive] = useState(false);
+  const [localSetupActive, setLocalSetupActive] = useState(false);
+  const [localGameActive, setLocalGameActive] = useState(false);
 
   useEffect(() => {
     if (mode === 'remote') {
-      setLocalActive(false);
+      setLocalSetupActive(false);
+      setLocalGameActive(false);
     }
   }, [mode, lobby]);
 
-  const handleStartLocalGame = () => {
-    startLocalGame();
-    setLocalActive(true);
+  const handleEnterLocalSetup = () => {
+    setLocalSetupActive(true);
+  };
+
+  const handleStartLocalGame = (playerCount: number, playerNames: string[]) => {
+    startLocalGame(playerCount, playerNames);
+    setLocalSetupActive(false);
+    setLocalGameActive(true);
   };
 
   const handleLeaveLobby = () => {
     leaveLobby();
-    setLocalActive(false);
+    setLocalGameActive(false);
   };
 
   const showLobby = mode === 'remote' && lobby && lobby.phase === 'forming';
   const showRemoteGame = mode === 'remote' && lobby && lobby.phase === 'inGame';
-  const showLocalGame = mode === 'local' && localActive;
+  const showLocalGame = mode === 'local' && localGameActive;
   const showGame = showRemoteGame || showLocalGame;
 
   if (showLobby && lobby) {
@@ -72,18 +79,26 @@ function AppShell() {
     );
   }
 
+  if (localSetupActive) {
+    return (
+      <LocalSetup
+        onStart={handleStartLocalGame}
+        onBack={() => setLocalSetupActive(false)}
+      />
+    );
+  }
+
   return (
     <Landing
-      onCreateLobby={name => {
-        createLobby(name);
+      onCreateLobby={() => {
+        createLobby();
       }}
-      onJoinLobby={(code, name) => {
-        joinLobby(code, name);
+      onJoinLobby={(code) => {
+        joinLobby(code);
       }}
-      onStartLocalGame={handleStartLocalGame}
+      onStartLocalGame={handleEnterLocalSetup}
       connectionState={connectionState}
       lastError={lastError}
-      defaultName={lastUsedName}
       recentLobbyCode={lastLobbyCode}
     />
   );

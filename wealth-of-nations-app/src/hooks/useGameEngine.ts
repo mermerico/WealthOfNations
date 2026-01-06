@@ -277,13 +277,13 @@ export function useGameEngine() {
         });
     }, [lobby, mode, sendMessage]);
 
-    const startLocalGame = useCallback(() => {
+    const startLocalGame = useCallback((playerCount: number = 3, playerNames?: string[]) => {
         setMode('local');
         setLobby(null);
         setSelfPlayer(null);
         lastLobbyCodeRef.current = null;
         removeStorageItem(LAST_LOBBY_STORAGE_KEY);
-        setGameState(createInitialGameState());
+        setGameState(createInitialGameState({ playerCount, playerNames }));
     }, []);
 
     const startNewGame = useCallback(() => {
@@ -308,12 +308,8 @@ export function useGameEngine() {
         startLocalGame();
     }, [lobby, mode, sendMessage, startLocalGame]);
 
-    const createLobby = useCallback((name: string) => {
-        const trimmed = name.trim();
-        if (!trimmed) {
-            setLastError('Name is required to create a lobby');
-            return false;
-        }
+    const createLobby = useCallback((name?: string) => {
+        const trimmed = (name || '').trim() || 'Player';
 
         const success = sendMessage({
             type: 'createLobby',
@@ -330,17 +326,12 @@ export function useGameEngine() {
         return success;
     }, [sendMessage]);
 
-    const joinLobby = useCallback((code: string, name: string) => {
+    const joinLobby = useCallback((code: string, name?: string) => {
         const formattedCode = code.trim().toUpperCase();
-        const trimmedName = name.trim();
+        const trimmedName = (name || '').trim() || 'Player';
 
         if (!formattedCode) {
             setLastError('Lobby code is required');
-            return false;
-        }
-
-        if (!trimmedName) {
-            setLastError('Name is required to join a lobby');
             return false;
         }
 
