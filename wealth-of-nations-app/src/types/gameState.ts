@@ -30,6 +30,19 @@ export interface TileFeature {
   commodity?: CommodityType | 'Money'; // If it produces something
 }
 
+export interface TradeOffer {
+  commodities: Partial<Record<CommodityType, number>>;
+  money: number;
+  loans: number;
+}
+
+export interface PendingTrade {
+  proposerId: string;
+  targetId: string;
+  giving: TradeOffer;
+  receiving: TradeOffer;
+}
+
 export interface IndustryTile {
   id: string; // Unique instance ID
   type: IndustryType;
@@ -78,6 +91,7 @@ export interface GameState {
   firstPlayerIndex: number; // Index of player who starts each phase
   round: number;
   setupPhase?: SetupPhaseState;
+  pendingTrade?: PendingTrade | null;
   consecutivePasses: number; // Track passes in a row during Trade/Develop phases
   tilesRemaining: Record<IndustryType, number>; // Tiles left in supply
   isLastRound: boolean; // True when game end conditions met

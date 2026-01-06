@@ -257,7 +257,12 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
 
     // Otherwise, render everything except the border
     return (
-        <g transform={`translate(${x},${y})`} onClick={() => onClick?.(cell)} style={{ cursor: 'pointer', opacity }}>
+        <g
+            transform={`translate(${x},${y})`}
+            onClick={() => onClick?.(cell)}
+            style={{ cursor: 'pointer', opacity }}
+            data-testid={`hex-${cell.q},${cell.r}`}
+        >
             <defs>
                 <clipPath id={clipId}>
                     <polygon points={HEX_POINTS} />
