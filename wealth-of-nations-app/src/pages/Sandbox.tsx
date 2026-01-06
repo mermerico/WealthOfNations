@@ -2098,6 +2098,7 @@ export const Sandbox: React.FC = () => {
                 <TradeModal
                     currentPlayer={player}
                     allPlayers={gameState.players}
+                    markets={gameState.markets}
                     onPropose={handleProposeTrade}
                     onCancel={() => setShowTradeModal(false)}
                 />
@@ -2109,6 +2110,7 @@ export const Sandbox: React.FC = () => {
                     receivingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)!}
                     giving={gameState.pendingTrade.giving}
                     receiving={gameState.pendingTrade.receiving}
+                    markets={gameState.markets}
                     onAccept={handleAcceptTrade}
                     onReject={handleRejectTrade}
                 />

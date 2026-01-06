@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import type { CommodityType, Player } from '../../types/gameState';
 import { ResourceIcon } from '../ui/ResourceIcon';
+import { MARKET_STEPS } from '../../utils/marketDefinitions';
 
 interface TradeModalProps {
     currentPlayer: Player;
     allPlayers: Player[];
+    markets: Record<CommodityType, { stock: number; priceIndex: number }>;
     onPropose: (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => void;
     onCancel: () => void;
 }
@@ -14,6 +16,7 @@ interface AcceptTradeModalProps {
     receivingPlayer: Player;
     giving: TradeOffer;
     receiving: TradeOffer;
+    markets: Record<CommodityType, { stock: number; priceIndex: number }>;
     onAccept: () => void;
     onReject: () => void;
 }
@@ -24,7 +27,37 @@ export interface TradeOffer {
     loans: number;
 }
 
-export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: TradeModalProps) {
+// Calculate estimated value of a trade offer
+function calculateOfferValue(
+    offer: TradeOffer,
+    markets: Record<CommodityType, { stock: number; priceIndex: number }>
+): number {
+    let value = 0;
+
+    // Commodity values: use the official barter price at current stock level
+    // Barter uses stock - 1 index (like buy prices), with a minimum of 0
+    for (const [commodity, amount] of Object.entries(offer.commodities)) {
+        if (!amount) continue;
+        const market = markets[commodity as CommodityType];
+        const priceIndex = Math.max(0, market.stock - 1);
+        const step = MARKET_STEPS[commodity as CommodityType][priceIndex];
+        if (step) {
+            value += step.barter * amount;
+        }
+    }
+
+    // Direct money value
+    value += offer.money;
+
+    // Loan value: each loan costs $25 to pay off, so it's a liability
+    // When giving loans, you're giving away debt worth -$25 each (negative for you)
+    // When receiving loans, you're taking on debt worth -$25 each (negative for receiver)
+    value -= offer.loans * 25;
+
+    return value;
+}
+
+export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCancel }: TradeModalProps) {
     const [giving, setGiving] = useState<TradeOffer>({ commodities: {}, money: 0, loans: 0 });
     const [receiving, setReceiving] = useState<TradeOffer>({ commodities: {}, money: 0, loans: 0 });
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
@@ -54,20 +87,20 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
         }));
     };
 
-    const updateGivingMoney = (delta: number) => {
+    const setGivingMoney = (value: number) => {
         setGiving(prev => ({
             ...prev,
-            money: Math.max(0, Math.min(prev.money + delta, currentPlayer.money))
+            money: Math.max(0, Math.min(value, currentPlayer.money))
         }));
     };
 
-    const updateReceivingMoney = (delta: number) => {
+    const setReceivingMoney = (value: number) => {
         const targetPlayer = allPlayers.find(p => p.id === selectedPlayerId);
         if (!targetPlayer) return;
 
         setReceiving(prev => ({
             ...prev,
-            money: Math.max(0, Math.min(prev.money + delta, targetPlayer.money))
+            money: Math.max(0, Math.min(value, targetPlayer.money))
         }));
     };
 
@@ -199,24 +232,25 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
                                     <span style={{ fontSize: '16px' }}>💰</span>
                                     <span style={{ color: 'white', fontSize: '12px' }}>Money</span>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <button
-                                        onClick={() => updateGivingMoney(-10)}
-                                        disabled={giving.money < 10}
-                                        style={{ padding: '2px 8px', fontSize: '12px' }}
-                                    >
-                                        -10
-                                    </button>
-                                    <span style={{ color: 'white', minWidth: '40px', textAlign: 'center' }}>
-                                        ${giving.money}
-                                    </span>
-                                    <button
-                                        onClick={() => updateGivingMoney(10)}
-                                        disabled={giving.money + 10 > currentPlayer.money}
-                                        style={{ padding: '2px 8px', fontSize: '12px' }}
-                                    >
-                                        +10
-                                    </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ color: 'white', fontSize: '14px' }}>$</span>
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={currentPlayer.money}
+                                        value={giving.money}
+                                        onChange={(e) => setGivingMoney(parseInt(e.target.value) || 0)}
+                                        style={{
+                                            width: '60px',
+                                            padding: '4px 6px',
+                                            background: '#333',
+                                            color: 'white',
+                                            border: '1px solid #555',
+                                            borderRadius: '4px',
+                                            fontSize: '14px',
+                                            textAlign: 'right'
+                                        }}
+                                    />
                                 </div>
                             </div>
                             {/* Promissory Notes */}
@@ -252,6 +286,20 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                        {/* Estimated Value */}
+                        <div style={{
+                            marginTop: '10px',
+                            padding: '8px',
+                            background: '#1a1a1a',
+                            borderRadius: '4px',
+                            textAlign: 'center',
+                            borderTop: '1px solid #ef4444'
+                        }}>
+                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
+                            <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+                                ${calculateOfferValue(giving, markets).toFixed(1)}
+                            </span>
                         </div>
                     </div>
 
@@ -300,39 +348,47 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
                                 );
                             })}
                             {/* Money */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: '#222',
-                                padding: '8px',
-                                borderRadius: '4px',
-                                opacity: selectedPlayerId ? 1 : 0.5
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ fontSize: '16px' }}>💰</span>
-                                    <span style={{ color: 'white', fontSize: '12px' }}>Money</span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <button
-                                        onClick={() => updateReceivingMoney(-10)}
-                                        disabled={!selectedPlayerId || receiving.money < 10}
-                                        style={{ padding: '2px 8px', fontSize: '12px' }}
-                                    >
-                                        -10
-                                    </button>
-                                    <span style={{ color: 'white', minWidth: '40px', textAlign: 'center' }}>
-                                        ${receiving.money}
-                                    </span>
-                                    <button
-                                        onClick={() => updateReceivingMoney(10)}
-                                        disabled={!selectedPlayerId || receiving.money + 10 > (allPlayers.find(p => p.id === selectedPlayerId)?.money || 0)}
-                                        style={{ padding: '2px 8px', fontSize: '12px' }}
-                                    >
-                                        +10
-                                    </button>
-                                </div>
-                            </div>
+                            {(() => {
+                                const targetPlayer = allPlayers.find(p => p.id === selectedPlayerId);
+                                const maxMoney = targetPlayer?.money || 0;
+                                return (
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        background: '#222',
+                                        padding: '8px',
+                                        borderRadius: '4px',
+                                        opacity: selectedPlayerId ? 1 : 0.5
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontSize: '16px' }}>💰</span>
+                                            <span style={{ color: 'white', fontSize: '12px' }}>Money</span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span style={{ color: 'white', fontSize: '14px' }}>$</span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                max={maxMoney}
+                                                value={receiving.money}
+                                                onChange={(e) => setReceivingMoney(parseInt(e.target.value) || 0)}
+                                                disabled={!selectedPlayerId}
+                                                style={{
+                                                    width: '60px',
+                                                    padding: '4px 6px',
+                                                    background: selectedPlayerId ? '#333' : '#222',
+                                                    color: 'white',
+                                                    border: '1px solid #555',
+                                                    borderRadius: '4px',
+                                                    fontSize: '14px',
+                                                    textAlign: 'right'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             {/* Promissory Notes */}
                             <div style={{
                                 display: 'flex',
@@ -367,6 +423,20 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                        {/* Estimated Value */}
+                        <div style={{
+                            marginTop: '10px',
+                            padding: '8px',
+                            background: '#1a1a1a',
+                            borderRadius: '4px',
+                            textAlign: 'center',
+                            borderTop: '1px solid #10b981'
+                        }}>
+                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
+                            <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '14px' }}>
+                                ${calculateOfferValue(receiving, markets).toFixed(1)}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -413,7 +483,7 @@ export function TradeModal({ currentPlayer, allPlayers, onPropose, onCancel }: T
     );
 }
 
-export function AcceptTradeModal({ proposingPlayer, giving, receiving, onAccept, onReject }: AcceptTradeModalProps) {
+export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, onAccept, onReject }: AcceptTradeModalProps) {
     const commodities: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
 
     return (
@@ -473,6 +543,18 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, onAccept,
                                 <span style={{ color: '#666', fontStyle: 'italic' }}>Nothing</span>
                             )}
                         </div>
+                        {/* Estimated Value */}
+                        <div style={{
+                            marginTop: '8px',
+                            paddingTop: '6px',
+                            borderTop: '1px solid #444',
+                            textAlign: 'center'
+                        }}>
+                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
+                            <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '14px' }}>
+                                ${calculateOfferValue(giving, markets).toFixed(1)}
+                            </span>
+                        </div>
                     </div>
 
                     {/* You Give (They Receive) */}
@@ -504,6 +586,18 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, onAccept,
                             {Object.values(receiving.commodities).every(v => !v) && !receiving.money && !receiving.loans && (
                                 <span style={{ color: '#666', fontStyle: 'italic' }}>Nothing</span>
                             )}
+                        </div>
+                        {/* Estimated Value */}
+                        <div style={{
+                            marginTop: '8px',
+                            paddingTop: '6px',
+                            borderTop: '1px solid #444',
+                            textAlign: 'center'
+                        }}>
+                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
+                            <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '14px' }}>
+                                ${calculateOfferValue(receiving, markets).toFixed(1)}
+                            </span>
                         </div>
                     </div>
                 </div>

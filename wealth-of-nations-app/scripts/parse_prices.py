@@ -20,7 +20,8 @@ for commodity in commodities:
         for row in reader:
             steps.append({
                 'sell': int(row['Sell Price']),
-                'buy': int(row['Buy Price'])
+                'buy': int(row['Buy Price']),
+                'barter': float(row['Barter Price'])
             })
     
     all_prices[commodity] = steps

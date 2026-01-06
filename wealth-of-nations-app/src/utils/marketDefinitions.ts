@@ -4,6 +4,7 @@ import type { CommodityType } from '../types/gameState';
 export interface MarketStep {
     sell: number;
     buy: number;
+    barter: number;
 }
 
 // "Stock" corresponds to how many cubes are in the market.
