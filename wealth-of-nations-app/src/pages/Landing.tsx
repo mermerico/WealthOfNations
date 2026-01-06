@@ -3,12 +3,11 @@ import { useEffect, useState } from 'react';
 type ConnectionLabel = 'connecting' | 'connected' | 'disconnected';
 
 interface LandingProps {
-    onCreateLobby: (name: string) => void;
-    onJoinLobby: (code: string, name: string) => void;
-    onStartLocalGame: (playerCount: number) => void;
+    onCreateLobby: () => void;
+    onJoinLobby: (code: string) => void;
+    onStartLocalGame: () => void;
     connectionState: ConnectionLabel;
     lastError: string | null;
-    defaultName: string;
     recentLobbyCode: string | null;
 }
 
@@ -18,16 +17,9 @@ export function Landing({
     onStartLocalGame,
     connectionState,
     lastError,
-    defaultName,
     recentLobbyCode
 }: LandingProps) {
-    const [name, setName] = useState(defaultName);
     const [code, setCode] = useState('');
-    const [localPlayerCount, setLocalPlayerCount] = useState(3);
-
-    useEffect(() => {
-        setName(defaultName);
-    }, [defaultName]);
 
     useEffect(() => {
         if (recentLobbyCode && !code) {
@@ -39,13 +31,12 @@ export function Landing({
     const hasRecentLobby = Boolean(recentLobbyCode && recentLobbyCode.length === 5);
 
     const handleCreate = () => {
-        if (!name.trim()) return;
-        onCreateLobby(name.trim());
+        onCreateLobby();
     };
 
     const handleJoin = () => {
-        if (!name.trim() || !code.trim()) return;
-        onJoinLobby(code.trim(), name.trim());
+        if (!code.trim()) return;
+        onJoinLobby(code.trim());
     };
 
     const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>, kind: 'create' | 'join') => {
@@ -60,8 +51,7 @@ export function Landing({
 
     const handleRejoin = () => {
         if (!hasRecentLobby) return;
-        if (!name.trim()) return;
-        onJoinLobby(recentLobbyCode!, name.trim());
+        onJoinLobby(recentLobbyCode!);
     };
 
     return (
@@ -70,25 +60,11 @@ export function Landing({
                 <h1 className="landing-title">Wealth of Nations</h1>
                 <p className="landing-subtitle">Choose how you want to play</p>
 
-                <div className="landing-name-section">
-                    <label className="landing-label" htmlFor="player-name">Display Name</label>
-                    <input
-                        id="player-name"
-                        className="landing-input"
-                        type="text"
-                        value={name}
-                        placeholder="Player Name"
-                        onChange={event => setName(event.target.value)}
-                        onKeyDown={event => handleKeyPress(event, 'create')}
-                        spellCheck={false}
-                    />
-                </div>
-
                 <div className="landing-actions">
                     <button
                         className="landing-button primary"
                         onClick={handleCreate}
-                        disabled={!isConnected || !name.trim()}
+                        disabled={!isConnected}
                     >
                         Create Online Game
                     </button>
@@ -113,7 +89,7 @@ export function Landing({
                         <button
                             className="landing-button"
                             onClick={handleJoin}
-                            disabled={!isConnected || !name.trim() || code.trim().length !== 5}
+                            disabled={!isConnected || code.trim().length !== 5}
                         >
                             Join Online Game
                         </button>
@@ -128,7 +104,7 @@ export function Landing({
                             <button
                                 className="landing-button"
                                 onClick={handleRejoin}
-                                disabled={!isConnected || !name.trim()}
+                                disabled={!isConnected}
                             >
                                 Rejoin Lobby
                             </button>
@@ -140,19 +116,9 @@ export function Landing({
                     </div>
 
                     <div className="local-game-options">
-                        <select
-                            className="landing-select"
-                            value={localPlayerCount}
-                            onChange={e => setLocalPlayerCount(Number(e.target.value))}
-                        >
-                            <option value={3}>3 Players</option>
-                            <option value={4}>4 Players</option>
-                            <option value={5}>5 Players</option>
-                            <option value={6}>6 Players</option>
-                        </select>
                         <button
                             className="landing-button"
-                            onClick={() => onStartLocalGame(localPlayerCount)}
+                            onClick={onStartLocalGame}
                         >
                             Local Hotseat Game
                         </button>

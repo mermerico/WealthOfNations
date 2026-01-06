@@ -101,6 +101,7 @@ export interface InitialGameStateOptions {
     tilesRemaining?: Partial<GameState['tilesRemaining']>;
     randomizeFirstPlayer?: boolean;
     playerCount?: number;
+    playerNames?: string[];
 }
 
 function clonePlayer(player: Player): Player {
@@ -110,9 +111,16 @@ function clonePlayer(player: Player): Player {
     };
 }
 
-function buildPlayers(customPlayers?: Player[], playerCount?: number): Player[] {
+function buildPlayers(customPlayers?: Player[], playerCount?: number, playerNames?: string[]): Player[] {
     if (customPlayers && customPlayers.length > 0) {
         return customPlayers.map(clonePlayer);
+    }
+
+    if (playerNames && playerNames.length >= 3) {
+        return PLAYER_TEMPLATES.slice(0, playerNames.length).map((template, index) => ({
+            ...clonePlayer(template),
+            name: playerNames[index]
+        }));
     }
 
     const count = playerCount && playerCount >= 3 ? playerCount : 3;
@@ -130,7 +138,7 @@ function cloneMarkets(source: Record<CommodityType, MarketState>): Record<Commod
 }
 
 export function createInitialGameState(options: InitialGameStateOptions = {}): GameState {
-    const players = buildPlayers(options.players, options.playerCount);
+    const players = buildPlayers(options.players, options.playerCount, options.playerNames);
     const gridRadius = options.gridRadius ?? 4;
     const baseTilesRemaining = { ...DEFAULT_TILE_COUNTS };
     const tilesRemaining = {
