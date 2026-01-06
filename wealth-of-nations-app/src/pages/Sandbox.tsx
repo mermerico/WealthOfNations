@@ -17,6 +17,7 @@ import MarketTransactionModal from '../components/game/MarketTransactionModal';
 import { MARKET_STEPS } from '../utils/marketDefinitions';
 import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
+import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 
 export const Sandbox: React.FC = () => {
     // Game Engine State
@@ -37,6 +38,7 @@ export const Sandbox: React.FC = () => {
     const [forceMode, setForceMode] = useState(false);
     const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
     const [extraTurns, setExtraTurns] = useState(false);
+    const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
     // Move operation state
     const [moveHistory, setMoveHistory] = useState<Array<{ from: string, to: string }>>([]);
@@ -931,7 +933,7 @@ export const Sandbox: React.FC = () => {
                 onAction={handleActionWrapper}
                 canAct={canAct}
                 lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
-                onLeave={mode === 'remote' ? leaveLobby : () => window.location.reload()}
+                onLeave={() => setShowLeaveConfirmation(true)}
             />
 
             {/* Main Layout - 4 Columns */}
@@ -2171,6 +2173,17 @@ export const Sandbox: React.FC = () => {
                     onReject={handleRejectTrade}
                 />
             )}
+
+            <ConfirmationModal
+                isOpen={showLeaveConfirmation}
+                onConfirm={() => {
+                    const leaveAction = mode === 'remote' ? leaveLobby : () => window.location.reload();
+                    leaveAction();
+                    setShowLeaveConfirmation(false);
+                }}
+                onCancel={() => setShowLeaveConfirmation(false)}
+                message="Are you sure you want to leave the game?"
+            />
         </div>
     );
 };

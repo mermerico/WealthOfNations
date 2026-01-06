@@ -48,11 +48,7 @@ export class LobbyManager {
         }
 
         const code = this.generateUniqueCode();
-        const defaultPlayers = getDefaultPlayers().slice(0, this.config.requiredSeats);
-
-        if (defaultPlayers.length < this.config.requiredSeats) {
-            throw new Error('Insufficient default player templates');
-        }
+        const defaultPlayers = getDefaultPlayers().slice(0, this.config.maxSeats);
 
         const seats: LobbySeat[] = [
             {
@@ -89,11 +85,7 @@ export class LobbyManager {
             this.leaveLobby(clientId);
         }
 
-        const defaultPlayers = getDefaultPlayers().slice(0, this.config.requiredSeats);
-
-        if (defaultPlayers.length < this.config.requiredSeats) {
-            throw new Error('Insufficient default player templates');
-        }
+        const defaultPlayers = getDefaultPlayers().slice(0, this.config.maxSeats);
 
         // Rejoin existing seat if present
         const existingSeat = lobby.players.find(seat => seat.clientId === clientId);
@@ -110,7 +102,7 @@ export class LobbyManager {
             throw new Error('Game already in progress');
         }
 
-        if (lobby.players.length >= this.config.requiredSeats) {
+        if (lobby.players.length >= this.config.maxSeats) {
             throw new Error('Lobby is full');
         }
 
@@ -206,16 +198,14 @@ export class LobbyManager {
         if (lobby.phase === 'inGame') {
             throw new Error('Game already running');
         }
-        if (lobby.players.length !== this.config.requiredSeats) {
-            throw new Error('Need exactly three players to start');
-        }
-        const allReady = lobby.players.every(player => player.ready);
-        if (!allReady) {
-            throw new Error('All players must be ready');
+
+        const readyPlayers = lobby.players.filter(p => p.ready);
+        if (readyPlayers.length < this.config.minSeats || readyPlayers.length > this.config.maxSeats) {
+            throw new Error(`Need ${this.config.minSeats}-${this.config.maxSeats} ready players to start`);
         }
 
-        const defaultPlayers = getDefaultPlayers().slice(0, this.config.requiredSeats);
-        const orderedSeats = orderSeats(lobby.players);
+        const defaultPlayers = getDefaultPlayers().slice(0, readyPlayers.length);
+        const orderedSeats = orderSeats(readyPlayers);
 
         const customPlayers = orderedSeats.map((seat, index) => {
             const template = defaultPlayers[index];
@@ -281,7 +271,8 @@ export class LobbyManager {
                 isHost: player.clientId === lobby.hostClientId,
                 connected: player.connected
             })),
-            requiredSeats: this.config.requiredSeats
+            minSeats: this.config.minSeats,
+            maxSeats: this.config.maxSeats
         };
     }
 
@@ -329,7 +320,7 @@ export class LobbyManager {
 
     private nextSeatIndex(lobby: LobbyRecord): number {
         const used = new Set(lobby.players.map(seat => seat.seatIndex));
-        for (let i = 0; i < this.config.requiredSeats; i++) {
+        for (let i = 0; i < this.config.maxSeats; i++) {
             if (!used.has(i)) {
                 return i;
             }
@@ -380,4 +371,4 @@ export class LobbyManager {
     }
 }
 
-export const lobbyManager = new LobbyManager({ requiredSeats: 3, codeLength: 5 });
+export const lobbyManager = new LobbyManager({ minSeats: 3, maxSeats: 6, codeLength: 5 });

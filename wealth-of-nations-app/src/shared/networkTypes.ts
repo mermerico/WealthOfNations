@@ -19,7 +19,8 @@ export interface LobbySnapshot {
     phase: LobbyPhase;
     hostClientId: string;
     players: LobbyPlayer[];
-    requiredSeats: number;
+    minSeats: number;
+    maxSeats: number;
 }
 
 export interface CreateLobbyMessage {
@@ -138,7 +139,8 @@ export interface LobbySeat {
 }
 
 export interface LobbyConfig {
-    requiredSeats: number;
+    minSeats: number;
+    maxSeats: number;
     codeLength: number;
 }
 

@@ -32,8 +32,7 @@ export function Lobby({
     }, [selfPlayer?.name]);
 
     const readyCount = lobby.players.filter(player => player.ready).length;
-    const fullLobby = lobby.players.length === lobby.requiredSeats;
-    const everyoneReady = fullLobby && readyCount === lobby.requiredSeats;
+    const everyoneReady = lobby.players.every(p => p.ready);
     const isHost = selfPlayer?.isHost ?? false;
     const isReady = selfPlayer?.ready ?? false;
 
@@ -68,58 +67,64 @@ export function Lobby({
                         {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy'}
                     </button>
                 </div>
-                <span className="lobby-info">
-                    {readyCount}/{lobby.requiredSeats} players ready &bull; Connection: {connectionState}
-                </span>
+                <div className="lobby-info">
+                    {readyCount} ready / {lobby.players.length} joined (Min: {lobby.minSeats}, Max: {lobby.maxSeats}) &bull; Connection: {connectionState}
+                </div>
             </div>
 
-            <div className="lobby-grid">
+            <div className="lobby-list">
                 {lobby.players.map(player => {
                     const isSelf = player.clientId === selfPlayer?.clientId;
                     return (
-                        <div key={player.clientId} className={`lobby-player${isSelf ? ' self' : ''}`}>
-                            <header>
-                                <span>{player.isHost ? 'Host' : 'Player'}</span>
-                                <span className={`ready-badge ${player.ready ? '' : 'awaiting'}`}>
+                        <div key={player.clientId} className={`lobby-player-row${isSelf ? ' self' : ''}`}>
+                            <div className="player-main">
+                                <span className="player-seat">#{player.seatIndex + 1}</span>
+                                {isSelf ? (
+                                    <input
+                                        className="lobby-name-input"
+                                        value={nameDraft}
+                                        onChange={event => setNameDraft(event.target.value)}
+                                        onBlur={handleRenameBlur}
+                                        onKeyDown={event => {
+                                            if (event.key === 'Enter') {
+                                                event.currentTarget.blur();
+                                            }
+                                            if (event.key === 'Escape') {
+                                                setNameDraft(selfPlayer.name);
+                                                event.currentTarget.blur();
+                                            }
+                                        }}
+                                        maxLength={32}
+                                        spellCheck={false}
+                                    />
+                                ) : (
+                                    <span className="player-name">{player.name}</span>
+                                )}
+                                {player.isHost && <span className="host-badge">HOST</span>}
+                            </div>
+                            <div className="player-status">
+                                <span className={`ready-badge ${player.ready ? 'ready' : 'awaiting'}`}>
                                     {player.ready ? 'Ready' : 'Not Ready'}
                                 </span>
-                            </header>
-                            {isSelf ? (
-                                <input
-                                    value={nameDraft}
-                                    onChange={event => setNameDraft(event.target.value)}
-                                    onBlur={handleRenameBlur}
-                                    onKeyDown={event => {
-                                        if (event.key === 'Enter') {
-                                            event.currentTarget.blur();
-                                        }
-                                        if (event.key === 'Escape') {
-                                            setNameDraft(selfPlayer.name);
-                                            event.currentTarget.blur();
-                                        }
-                                    }}
-                                    maxLength={32}
-                                    spellCheck={false}
-                                />
-                            ) : (
-                                <strong>{player.name}</strong>
-                            )}
-                            {!isSelf && (
-                                <span>Seat {player.seatIndex + 1}</span>
-                            )}
+                            </div>
                         </div>
                     );
                 })}
 
-                {Array.from({ length: Math.max(0, lobby.requiredSeats - lobby.players.length) }).map((_, index) => (
-                    <div key={`empty-${index}`} className="lobby-player">
-                        <header>
-                            <span>Waiting</span>
-                            <span className="ready-badge awaiting">Empty</span>
-                        </header>
-                        <span>Seat {lobby.players.length + index + 1}</span>
-                    </div>
-                ))}
+                {Array.from({ length: Math.max(0, lobby.maxSeats - lobby.players.length) }).map((_, index) => {
+                    const seatIndex = lobby.players.length + index;
+                    return (
+                        <div key={`empty-${index}`} className="lobby-player-row empty">
+                            <div className="player-main">
+                                <span className="player-seat">#{seatIndex + 1}</span>
+                                <span className="player-name">Waiting...</span>
+                            </div>
+                            <div className="player-status">
+                                <span className="ready-badge empty">Empty</span>
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
             <div className="lobby-footer">
@@ -135,21 +140,27 @@ export function Lobby({
                     <button
                         className="lobby-button primary"
                         onClick={onStart}
-                        disabled={!isHost || !everyoneReady}
+                        disabled={!isHost || readyCount < lobby.minSeats || !everyoneReady}
                     >
-                        Start Game
+                        Start Game ({readyCount}/{lobby.players.length})
                     </button>
                 </div>
                 <div className="lobby-info">
-                    {fullLobby ? 'All seats filled' : `Waiting for ${lobby.requiredSeats - lobby.players.length} more player(s)`}
+                    {readyCount < lobby.minSeats
+                        ? `Waiting for at least ${lobby.minSeats - readyCount} more player(s) to ready up`
+                        : (readyCount < lobby.maxSeats
+                            ? `Ready to start! (Room for ${lobby.maxSeats - readyCount} more)`
+                            : 'Lobby full, ready to start!')}
                 </div>
             </div>
 
-            {lastError && (
-                <div className="landing-error" role="alert">
-                    {lastError}
-                </div>
-            )}
-        </div>
+            {
+                lastError && (
+                    <div className="landing-error" role="alert">
+                        {lastError}
+                    </div>
+                )
+            }
+        </div >
     );
 }
