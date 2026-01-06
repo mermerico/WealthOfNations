@@ -257,28 +257,33 @@ describe('Phase Transitions Integration Tests', () => {
         it('should rotate first player when confirming production for all players', () => {
             let state = createGameState('Produce', 3);
 
+            // Let's say Player 2 (index 1) is the first player this round
             state = {
                 ...state,
                 firstPlayerIndex: 1,
-                currentTurnPlayerIndex: 1
+                currentTurnPlayerIndex: 1 // Does not matter for production, but set for consistency
             };
 
-            state = executeAction(state, 'confirmProduction', { activeTiles: [] });
+            // Player 2 produces
+            state = executeAction(state, 'confirmProduction', { activeTiles: [], playerId: 'p2' });
             expect(state.phase).toBe('Produce');
-            expect(state.currentTurnPlayerIndex).toBe(2);
-            expect(state.firstPlayerIndex).toBe(1);
+            expect(state.players.find(p => p.id === 'p2')?.hasProduced).toBe(true);
 
-            state = executeAction(state, 'confirmProduction', { activeTiles: [] });
+            // Player 3 produces
+            state = executeAction(state, 'confirmProduction', { activeTiles: [], playerId: 'p3' });
             expect(state.phase).toBe('Produce');
-            expect(state.currentTurnPlayerIndex).toBe(0);
-            expect(state.firstPlayerIndex).toBe(1);
+            expect(state.players.find(p => p.id === 'p3')?.hasProduced).toBe(true);
 
-            state = executeAction(state, 'confirmProduction', { activeTiles: [] });
+            // Player 1 produces (last one)
+            state = executeAction(state, 'confirmProduction', { activeTiles: [], playerId: 'p1' });
+
+            // Now the phase should advance
             expect(state.phase).toBe('Trade');
             expect(state.round).toBe(2);
-            expect(state.firstPlayerIndex).toBe(2);
-            expect(state.currentTurnPlayerIndex).toBe(2);
+            expect(state.firstPlayerIndex).toBe(2); // Rotated from 1 to 2
+            expect(state.currentTurnPlayerIndex).toBe(2); // New turn starts with new first player
             expect(state.consecutivePasses).toBe(0);
+            expect(state.players.every(p => !p.hasProduced)).toBe(true); // Flags should be reset
         });
     });
 

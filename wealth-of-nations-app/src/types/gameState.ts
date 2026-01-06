@@ -14,6 +14,7 @@ export interface Player {
   ready: boolean;
   flag?: string; // Reference to SVG filename in public/flags/
   hasPassed?: boolean; // True if player has passed this phase
+  hasProduced?: boolean; // True if player has run production this round
 }
 
 export interface Coordinate {
