@@ -1605,7 +1605,7 @@ export const Sandbox: React.FC = () => {
                                                                                 disabled={config?.automated}
                                                                                 onChange={(e) => toggleTileFed(blocIndex, tileId, e.target.checked)}
                                                                             />
-                                                                            <span style={{ color: '#bbb' }}>Tile at {tileId}</span>
+                                                                            <span style={{ color: '#bbb' }}>Tile {bloc.tiles.findIndex(t => coordsToString(t.q, t.r) === tileId) + 1}</span>
                                                                         </label>
                                                                     </div>
                                                                 );

@@ -51,7 +51,7 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
     // Central hex is black (forbidden)
     const isCentralHex = cell.q === 0 && cell.r === 0;
     let fill = isCentralHex ? '#000' : '#333';
-    let label = `${cell.q},${cell.r}`;
+    // label variable removed
     let features: React.ReactNode[] = [];
     let rotation = 0;
 
@@ -67,7 +67,6 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
 
     if (activeTileType) {
         fill = ghostTile ? '#555555' : '#555';
-        label = activeTileType;
         rotation = (activeOrientation || 0) * 60;
 
         const def = TILE_DEFINITIONS[activeTileType];
@@ -301,10 +300,7 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
                 The `features` positions are defined relative to "North" 0-index. 
                 Applying rotation to the group moves Index 0 to the new position.
             */}
-            <text x="0" y="0" textAnchor="middle" dy=".3em" fontSize="10" fill="white" pointerEvents="none" style={{ textShadow: '0px 0px 2px black' }}>
-                {cell.occupant?.type !== 'Industry' && label}
-                {/* Only show label if not industry, or show industry type maybe? */}
-            </text>
+            {/* Label removed as requested */}
         </g>
     );
 };
