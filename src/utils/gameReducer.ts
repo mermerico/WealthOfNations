@@ -83,6 +83,52 @@ function resetPlayerPass(players: any[], playerIndex: number, updates: any) {
 }
 
 /**
+ * Apply interest fees for promissory notes at the start of Trade phase.
+ * Each player pays $1 per loan they have. If they can't afford it,
+ * they automatically take loans until they can pay.
+ * The interest amount is fixed based on loans at the start (not recalculated after borrowing).
+ */
+function applyInterestFees(players: Player[]): Player[] {
+    return players.map(player => {
+        const initialLoans = player.loans;
+        const interestDue = initialLoans; // $1 per loan
+
+        if (interestDue === 0) {
+            return player;
+        }
+
+        let currentMoney = player.money;
+        let currentLoans = player.loans;
+
+        // If player can't afford interest, take loans until they can OR until they hit 20 loans
+        while (currentMoney < interestDue && currentLoans < 20) {
+            // Take a loan: get $20 - currentLoans, add 1 loan
+            const loanAmount = Math.max(0, 20 - currentLoans);
+            if (loanAmount <= 0) {
+                // Can't take any more meaningful loans, break
+                break;
+            }
+            currentMoney += loanAmount;
+            currentLoans += 1;
+        }
+
+        // Pay the interest
+        currentMoney -= interestDue;
+
+        // Debt forgiveness: if interest exceeded ability to pay even with max loans, floor at $0
+        if (currentMoney < 0) {
+            currentMoney = 0;
+        }
+
+        return {
+            ...player,
+            money: currentMoney,
+            loans: currentLoans
+        };
+    });
+}
+
+/**
  * Process a game action and return the new state
  * This is a pure function - no side effects, no React dependencies
  */
@@ -567,11 +613,16 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     console.log(`  Current round: ${state.round}`);
                     console.log(`  Next round: ${state.round + 1}`);
 
+                    // Apply interest fees if setting is enabled
+                    const playersForTrade = state.settings?.promissoryNoteInterestFees
+                        ? applyInterestFees(playersWithoutPass)
+                        : playersWithoutPass;
+
                     return {
                         success: true,
                         newState: {
                             ...state,
-                            players: playersWithoutPass,
+                            players: playersForTrade,
                             phase: 'Trade',
                             round: state.round + 1,
                             consecutivePasses: 0,

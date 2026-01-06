@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { applyGameAction, createInitialGameState, getDefaultPlayers } from '../../src/shared/gameEngine';
 import type { ActionResult } from '../../src/utils/gameReducer';
-import type { GameState, Player } from '../../src/types/gameState';
+import type { GameState, GameSettings, Player } from '../../src/types/gameState';
 import type {
     LobbyCode,
     LobbyConfig,
@@ -69,7 +69,8 @@ export class LobbyManager {
             phase: 'forming',
             hostClientId: clientId,
             players: seats,
-            state: null
+            state: null,
+            settings: { promissoryNoteInterestFees: false }
         };
 
         this.lobbies.set(code, lobby);
@@ -211,6 +212,23 @@ export class LobbyManager {
         return lobby;
     }
 
+    updateSettings(clientId: string, settings: Partial<GameSettings>): LobbyRecord {
+        const { lobby } = this.requireLookup(clientId);
+        if (lobby.hostClientId !== clientId) {
+            throw new Error('Only the host can change settings');
+        }
+        if (lobby.phase !== 'forming') {
+            throw new Error('Cannot change settings during a game');
+        }
+
+        lobby.settings = {
+            ...lobby.settings,
+            promissoryNoteInterestFees: lobby.settings?.promissoryNoteInterestFees ?? false,
+            ...settings
+        };
+        return lobby;
+    }
+
     startGame(clientId: string): GameState {
         const { lobby } = this.requireLookup(clientId);
         if (lobby.hostClientId !== clientId) {
@@ -235,7 +253,7 @@ export class LobbyManager {
             return player;
         });
 
-        const state = createInitialGameState({ players: customPlayers });
+        const state = createInitialGameState({ players: customPlayers, settings: lobby.settings });
 
         lobby.state = state;
         lobby.phase = 'inGame';
@@ -293,7 +311,8 @@ export class LobbyManager {
                 connected: player.connected
             })),
             minSeats: this.config.minSeats,
-            maxSeats: this.config.maxSeats
+            maxSeats: this.config.maxSeats,
+            settings: lobby.settings
         };
 
         // Add restoring info if in restoring phase

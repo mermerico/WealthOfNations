@@ -411,6 +411,20 @@ wss.on('connection', socket => {
                     break;
                 }
 
+                case 'updateSettings': {
+                    const { clientId, settings } = message;
+                    if (!clientId || context.clientId !== clientId) {
+                        throw new Error('Settings update denied');
+                    }
+                    const lobbyCode = context.lobbyCode;
+                    if (!lobbyCode) {
+                        throw new Error('No lobby selected');
+                    }
+                    lobbyManager.updateSettings(clientId, settings);
+                    broadcastLobby(lobbyCode);
+                    break;
+                }
+
                 default: {
                     throw new Error('Unsupported message type');
                 }

@@ -1,4 +1,4 @@
-import type { GameState, Player, CommodityType, MarketState } from '../types/gameState';
+import type { GameState, GameSettings, Player, CommodityType, MarketState } from '../types/gameState';
 import { generateGrid } from '../utils/hexUtils';
 import { gameReducerWithChecks, type ActionResult } from '../utils/gameReducer';
 import { MARKET_STARTING_QUANTITIES } from '../utils/marketPrices';
@@ -103,6 +103,7 @@ export interface InitialGameStateOptions {
     randomizeFirstPlayer?: boolean;
     playerCount?: number;
     playerNames?: string[];
+    settings?: Partial<GameSettings>;
 }
 
 function clonePlayer(player: Player): Player {
@@ -170,7 +171,11 @@ export function createInitialGameState(options: InitialGameStateOptions = {}): G
         isLastRound: false,
         gameEnded: false,
         initialFlagsPerPlayer: players[0]?.flags ?? 18,
-        initialTiles: { ...tilesRemaining }
+        initialTiles: { ...tilesRemaining },
+        settings: {
+            promissoryNoteInterestFees: false,
+            ...options.settings
+        }
     };
 }
 

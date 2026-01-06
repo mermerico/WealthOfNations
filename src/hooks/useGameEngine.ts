@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { GameState } from '../types/gameState';
+import type { GameState, GameSettings } from '../types/gameState';
 import { createInitialGameState, applyGameAction } from '../shared/gameEngine';
 import type { LobbySnapshot, LobbyPlayer, ClientMessage, ServerMessage } from '../shared/networkTypes';
 
@@ -473,6 +473,18 @@ export function useGameEngine() {
         });
     }, [lobby, mode, sendMessage]);
 
+    const updateSettings = useCallback((settings: Partial<GameSettings>) => {
+        if (mode !== 'remote' || !lobby || lobby.phase !== 'forming') {
+            return false;
+        }
+
+        return sendMessage({
+            type: 'updateSettings',
+            clientId: clientIdRef.current,
+            settings
+        });
+    }, [lobby, mode, sendMessage]);
+
     const playerCount = lobby ? lobby.players.length : gameState.players.length;
 
     return {
@@ -493,6 +505,7 @@ export function useGameEngine() {
         saveGame,
         claimSeat,
         unclaimSeat,
+        updateSettings,
         connectionState,
         lastError,
         saveSuccess,

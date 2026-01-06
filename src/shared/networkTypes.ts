@@ -1,4 +1,4 @@
-import type { GameState, Player } from '../types/gameState';
+import type { GameState, GameSettings, Player } from '../types/gameState';
 
 export type LobbyCode = string;
 
@@ -25,6 +25,7 @@ export interface LobbySnapshot {
     restoringSeats?: RestoringSeat[];
     savedRound?: number;
     savedPhase?: string;
+    settings?: GameSettings;
 }
 
 export interface CreateLobbyMessage {
@@ -94,6 +95,12 @@ export interface UnclaimSeatMessage {
     clientId: string;
 }
 
+export interface UpdateSettingsMessage {
+    type: 'updateSettings';
+    clientId: string;
+    settings: Partial<GameSettings>;
+}
+
 export type ClientMessage =
     | CreateLobbyMessage
     | JoinLobbyMessage
@@ -106,7 +113,8 @@ export type ClientMessage =
     | PingMessage
     | SaveGameMessage
     | ClaimSeatMessage
-    | UnclaimSeatMessage;
+    | UnclaimSeatMessage
+    | UpdateSettingsMessage;
 
 export interface LobbyUpdateEnvelope {
     type: 'lobbyUpdate';
@@ -174,6 +182,7 @@ export interface LobbyRecord {
     players: LobbySeat[];
     state: GameState | null;
     restoringSeats?: RestoringSeat[];  // Present when phase is 'restoring'
+    settings?: GameSettings;  // Game settings configured in lobby
 }
 
 export interface LobbySeat {

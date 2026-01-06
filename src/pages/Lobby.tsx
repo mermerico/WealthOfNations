@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LobbySnapshot, LobbyPlayer } from '../shared/networkTypes';
+import type { GameSettings } from '../types/gameState';
 
 type ConnectionLabel = 'connecting' | 'connected' | 'disconnected';
 
@@ -12,6 +13,7 @@ interface LobbyProps {
     onRename: (name: string) => void;
     onReadyToggle: (ready: boolean) => void;
     onStart: () => void;
+    onUpdateSettings: (settings: Partial<GameSettings>) => void;
 }
 
 export function Lobby({
@@ -22,7 +24,8 @@ export function Lobby({
     onLeave,
     onRename,
     onReadyToggle,
-    onStart
+    onStart,
+    onUpdateSettings
 }: LobbyProps) {
     const [nameDraft, setNameDraft] = useState(selfPlayer?.name ?? '');
     const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -126,6 +129,21 @@ export function Lobby({
                     );
                 })}
             </div>
+
+            {/* Game Settings - Host Only */}
+            {isHost && (
+                <div className="lobby-settings">
+                    <h3>Game Settings</h3>
+                    <label className="lobby-setting-toggle">
+                        <input
+                            type="checkbox"
+                            checked={lobby.settings?.promissoryNoteInterestFees ?? false}
+                            onChange={(e) => onUpdateSettings({ promissoryNoteInterestFees: e.target.checked })}
+                        />
+                        <span>Promissory Note Interest ($1/note at start of each Trade phase)</span>
+                    </label>
+                </div>
+            )}
 
             <div className="lobby-footer">
                 <div className="lobby-actions">

@@ -82,6 +82,10 @@ export interface SetupPhaseState {
   } | null;
 }
 
+export interface GameSettings {
+  promissoryNoteInterestFees: boolean;
+}
+
 export interface GameState {
   players: Player[];
   board: Record<string, HexCell>; // Key: "q,r" -> e.g. "0,0", "-1,1"
@@ -99,6 +103,7 @@ export interface GameState {
   // For consistency checks
   initialFlagsPerPlayer: number;
   initialTiles: Record<IndustryType, number>;
+  settings: GameSettings;
 }
 
 export const INITIAL_RESOURCES: Record<CommodityType, number> = {

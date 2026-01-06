@@ -26,6 +26,7 @@ function AppShell() {
     setReadyState,
     claimSeat,
     unclaimSeat,
+    updateSettings,
     lastLobbyCode
   } = useGameEngineContext();
 
@@ -90,6 +91,7 @@ function AppShell() {
           setReadyState(ready);
         }}
         onStart={startNewGame}
+        onUpdateSettings={updateSettings}
       />
     );
   }
