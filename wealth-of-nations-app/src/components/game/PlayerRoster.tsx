@@ -64,7 +64,7 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                                 )}
                                 {player.hasProduced && (
                                     <span className="player-badge produced-badge">
-                                        PRODUCED
+                                        DONE
                                     </span>
                                 )}
                             </div>

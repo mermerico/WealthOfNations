@@ -40,12 +40,18 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction,
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '10px', color: '#888' }}>PLAYER</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <img
-                            src={`/flags/${currentPlayer.flag}`}
-                            alt={currentPlayer.name}
-                            style={{ width: '20px', height: '10px', objectFit: 'cover' }}
-                        />
-                        <span style={{ fontWeight: 'bold', color: currentPlayer.color }}>{currentPlayer.name}</span>
+                        {gameState.phase === 'Produce' ? (
+                            <span style={{ fontWeight: 'bold', color: '#ccc', fontStyle: 'italic' }}>Simultaneous Plan</span>
+                        ) : (
+                            <>
+                                <img
+                                    src={`/flags/${currentPlayer.flag}`}
+                                    alt={currentPlayer.name}
+                                    style={{ width: '20px', height: '10px', objectFit: 'cover' }}
+                                />
+                                <span style={{ fontWeight: 'bold', color: currentPlayer.color }}>{currentPlayer.name}</span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
