@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { generateGrid } from '../utils/hexUtils';
-import { gameReducer } from '../utils/gameReducer';
-import type { GameState, Player } from '../types/gameState';
-import { MARKET_STARTING_QUANTITIES } from '../utils/marketPrices';
+import { generateGrid } from '../../utils/hexUtils';
+import { gameReducer } from '../../utils/gameReducer';
+import type { GameState, Player } from '../../types/gameState';
+import { MARKET_STARTING_QUANTITIES } from '../../utils/marketPrices';
 
 /**
  * Integration tests for phase transitions through sequences of actions.

@@ -38,7 +38,9 @@ This project is a web-based implementation of the board game **Wealth of Nations
 │   ├── hooks/          # React hooks (game state management)
 │   ├── components/     # React components (UI and game elements)
 │   ├── pages/          # Page-level components
-│   └── test/           # Test configuration
+│   └── tests/          # Integration and unit tests
+│       └── integration/ # Complex interaction tests
+├── e2e/                # Playwright End-to-End tests
 ├── public/             # Static assets (flag SVGs)
 ├── resources/          # Game rules and reference materials
 └── config files        # TypeScript, Vite, ESLint configurations
@@ -270,12 +272,17 @@ Game
 └── PlayerDashboard (current player details)
 ```
 
-### `/src/integration-tests/` & `/src/test/`
+### `/src/tests/integration/` & `/e2e/`
 
 **Testing Strategy**:
-- Unit tests for utilities (`production.test.ts`, `placementLogic.test.ts`, etc.)
-- Integration tests for complex interactions (`sharedDots.test.ts`)
-- Production tests for specific scenarios (`Sandbox.production.test.ts`)
+- **Unit Tests** (`npm run test`): Located alongside code or in `src/tests/`. Run with Vitest.
+  - Utilities: `production.test.ts`, `placementLogic.test.ts`
+  - Integration: `src/tests/integration/sharedDots.test.ts` (complex interactions)
+  - Game Flow: `src/pages/Game.production.test.ts`
+- **End-to-End Tests** (`npx playwright test`): Located in `/e2e/`. Run with Playwright.
+  - Full browser verification of game scenarios
+  - Multiplayer flows (`multiplayer-game.spec.ts`)
+  - Save/Load functionality (`save-load-game.spec.ts`)
 
 **Test Setup**:
 - Vitest as test runner

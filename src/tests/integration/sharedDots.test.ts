@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGlobalProduction } from '../utils/production';
-import type { HexCell } from '../types/gameState';
+import { calculateGlobalProduction } from '../../utils/production';
+import type { HexCell } from '../../types/gameState';
 
 describe('Shared Dot Rule Integration', () => {
     it('should reduce production for shared edge between players', () => {
