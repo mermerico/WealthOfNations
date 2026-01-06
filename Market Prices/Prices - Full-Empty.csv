@@ -1,0 +1,6 @@
+Resource,Buy Price (Market Empty),Sell Price (Market Full), Starting Quantity
+Energy,24,2,20
+Labor,30,6,20
+Capital,42,10,15
+Food,13,1,20
+Ore,35,8,15

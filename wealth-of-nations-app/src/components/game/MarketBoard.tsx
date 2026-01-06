@@ -19,10 +19,13 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
             gap: '10px',
             padding: '10px',
             background: '#222',
-            overflowX: 'auto',
+            overflowY: 'auto', // Single vertical scrollbar for the entire board
             borderRadius: '8px',
             border: '1px solid #444',
-            alignItems: 'flex-start'
+            alignItems: 'flex-start', // Align tracks at the top
+            height: '100%',
+            boxSizing: 'border-box',
+            scrollbarWidth: 'thin'
         }}>
             {ORDER.map(type => {
                 const market = markets[type];
@@ -30,7 +33,13 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
                 const stock = market.stock;
 
                 return (
-                    <div key={type} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div key={type} style={{
+                        flex: 1,
+                        minWidth: '60px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                    }}>
                         {/* Header */}
                         <div style={{
                             background: color,
@@ -39,14 +48,21 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
                             textAlign: 'center',
                             fontWeight: 'bold',
                             padding: '4px 0',
-                            borderRadius: '4px 4px 0 0'
+                            borderRadius: '4px 4px 0 0',
+                            flexShrink: 0
                         }}>
                             {type}
                         </div>
 
                         {/* Market Track */}
-                        <div style={{ background: '#333', width: '100%', padding: '2px', border: '1px solid #555' }}>
-                            {MARKET_STEPS.map((step, index) => {
+                        <div style={{
+                            background: '#333',
+                            width: '100%',
+                            padding: '2px',
+                            border: '1px solid #555',
+                            boxSizing: 'border-box'
+                        }}>
+                            {MARKET_STEPS[type].map((step, index) => {
                                 // Determine state of this well
                                 // Well index 0 is top.
                                 // If stock > index, this well has a cube.
@@ -61,26 +77,23 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
 
                                 return (
                                     <div key={index} style={{
-                                        margin: '2px 0',
+                                        margin: '1px 0',
                                         background: '#1a1a1a',
                                         border: '1px solid #444',
-                                        height: '40px',
+                                        height: '25px', // Reduced height for more visibility
                                         position: 'relative',
                                         display: 'flex',
                                         justifyContent: 'center',
                                         alignItems: 'center',
                                         cursor: (canBuyHere || canSellHere) ? 'pointer' : 'default',
-                                        opacity: (canBuyHere || canSellHere) ? 1 : 0.6 // Dim non-active slots slightly?
+                                        opacity: (canBuyHere || canSellHere) ? 1 : 0.6
                                     }}
                                         onClick={() => {
                                             if (canBuyHere) onBuy?.(type);
                                             if (canSellHere) onSell?.(type);
                                         }}
                                     >
-                                        {/* Sell Price (Inside) - Show if empty or active? 
-                                           Rules: "Sell Price listed inside". 
-                                           Usually printed on board always.
-                                       */}
+                                        {/* Sell Price (Inside) */}
                                         <span style={{
                                             position: 'absolute',
                                             fontSize: '10px',
@@ -93,24 +106,22 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
                                         {/* Cube if present */}
                                         {hasCube && (
                                             <div style={{
-                                                width: '20px',
-                                                height: '20px',
-                                                borderRadius: '3px',
+                                                width: '14px',
+                                                height: '14px',
+                                                borderRadius: '2px',
                                                 background: color,
                                                 boxShadow: '0 0 4px rgba(0,0,0,0.5)',
                                                 zIndex: 2
                                             }} />
                                         )}
 
-                                        {/* Buy Price (Beneath/Right/Bottom) 
-                                           Let's put it in bottom right corner
-                                       */}
+                                        {/* Buy Price (Bottom Right) */}
                                         <span style={{
                                             position: 'absolute',
                                             bottom: '1px',
                                             right: '2px',
-                                            fontSize: '9px',
-                                            color: '#ef4444' // Red for cost
+                                            fontSize: '8px',
+                                            color: '#ef4444'
                                         }}>
                                             -{step.buy}
                                         </span>

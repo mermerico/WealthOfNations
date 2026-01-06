@@ -603,9 +603,10 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
             const stock = state.markets[type].stock;
-            if (stock <= 0) return { success: false, message: 'Market empty' };
+            // Allow buying from empty market (stock = 1 stays at 1)
+            if (stock < 1) return { success: false, message: 'Market empty' };
 
-            const price = MARKET_STEPS[stock - 1].buy;
+            const price = MARKET_STEPS[type][stock - 1].buy;
             const player = state.players[state.currentTurnPlayerIndex];
 
             if (player.money < price) return { success: false, message: 'Not enough money' };
@@ -627,7 +628,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     players: newPlayers,
                     markets: {
                         ...state.markets,
-                        [type]: { ...state.markets[type], stock: stock - 1 }
+                        [type]: { ...state.markets[type], stock: Math.max(1, stock - 1) }
                     },
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex
@@ -641,9 +642,10 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
             const stock = state.markets[type].stock;
-            if (stock >= MARKET_STEPS.length) return { success: false, message: 'Market full' };
+            const trackLength = MARKET_STEPS[type].length;
+            // Allow selling to full market (but stock won't exceed max)
 
-            const price = MARKET_STEPS[stock].sell;
+            const price = MARKET_STEPS[type][stock].sell;
             const player = state.players[state.currentTurnPlayerIndex];
 
             if (player.resources[type] <= 0) return { success: false, message: 'No resource to sell' };
@@ -665,7 +667,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     players: newPlayers,
                     markets: {
                         ...state.markets,
-                        [type]: { ...state.markets[type], stock: stock + 1 }
+                        [type]: { ...state.markets[type], stock: Math.min(trackLength - 1, stock + 1) }
                     },
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex

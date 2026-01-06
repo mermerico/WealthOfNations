@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { GameState } from '../types/gameState';
 import { gameReducer } from './gameReducer';
 import { getValidSetupPlacements } from './setupPlacementLogic';
+import { MARKET_STARTING_QUANTITIES } from './marketPrices';
 
 describe('Setup Phase Integration', () => {
     const createGameStateInSetup = (): GameState => {
@@ -44,11 +45,11 @@ describe('Setup Phase Integration', () => {
             ],
             board: {},
             markets: {
-                Food: { stock: 4, priceIndex: 4 },
-                Energy: { stock: 4, priceIndex: 4 },
-                Labor: { stock: 4, priceIndex: 4 },
-                Ore: { stock: 4, priceIndex: 4 },
-                Capital: { stock: 4, priceIndex: 4 }
+                Food: { stock: MARKET_STARTING_QUANTITIES.Food, priceIndex: MARKET_STARTING_QUANTITIES.Food },
+                Energy: { stock: MARKET_STARTING_QUANTITIES.Energy, priceIndex: MARKET_STARTING_QUANTITIES.Energy },
+                Labor: { stock: MARKET_STARTING_QUANTITIES.Labor, priceIndex: MARKET_STARTING_QUANTITIES.Labor },
+                Ore: { stock: MARKET_STARTING_QUANTITIES.Ore, priceIndex: MARKET_STARTING_QUANTITIES.Ore },
+                Capital: { stock: MARKET_STARTING_QUANTITIES.Capital, priceIndex: MARKET_STARTING_QUANTITIES.Capital }
             },
             phase: 'Trade',
             currentTurnPlayerIndex: 0,

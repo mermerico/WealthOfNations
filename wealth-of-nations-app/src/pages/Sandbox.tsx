@@ -37,7 +37,6 @@ export const Sandbox: React.FC = () => {
     const [selectedTool, setSelectedTool] = useState<IndustryType | 'Flag' | 'Eraser' | 'Rotate' | 'Move' | 'Automate'>('Farm');
     const [forceMode, setForceMode] = useState(false);
     const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
-    const [extraTurns, setExtraTurns] = useState(false);
     const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
 
     // Move operation state
@@ -510,7 +509,7 @@ export const Sandbox: React.FC = () => {
         if (stock <= 0) return; // Cannot buy from empty market
 
         // Check if player can afford the purchase
-        const buyPrice = MARKET_STEPS[stock - 1].buy;
+        const buyPrice = MARKET_STEPS[type][stock - 1].buy;
         if (player.money < buyPrice) {
             setMarketErrorMessage(`Insufficient funds: need $${buyPrice}`);
             setTimeout(() => setMarketErrorMessage(null), 3000);
@@ -527,7 +526,7 @@ export const Sandbox: React.FC = () => {
     const handleSell = (type: CommodityType) => {
         if (gameState.phase !== 'Trade') return;
         const stock = gameState.markets[type].stock;
-        if (stock >= MARKET_STEPS.length) return; // Market full
+        if (stock >= MARKET_STEPS[type].length) return; // Market full
 
         // Check if player has the commodity to sell
         if (player.resources[type] < 1) {
@@ -564,8 +563,7 @@ export const Sandbox: React.FC = () => {
                 id: pendingBuild.id,
                 type: pendingBuild.type,
                 orientation: pendingBuild.orientation,
-                force: forceMode,
-                extraTurns
+                force: forceMode
             });
             setPendingBuild(null);
             setInteractionMode('idle');
@@ -722,7 +720,7 @@ export const Sandbox: React.FC = () => {
                     }
 
                     // Execute the move
-                    handleAction('moveIndustry', { fromId: moveSourceId, toId: id, extraTurns: true });
+                    handleAction('moveIndustry', { fromId: moveSourceId, toId: id });
 
                     // Track the move
                     setMoveHistory(prev => [...prev, { from: moveSourceId, to: id }]);
@@ -779,7 +777,7 @@ export const Sandbox: React.FC = () => {
         }
         else if (selectedTool === 'Flag') {
             if (gameState.phase === 'Develop') {
-                handleAction('placeFlag', { id, extraTurns });
+                handleAction('placeFlag', { id });
             } else {
                 // Sandbox Force
                 const newCell = { ...cell, occupant: { type: 'Flag', playerId: player.id } };
@@ -788,7 +786,7 @@ export const Sandbox: React.FC = () => {
         }
         else if (selectedTool === 'Automate') {
             if (cell.occupant?.type === 'Industry') {
-                handleAction('automateBloc', { id, extraTurns });
+                handleAction('automateBloc', { id });
             }
         }
         else if (TILE_DEFINITIONS[selectedTool as IndustryType]) {
@@ -823,22 +821,6 @@ export const Sandbox: React.FC = () => {
         }
     };
 
-    // Calculate production for selected tile (Read-only debug)
-    let productionDisplay = null;
-    if (selectedCellId && gameState.board[selectedCellId]) {
-        const cell = gameState.board[selectedCellId];
-        const prod = calculateProduction(gameState.board, cell);
-        if (prod) {
-            productionDisplay = (
-                <div style={{ marginTop: '10px' }}>
-                    <strong>Potential Production:</strong> {prod.amount} {prod.commodity}
-                    <ul style={{ fontSize: '0.8em', margin: '5px 0', paddingLeft: '20px' }}>
-                        {prod.log.map((l, i) => <li key={i}>{l}</li>)}
-                    </ul>
-                </div>
-            );
-        }
-    }
 
     // Aggregation helper
     const aggregateGlobal = (results: Record<string, any>) => {
@@ -2056,7 +2038,7 @@ export const Sandbox: React.FC = () => {
 
                 {/* Col 4: Market + Cheat */}
                 <div style={{
-                    width: '380px',
+                    width: '420px',
                     background: '#1a1a1a',
                     borderLeft: '1px solid #333',
                     display: 'flex',
@@ -2064,14 +2046,27 @@ export const Sandbox: React.FC = () => {
                     overflowY: 'auto'
                 }}>
                     {/* Market Section */}
-                    <div style={{ padding: '10px', borderBottom: '1px solid #333' }}>
+                    <div style={{
+                        padding: '10px',
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: 0
+                    }}>
                         <h3 style={{ color: 'white', margin: '0 0 10px 0', textAlign: 'center' }}>Market</h3>
                         {marketErrorMessage && (
                             <div style={{ background: 'rgba(255,0,0,0.8)', color: 'white', padding: '8px', borderRadius: '4px', marginBottom: '10px', textAlign: 'center', fontSize: '12px' }}>
                                 {marketErrorMessage}
                             </div>
                         )}
-                        <div style={{ overflowX: 'auto', paddingBottom: '5px' }}>
+                        <div style={{
+                            overflowX: 'auto',
+                            paddingBottom: '5px',
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: 0
+                        }}>
                             {pendingMarketTransaction ? (
                                 <MarketTransactionModal
                                     action={pendingMarketTransaction.action}
@@ -2079,8 +2074,8 @@ export const Sandbox: React.FC = () => {
                                     amount={pendingMarketTransaction.amount}
                                     price={
                                         pendingMarketTransaction.action === 'buy'
-                                            ? MARKET_STEPS[gameState.markets[pendingMarketTransaction.commodity].stock - 1].buy
-                                            : MARKET_STEPS[gameState.markets[pendingMarketTransaction.commodity].stock].sell
+                                            ? MARKET_STEPS[pendingMarketTransaction.commodity][gameState.markets[pendingMarketTransaction.commodity].stock - 1].buy
+                                            : MARKET_STEPS[pendingMarketTransaction.commodity][gameState.markets[pendingMarketTransaction.commodity].stock].sell
                                     }
                                     onConfirm={handleConfirmMarketTransaction}
                                     onCancel={handleCancelMarketTransaction}
@@ -2089,125 +2084,11 @@ export const Sandbox: React.FC = () => {
                                 <MarketBoard markets={gameState.markets} onBuy={handleBuy} onSell={handleSell} />
                             )}
                         </div>
-                        <div style={{ padding: '5px', color: '#666', fontSize: '11px', textAlign: 'center' }}>
+                        <div style={{ padding: '5px', color: '#666', fontSize: '11px', textAlign: 'center', flexShrink: 0 }}>
                             {gameState.phase === 'Trade' ? 'Market Active' : 'Market Closed'}
                         </div>
                     </div>
 
-                    {/* Cheat Sheet / Debug */}
-                    <div style={{ padding: '10px', background: '#111', flex: 1 }}>
-                        <div style={{ marginBottom: '5px', color: '#666', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>Cheat Sheet</span>
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <label style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '10px', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={extraTurns}
-                                        onChange={(e) => setExtraTurns(e.target.checked)}
-                                    />
-                                    Extra Turns
-                                </label>
-                                <button
-                                    onClick={() => setSelectedTool('Eraser')}
-                                    style={{ fontSize: '10px', padding: '2px 6px', borderColor: selectedTool === 'Eraser' ? 'red' : '#444', color: selectedTool === 'Eraser' ? 'red' : '#666' }}
-                                >
-                                    Eraser
-                                </button>
-                            </div>
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                            <button onClick={() => handleAction('debug', { field: 'resource', type: 'Food', amount: 1 })}>+F</button>
-                            <button onClick={() => handleAction('debug', { field: 'resource', type: 'Energy', amount: 1 })}>+E</button>
-                            <button onClick={() => handleAction('debug', { field: 'resource', type: 'Labor', amount: 1 })}>+L</button>
-                            <button onClick={() => handleAction('debug', { field: 'resource', type: 'Ore', amount: 1 })}>+O</button>
-                            <button onClick={() => handleAction('debug', { field: 'resource', type: 'Capital', amount: 1 })}>+C</button>
-                            <button onClick={() => handleAction('debug', { field: 'money', amount: 10 })}>+$10</button>
-                            <button onClick={() => handleAction('debug', { field: 'flags', amount: 1 })}>+Flag</button>
-                            <button
-                                onClick={() => {
-                                    const demoState = { ...gameState };
-                                    // P1 (Blue) - Farm bloc in center-left area
-                                    demoState.board['-1,0'] = {
-                                        ...demoState.board['-1,0'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p1',
-                                            tile: { id: 'f1', type: 'Farm' as IndustryType, orientation: 0, ownerId: 'p1', active: true }
-                                        }
-                                    };
-                                    demoState.board['-1,1'] = {
-                                        ...demoState.board['-1,1'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p1',
-                                            tile: { id: 'f2', type: 'Farm' as IndustryType, orientation: 3, ownerId: 'p1', active: true }
-                                        }
-                                    };
-                                    // P1 Generator
-                                    demoState.board['0,1'] = {
-                                        ...demoState.board['0,1'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p1',
-                                            tile: { id: 'g1', type: 'Generator' as IndustryType, orientation: 0, ownerId: 'p1', active: true, automated: true }
-                                        }
-                                    };
-                                    // P1 Factory
-                                    demoState.board['-2,1'] = {
-                                        ...demoState.board['-2,1'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p1',
-                                            tile: { id: 'fc1', type: 'Factory' as IndustryType, orientation: 1, ownerId: 'p1', active: true }
-                                        }
-                                    };
-                                    // P1 Flags for expansion
-                                    demoState.board['-2,2'] = { ...demoState.board['-2,2'], occupant: { type: 'Flag', playerId: 'p1' } };
-                                    demoState.board['0,0'] = { ...demoState.board['0,0'], occupant: { type: 'Flag', playerId: 'p1' } };
-
-                                    // P2 (Red) - Mine bloc in right area
-                                    demoState.board['2,-1'] = {
-                                        ...demoState.board['2,-1'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p2',
-                                            tile: { id: 'm1', type: 'Mine' as IndustryType, orientation: 0, ownerId: 'p2', active: true }
-                                        }
-                                    };
-                                    demoState.board['2,0'] = {
-                                        ...demoState.board['2,0'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p2',
-                                            tile: { id: 'm2', type: 'Mine' as IndustryType, orientation: 3, ownerId: 'p2', active: true }
-                                        }
-                                    };
-                                    // P2 Academy
-                                    demoState.board['1,0'] = {
-                                        ...demoState.board['1,0'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p2',
-                                            tile: { id: 'a1', type: 'Academy' as IndustryType, orientation: 2, ownerId: 'p2', active: true }
-                                        }
-                                    };
-                                    // P2 Bank
-                                    demoState.board['3,-1'] = {
-                                        ...demoState.board['3,-1'],
-                                        occupant: {
-                                            type: 'Industry', playerId: 'p2',
-                                            tile: { id: 'b1', type: 'Bank' as IndustryType, orientation: 4, ownerId: 'p2', active: true }
-                                        }
-                                    };
-                                    // P2 Flags
-                                    demoState.board['1,-1'] = { ...demoState.board['1,-1'], occupant: { type: 'Flag', playerId: 'p2' } };
-                                    demoState.board['3,0'] = { ...demoState.board['3,0'], occupant: { type: 'Flag', playerId: 'p2' } };
-
-                                    handleAction('loadState', demoState);
-                                }}
-                                style={{ fontSize: '10px', padding: '2px 6px', background: '#332244', color: '#fff', borderColor: '#664488' }}
-                            >
-                                Load Demo Board
-                            </button>
-                        </div>
-                        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-                            {selectedCellId ? `Selected: ${selectedCellId} ` : 'No selection'}
-                            {productionDisplay}
-                        </div>
-                    </div>
                 </div>
             </div>
 

@@ -1,13 +1,14 @@
 import type { GameState, Player, CommodityType, MarketState } from '../types/gameState';
 import { generateGrid } from '../utils/hexUtils';
 import { gameReducerWithChecks, type ActionResult } from '../utils/gameReducer';
+import { MARKET_STARTING_QUANTITIES } from '../utils/marketPrices';
 
 const DEFAULT_MARKETS: Record<CommodityType, MarketState> = {
-    Food: { stock: 4, priceIndex: 4 },
-    Energy: { stock: 4, priceIndex: 4 },
-    Labor: { stock: 4, priceIndex: 4 },
-    Ore: { stock: 4, priceIndex: 4 },
-    Capital: { stock: 4, priceIndex: 4 }
+    Food: { stock: MARKET_STARTING_QUANTITIES.Food, priceIndex: MARKET_STARTING_QUANTITIES.Food },
+    Energy: { stock: MARKET_STARTING_QUANTITIES.Energy, priceIndex: MARKET_STARTING_QUANTITIES.Energy },
+    Labor: { stock: MARKET_STARTING_QUANTITIES.Labor, priceIndex: MARKET_STARTING_QUANTITIES.Labor },
+    Ore: { stock: MARKET_STARTING_QUANTITIES.Ore, priceIndex: MARKET_STARTING_QUANTITIES.Ore },
+    Capital: { stock: MARKET_STARTING_QUANTITIES.Capital, priceIndex: MARKET_STARTING_QUANTITIES.Capital }
 };
 
 const PLAYER_TEMPLATES: readonly Player[] = [

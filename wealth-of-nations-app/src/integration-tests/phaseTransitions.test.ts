@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateGrid } from '../utils/hexUtils';
 import { gameReducer } from '../utils/gameReducer';
 import type { GameState, Player } from '../types/gameState';
+import { MARKET_STARTING_QUANTITIES } from '../utils/marketPrices';
 
 /**
  * Integration tests for phase transitions through sequences of actions.
@@ -39,11 +40,11 @@ function createGameState(phase: 'Trade' | 'Develop' | 'Produce', playerCount: nu
         phase,
         round: 1,
         markets: {
-            Food: { stock: 4, priceIndex: 4 },
-            Energy: { stock: 4, priceIndex: 4 },
-            Labor: { stock: 4, priceIndex: 4 },
-            Ore: { stock: 4, priceIndex: 4 },
-            Capital: { stock: 4, priceIndex: 4 }
+            Food: { stock: MARKET_STARTING_QUANTITIES.Food, priceIndex: MARKET_STARTING_QUANTITIES.Food },
+            Energy: { stock: MARKET_STARTING_QUANTITIES.Energy, priceIndex: MARKET_STARTING_QUANTITIES.Energy },
+            Labor: { stock: MARKET_STARTING_QUANTITIES.Labor, priceIndex: MARKET_STARTING_QUANTITIES.Labor },
+            Ore: { stock: MARKET_STARTING_QUANTITIES.Ore, priceIndex: MARKET_STARTING_QUANTITIES.Ore },
+            Capital: { stock: MARKET_STARTING_QUANTITIES.Capital, priceIndex: MARKET_STARTING_QUANTITIES.Capital }
         },
         consecutivePasses: 0,
         tilesRemaining: {
