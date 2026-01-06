@@ -907,6 +907,28 @@ export const Sandbox: React.FC = () => {
         return true;
     };
 
+    // Helper to get descriptive error message when no valid placements exist
+    const getDescriptiveErrorMessage = () => {
+        if (selectedTool === 'Flag') {
+            if (player.flags <= 0) return 'No flags remaining';
+            return 'No valid locations adjacent to your territory';
+        }
+
+        if (TILE_DEFINITIONS[selectedTool as IndustryType]) {
+            const hasFlagsOnBoard = Object.values(gameState.board).some(
+                cell => cell.occupant?.type === 'Flag' && cell.occupant.playerId === player.id
+            );
+
+            if (!hasFlagsOnBoard) {
+                if (player.flags > 0) return 'Place a flag first to claim territory';
+                return 'No flags left to claim new territory';
+            }
+            return `No valid locations for ${selectedTool}`;
+        }
+
+        return `No valid locations for ${selectedTool}`;
+    };
+
 
 
 
@@ -2005,7 +2027,7 @@ export const Sandbox: React.FC = () => {
                     )}
                     {gameState.phase !== 'Setup' && validPlacements && Object.keys(validPlacements).length === 0 && (
                         <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 10, background: 'rgba(255,0,0,0.8)', color: 'white', padding: '5px 10px', borderRadius: '4px' }}>
-                            No valid placements for {selectedTool}
+                            {getDescriptiveErrorMessage()}
                         </div>
                     )}
                     <div style={{ position: 'absolute', inset: 0 }}>

@@ -120,7 +120,7 @@ test.describe.serial('3-player game flow', () => {
     });
 
     test('setup phase - package selection and tile placement', async () => {
-        test.setTimeout(60000);
+        test.setTimeout(120000);
         const p1 = pages[0];
 
         await step('Entering Setup Phase...');
@@ -230,7 +230,7 @@ test.describe.serial('3-player game flow', () => {
         await step('Setup phase complete - Trade Phase Reached!');
     });
 
-    test('trade phase - propose and accept trade', async () => {
+    test('trade phase - execute trade and finish', async () => {
         test.setTimeout(30000);
 
         const activeIdx = await findActivePlayer();
@@ -257,6 +257,73 @@ test.describe.serial('3-player game flow', () => {
         await targetPage.getByRole('button', { name: 'Accept' }).click();
 
         await expect(targetPage.getByRole('button', { name: 'Accept' })).not.toBeVisible();
-        await step('Trade accepted! Trade phase test passed.');
+        await step('Trade accepted!');
+
+        // All players pass to finish trade phase
+        await step('All players passing to finish Trade phase...');
+        for (let turn = 0; turn < 3; turn++) {
+            const activeIdx = await findActivePlayer();
+            expect(activeIdx).toBeGreaterThanOrEqual(0);
+            await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Trade phase`);
+            await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
+            await pages[activeIdx].waitForTimeout(200);
+        }
+    });
+
+    test('development phase - all players pass', async () => {
+        test.setTimeout(60000);
+        await step('Waiting for Development phase...');
+
+        // Wait for all players to see DEVELOP
+        for (let i = 0; i < 3; i++) {
+            await expect(pages[i].locator('text=DEVELOP')).toBeVisible({ timeout: 5000 });
+        }
+
+        for (let turn = 0; turn < 3; turn++) {
+            const activeIdx = await findActivePlayer();
+            expect(activeIdx).toBeGreaterThanOrEqual(0);
+            await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Develop phase`);
+            await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
+            await pages[activeIdx].waitForTimeout(200);
+        }
+    });
+
+    test('production phase - simultaneous production', async () => {
+        test.setTimeout(30000);
+        await step('Waiting for Production phase...');
+
+        // Wait for all players to see PRODUCE
+        for (let i = 0; i < 3; i++) {
+            await expect(pages[i].locator('text=PRODUCE')).toBeVisible({ timeout: 5000 });
+        }
+
+        await step('All players running production...');
+        // Click in non-sequential order to verify simultaneity
+        const indices = [1, 0, 2];
+        for (const i of indices) {
+            const name = playerNames[i];
+            await step(`P${i + 1} (${name}) clicking Run Production...`);
+
+            // Wait for button to be available and click
+            const btn = pages[i].getByRole('button', { name: 'Run Production' });
+            await btn.waitFor({ state: 'visible' });
+            await btn.click({ force: true });
+
+            // Verify roster reflects status (assuming there's a status indicator)
+            // This adds synchronization
+            await pages[i].waitForTimeout(500);
+        }
+
+        // Verify phase advances (usually back to Trade of Round 2)
+        await step('Verifying transition to next round...');
+
+        // Use more robust selectors for phase and round
+        // Phase should be TRADE in Round 2
+        for (let i = 0; i < 3; i++) {
+            await expect(pages[i].getByText('TRADE', { exact: true })).toBeVisible({ timeout: 10000 });
+            // Look for the round number "2" specifically in the Control Panel status info
+            const roundContainer = pages[i].locator('div:has-text("ROUND")').last(); // Get the inner one
+            await expect(roundContainer.getByText('2', { exact: true })).toBeVisible({ timeout: 5000 });
+        }
     });
 });

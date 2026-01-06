@@ -368,6 +368,12 @@ export class LobbyManager {
             return state.pendingTrade.targetId === seat.playerId;
         }
 
+        if (state.phase === 'Produce') {
+            if (action === 'confirmProduction') {
+                return (payload as { playerId?: string })?.playerId === seat.playerId;
+            }
+        }
+
         if (action === 'loadState' || action === 'debug' || action === 'sandboxPlaceTile') {
             return false;
         }
