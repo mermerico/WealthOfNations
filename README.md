@@ -12,10 +12,11 @@ Wealth of Nations is a web adaptation of the tabletop game centered on industria
 ```
 .
 ├── public/                 # Static assets (flags, favicon, manifest)
+├── resources/              # Game rules and reference materials
 ├── src/
 │   ├── components/         # Board, markets, roster, dashboard, and UI primitives
 │   ├── hooks/              # useGameEngine hook with WebSocket + local fallback
-│   ├── pages/              # Sandbox entry point and production integration tests
+│   ├── pages/              # Game entry point and production integration tests
 │   ├── shared/             # Reducer wrapper shared by client and server
 │   └── utils/              # Core game logic (placement, production, markets, setup)
 ├── server/                 # Node WebSocket relay powered by tsx
@@ -72,4 +73,4 @@ Store overrides in `.env.local` to keep secrets out of version control.
 - Bloc production counts edge and corner dots, plus automation bonuses, within `src/utils/production.ts`
 - Setup and placement validation live in `src/utils/setupLogic.ts` and `src/utils/placementLogic.ts`, mirroring the tabletop ruleset
 
-Consult `rules.md` at the repository root for the full rule reference and `AUTOMATION_FIX.md` for implementation notes.
+Consult `resources/rules.md` for the full rule reference and `AUTOMATION_FIX.md` for implementation notes.

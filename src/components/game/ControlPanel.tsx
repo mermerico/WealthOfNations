@@ -11,7 +11,7 @@ interface ControlPanelProps {
     isHost?: boolean;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, onAction, canAct = true, lobbyCode, onLeave, onSave, isHost }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = true, lobbyCode, onLeave, onSave, isHost }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex

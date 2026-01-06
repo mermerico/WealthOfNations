@@ -19,7 +19,7 @@ import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 
-export const Sandbox: React.FC = () => {
+export const Game: React.FC = () => {
     // Game Engine State
     const {
         gameState,

@@ -28,7 +28,10 @@ This project is a web-based implementation of the board game **Wealth of Nations
 ### Core Structure
 
 ```
-wealth-of-nations-app/
+### Core Structure
+
+```
+.
 ├── src/
 │   ├── types/          # TypeScript type definitions
 │   ├── utils/          # Game logic utilities
@@ -37,12 +40,14 @@ wealth-of-nations-app/
 │   ├── pages/          # Page-level components
 │   └── test/           # Test configuration
 ├── public/             # Static assets (flag SVGs)
+├── resources/          # Game rules and reference materials
 └── config files        # TypeScript, Vite, ESLint configurations
 ```
 
 ## Core Game Concepts
 
-### Game Mechanics (from rules.md)
+### Game Mechanics (from resources/rules.md)
+
 
 The game revolves around three main phases that repeat each round:
 
@@ -234,7 +239,7 @@ The game revolves around three main phases that repeat each round:
 
 ### `/src/pages/`
 
-#### `Sandbox.tsx`
+#### `Game.tsx`
 **Purpose**: Main game page that orchestrates all components and game flow.
 
 **Key Responsibilities**:
@@ -257,7 +262,7 @@ The game revolves around three main phases that repeat each round:
 
 **Component Composition**:
 ```
-Sandbox
+Game
 ├── ControlPanel (tools, actions)
 ├── Board (hex grid, tiles, flags)
 ├── MarketBoard (all markets)
@@ -302,7 +307,7 @@ Produce Phase
 ### State Flow
 
 1. **User Interaction** → UI Component
-2. **Event Handler** → Sandbox.tsx
+2. **Event Handler** → Game.tsx
 3. **Action Dispatch** → useGameEngine.handleAction()
 4. **State Update** → GameState modified
 5. **Re-render** → Components reflect new state
@@ -319,7 +324,7 @@ setGameState(prev => ({ ...prev, phase: nextPhase }))
 Hexagonal coordinates stored as `{q, r}` objects, converted to `"q,r"` strings for object keys.
 
 ### Component Hierarchy
-- **Smart Components**: `Sandbox.tsx` - handles logic and state
+- **Smart Components**: `Game.tsx` - handles logic and state
 - **Presentational Components**: Most components in `/components/` - receive props and render
 - **Hook-based State**: `useGameEngine` encapsulates game logic
 
@@ -434,7 +439,7 @@ npm run lint     # Check code quality
 | `components/game/MarketBoard.tsx` | Market display |
 | `components/game/PlayerRoster.tsx` | Player list |
 | `components/game/ControlPanel.tsx` | Tool selection |
-| `pages/Sandbox.tsx` | Main game orchestration |
+| `pages/Game.tsx` | Main game orchestration |
 | `App.tsx` | Application entry |
 
 ## Notes for AI Agents
@@ -444,9 +449,9 @@ When working on this codebase:
 1. **State is Immutable**: Always use spread operators for state updates
 2. **Coordinate Strings**: Board keys are `"q,r"` format, parse with `stringToCoords()`
 3. **Type Safety**: Leverage TypeScript; avoid `any` types
-4. **Game Rules**: Reference `rules.md` for authoritative game mechanics
+4. **Game Rules**: Reference `resources/rules.md` for authoritative game mechanics
 5. **Testing**: Add tests when modifying game logic in `/utils/`
-6. **Component Props**: Most components are presentational; logic stays in `Sandbox.tsx` or `useGameEngine`
+6. **Component Props**: Most components are presentational; logic stays in `Game.tsx` or `useGameEngine`
 7. **SVG Rendering**: Hex and tile rendering uses complex SVG transforms; be careful with rotations
 8. **Phase-Specific Logic**: Many actions are only valid in specific game phases
 
@@ -461,9 +466,9 @@ When working on this codebase:
 ### Modifying Production Rules
 1. Update logic in `production.ts`
 2. Add/update tests in `production.test.ts`
-3. Verify against `rules.md`
+3. Verify against `resources/rules.md`
 
 ### Adding UI Features
 1. Create component in `/components/ui/` or `/components/game/`
-2. Import and compose in `Sandbox.tsx`
-3. Add necessary state to `Sandbox.tsx` or `useGameEngine.ts`
+2. Import and compose in `Game.tsx`
+3. Add necessary state to `Game.tsx` or `useGameEngine.ts`

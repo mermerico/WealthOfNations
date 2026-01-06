@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import './index.css';
 import './App.css';
-import { Sandbox } from './pages/Sandbox';
+import { Game } from './pages/Game';
 import { Landing } from './pages/Landing';
 import { Lobby } from './pages/Lobby';
 import { RestoreLobby } from './pages/RestoreLobby';
@@ -96,7 +96,7 @@ function AppShell() {
 
   if (showGame) {
     return (
-      <Sandbox />
+      <Game />
     );
   }
 
