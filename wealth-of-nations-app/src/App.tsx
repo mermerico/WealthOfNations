@@ -32,8 +32,8 @@ function AppShell() {
     }
   }, [mode, lobby]);
 
-  const handleStartLocalGame = () => {
-    startLocalGame();
+  const handleStartLocalGame = (playerCount: number) => {
+    startLocalGame(playerCount);
     setLocalActive(true);
   };
 

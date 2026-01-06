@@ -277,13 +277,13 @@ export function useGameEngine() {
         });
     }, [lobby, mode, sendMessage]);
 
-    const startLocalGame = useCallback(() => {
+    const startLocalGame = useCallback((playerCount: number) => {
         setMode('local');
         setLobby(null);
         setSelfPlayer(null);
         lastLobbyCodeRef.current = null;
         removeStorageItem(LAST_LOBBY_STORAGE_KEY);
-        setGameState(createInitialGameState());
+        setGameState(createInitialGameState({ playerCount }));
     }, []);
 
     const startNewGame = useCallback(() => {

@@ -46,6 +46,42 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         ready: true,
         flag: 'bharat.svg',
         hasPassed: false
+    },
+    {
+        id: 'p4',
+        name: 'Player 4',
+        color: '#f59e0b',
+        resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
+        money: 0,
+        loans: 0,
+        flags: 18,
+        ready: true,
+        flag: 'arazzaq.svg',
+        hasPassed: false
+    },
+    {
+        id: 'p5',
+        name: 'Player 5',
+        color: '#8b5cf6',
+        resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
+        money: 0,
+        loans: 0,
+        flags: 18,
+        ready: true,
+        flag: 'federal_provinces.svg',
+        hasPassed: false
+    },
+    {
+        id: 'p6',
+        name: 'Player 6',
+        color: '#ec4899',
+        resources: { Food: 0, Energy: 0, Labor: 0, Ore: 0, Capital: 0 },
+        money: 0,
+        loans: 0,
+        flags: 18,
+        ready: true,
+        flag: 'showa.svg',
+        hasPassed: false
     }
 ];
 
@@ -64,6 +100,7 @@ export interface InitialGameStateOptions {
     firstPlayerIndex?: number;
     tilesRemaining?: Partial<GameState['tilesRemaining']>;
     randomizeFirstPlayer?: boolean;
+    playerCount?: number;
 }
 
 function clonePlayer(player: Player): Player {
@@ -73,11 +110,13 @@ function clonePlayer(player: Player): Player {
     };
 }
 
-function buildPlayers(customPlayers?: Player[]): Player[] {
+function buildPlayers(customPlayers?: Player[], playerCount?: number): Player[] {
     if (customPlayers && customPlayers.length > 0) {
         return customPlayers.map(clonePlayer);
     }
-    return PLAYER_TEMPLATES.map(clonePlayer);
+
+    const count = playerCount && playerCount >= 3 ? playerCount : 3;
+    return PLAYER_TEMPLATES.slice(0, count).map(clonePlayer);
 }
 
 function cloneMarkets(source: Record<CommodityType, MarketState>): Record<CommodityType, MarketState> {
@@ -91,7 +130,7 @@ function cloneMarkets(source: Record<CommodityType, MarketState>): Record<Commod
 }
 
 export function createInitialGameState(options: InitialGameStateOptions = {}): GameState {
-    const players = buildPlayers(options.players);
+    const players = buildPlayers(options.players, options.playerCount);
     const gridRadius = options.gridRadius ?? 4;
     const baseTilesRemaining = { ...DEFAULT_TILE_COUNTS };
     const tilesRemaining = {

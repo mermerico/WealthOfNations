@@ -5,7 +5,7 @@ type ConnectionLabel = 'connecting' | 'connected' | 'disconnected';
 interface LandingProps {
     onCreateLobby: (name: string) => void;
     onJoinLobby: (code: string, name: string) => void;
-    onStartLocalGame: () => void;
+    onStartLocalGame: (playerCount: number) => void;
     connectionState: ConnectionLabel;
     lastError: string | null;
     defaultName: string;
@@ -23,6 +23,7 @@ export function Landing({
 }: LandingProps) {
     const [name, setName] = useState(defaultName);
     const [code, setCode] = useState('');
+    const [localPlayerCount, setLocalPlayerCount] = useState(3);
 
     useEffect(() => {
         setName(defaultName);
@@ -138,12 +139,24 @@ export function Landing({
                         <span>or</span>
                     </div>
 
-                    <button
-                        className="landing-button"
-                        onClick={onStartLocalGame}
-                    >
-                        Local Hotseat Game
-                    </button>
+                    <div className="local-game-options">
+                        <select
+                            className="landing-select"
+                            value={localPlayerCount}
+                            onChange={e => setLocalPlayerCount(Number(e.target.value))}
+                        >
+                            <option value={3}>3 Players</option>
+                            <option value={4}>4 Players</option>
+                            <option value={5}>5 Players</option>
+                            <option value={6}>6 Players</option>
+                        </select>
+                        <button
+                            className="landing-button"
+                            onClick={() => onStartLocalGame(localPlayerCount)}
+                        >
+                            Local Hotseat Game
+                        </button>
+                    </div>
                 </div>
 
                 <div className="landing-status">
