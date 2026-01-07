@@ -48,6 +48,22 @@ export const Game: React.FC = () => {
     const [moveForceMode, setMoveForceMode] = useState(false);
     const [pendingMoveTarget, setPendingMoveTarget] = useState<{ from: string, to: string, orientation: number } | null>(null);
 
+    // Turn Notification Sound
+    const turnSound = useMemo(() => new Audio('/sounds/turn-start.wav'), []);
+    const prevTurnKey = React.useRef(`${gameState.phase}-${gameState.currentTurnPlayerIndex}`);
+
+    useEffect(() => {
+        const currentKey = `${gameState.phase}-${gameState.currentTurnPlayerIndex}`;
+        if (currentKey !== prevTurnKey.current && !gameState.gameEnded) {
+            prevTurnKey.current = currentKey;
+            turnSound.currentTime = 0;
+            turnSound.play().catch(e => {
+                // Ignore autoplay errors (user interaction required first)
+                console.log('Turn notification sound blocked:', e);
+            });
+        }
+    }, [gameState.phase, gameState.currentTurnPlayerIndex, gameState.gameEnded, turnSound]);
+
 
     // Interaction State
     const [interactionMode, setInteractionMode] = useState<'idle' | 'placing'>('idle');
