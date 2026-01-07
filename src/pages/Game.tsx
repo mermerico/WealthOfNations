@@ -542,10 +542,12 @@ export const Game: React.FC = () => {
     const handleBuy = (type: CommodityType) => {
         if (gameState.phase !== 'Trade') return; // Enforce Phase
         const stock = gameState.markets[type].stock;
-        if (stock <= 0) return; // Cannot buy from empty market
 
+        // Allow buy from empty (buying from supply)
         // Check if player can afford the purchase
-        const buyPrice = MARKET_STEPS[type][stock - 1].buy;
+        const priceIndex = Math.max(0, stock - 1);
+        const buyPrice = MARKET_STEPS[type][priceIndex].buy;
+
         if (player.money < buyPrice) {
             setMarketErrorMessage(`Insufficient funds: need $${buyPrice}`);
             setTimeout(() => setMarketErrorMessage(null), 3000);
@@ -561,8 +563,7 @@ export const Game: React.FC = () => {
 
     const handleSell = (type: CommodityType) => {
         if (gameState.phase !== 'Trade') return;
-        const stock = gameState.markets[type].stock;
-        if (stock >= MARKET_STEPS[type].length) return; // Market full
+        // Allow sell to full (selling to supply)
 
         // Check if player has the commodity to sell
         if (player.resources[type] < 1) {

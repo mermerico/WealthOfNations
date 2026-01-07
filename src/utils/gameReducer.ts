@@ -677,10 +677,12 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
             const stock = state.markets[type].stock;
-            // Allow buying from empty market (stock = 1 stays at 1)
-            if (stock < 1) return { success: false, message: 'Market empty' };
+            const steps = MARKET_STEPS[type];
 
-            const price = MARKET_STEPS[type][stock - 1].buy;
+            // When market is empty (stock=0), buy from supply at same price as stock=1
+            // Price index: stock=0 uses steps[0], stock=1 uses steps[0], stock=2 uses steps[1], etc.
+            const priceIndex = Math.max(0, stock - 1);
+            const price = steps[priceIndex].buy;
             const player = state.players[state.currentTurnPlayerIndex];
 
             if (player.money < price) return { success: false, message: 'Not enough money' };
@@ -695,6 +697,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
+            // Stock decreases by 1, but stays at 0 if already 0 (buying from supply)
+            const newStock = Math.max(0, stock - 1);
+
             return {
                 success: true,
                 newState: {
@@ -702,7 +707,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     players: newPlayers,
                     markets: {
                         ...state.markets,
-                        [type]: { ...state.markets[type], stock: Math.max(1, stock - 1) }
+                        [type]: { ...state.markets[type], stock: newStock }
                     },
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex
@@ -716,10 +721,13 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
             const stock = state.markets[type].stock;
-            const trackLength = MARKET_STEPS[type].length;
-            // Allow selling to full market (but stock won't exceed max)
+            const steps = MARKET_STEPS[type];
+            const maxStock = steps.length;
 
-            const price = MARKET_STEPS[type][stock].sell;
+            // When market is full (stock=maxStock), sell to supply at same price as stock=maxStock-1
+            // Price index: capped at maxStock-1
+            const priceIndex = Math.min(stock, maxStock - 1);
+            const price = steps[priceIndex].sell;
             const player = state.players[state.currentTurnPlayerIndex];
 
             if (player.resources[type] <= 0) return { success: false, message: 'No resource to sell' };
@@ -734,6 +742,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
+            // Stock increases by 1, but stays at maxStock if already full (selling to supply)
+            const newStock = Math.min(maxStock, stock + 1);
+
             return {
                 success: true,
                 newState: {
@@ -741,7 +752,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     players: newPlayers,
                     markets: {
                         ...state.markets,
-                        [type]: { ...state.markets[type], stock: Math.min(trackLength - 1, stock + 1) }
+                        [type]: { ...state.markets[type], stock: newStock }
                     },
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex

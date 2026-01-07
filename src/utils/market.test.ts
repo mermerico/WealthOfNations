@@ -152,30 +152,43 @@ describe('Market Boundary Behavior', () => {
         isLastRound: false,
         gameEnded: false,
         initialFlagsPerPlayer: 18,
-        initialTiles: { Farm: 15, Generator: 9, Academy: 9, Mine: 9, Factory: 9, Bank: 9 }
+        initialTiles: { Farm: 15, Generator: 9, Academy: 9, Mine: 9, Factory: 9, Bank: 9 },
+        settings: { promissoryNoteInterestFees: false }
     });
 
-    describe('Buying from near-empty market', () => {
-        it('should allow buying when stock = 1 and keep stock at 1', () => {
+    describe('Buying from empty market (stock = 0)', () => {
+        it('should allow buying when stock = 0 (buying from supply)', () => {
             const state = createTestState();
-            state.markets.Food.stock = 1;
+            state.markets.Food.stock = 0;
 
             const result = gameReducer(state, 'buy', 'Food');
 
             expect(result.success).toBe(true);
-            expect(result.newState?.markets.Food.stock).toBe(1); // Stock stays at 1
+            expect(result.newState?.markets.Food.stock).toBe(0); // Stock stays at 0
             expect(result.newState?.players[0].resources.Food).toBe(11); // Player got the cube
         });
 
-        it('should allow multiple buys from stock = 1 without decreasing', () => {
+        it('should use price from steps[0] when market is empty', () => {
+            const state = createTestState();
+            state.markets.Food.stock = 0;
+            const expectedPrice = MARKET_STEPS.Food[0].buy;
+            const initialMoney = state.players[0].money;
+
+            const result = gameReducer(state, 'buy', 'Food');
+
+            expect(result.success).toBe(true);
+            expect(result.newState?.players[0].money).toBe(initialMoney - expectedPrice);
+        });
+
+        it('should allow multiple buys from stock = 0 without decreasing further', () => {
             let state = createTestState();
-            state.markets.Food.stock = 1;
+            state.markets.Food.stock = 0;
 
             // Buy multiple times
             for (let i = 0; i < 3; i++) {
                 const result = gameReducer(state, 'buy', 'Food');
                 expect(result.success).toBe(true);
-                expect(result.newState?.markets.Food.stock).toBe(1);
+                expect(result.newState?.markets.Food.stock).toBe(0);
                 state = result.newState!;
             }
 
@@ -183,10 +196,10 @@ describe('Market Boundary Behavior', () => {
         });
     });
 
-    describe('Selling to full market', () => {
-        it('should allow selling when market is full and keep stock at max', () => {
+    describe('Selling to full market (stock = maxStock)', () => {
+        it('should allow selling when market is full (selling to supply)', () => {
             const state = createTestState();
-            const maxStock = MARKET_STEPS.Food.length - 1;
+            const maxStock = MARKET_STEPS.Food.length;
             state.markets.Food.stock = maxStock;
 
             const result = gameReducer(state, 'sell', 'Food');
@@ -196,9 +209,22 @@ describe('Market Boundary Behavior', () => {
             expect(result.newState?.players[0].resources.Food).toBe(9); // Player sold a cube
         });
 
+        it('should use price from steps[maxStock-1] when market is full', () => {
+            const state = createTestState();
+            const maxStock = MARKET_STEPS.Food.length;
+            state.markets.Food.stock = maxStock;
+            const expectedPrice = MARKET_STEPS.Food[maxStock - 1].sell;
+            const initialMoney = state.players[0].money;
+
+            const result = gameReducer(state, 'sell', 'Food');
+
+            expect(result.success).toBe(true);
+            expect(result.newState?.players[0].money).toBe(initialMoney + expectedPrice);
+        });
+
         it('should allow multiple sells to full market without increasing stock', () => {
             let state = createTestState();
-            const maxStock = MARKET_STEPS.Food.length - 1;
+            const maxStock = MARKET_STEPS.Food.length;
             state.markets.Food.stock = maxStock;
 
             // Sell multiple times
