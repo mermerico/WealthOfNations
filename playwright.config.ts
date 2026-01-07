@@ -29,5 +29,9 @@ export default defineConfig({
         command: 'npm run dev:all',
         url: 'http://localhost:5175',
         reuseExistingServer: !process.env.CI,
+        env: {
+            PORT: '4001',
+            VITE_GAME_SERVER_URL: 'ws://localhost:4001',
+        },
     },
 });
