@@ -1,4 +1,13 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
+import {
+    type TestPlayer,
+    createPlayers,
+    closePlayers,
+    createAndJoinLobby,
+    readyUpAndStartGame,
+    runSetupPhase,
+    findActivePlayer,
+} from './test-helpers';
 
 /**
  * 3-Player Game Flow E2E Tests
@@ -8,32 +17,15 @@ import { test, expect, type Page, type BrowserContext } from '@playwright/test';
  */
 
 // Shared state across serial tests
-let contexts: BrowserContext[] = [];
-let pages: Page[] = [];
+let players: TestPlayer[] = [];
 const playerNames = ['Alice', 'Bob', 'Charlie'];
 
 // Helper functions
 const step = async (msg: string) => console.log(`[Test] ${msg}`);
 
-const waitForConnection = async (page: Page) => {
-    await expect(page.locator('text=Online services available')).toBeVisible({ timeout: 10000 });
-};
-
-const findActivePlayer = async (): Promise<number> => {
-    await pages[0].waitForTimeout(5);
-    for (let i = 0; i < 3; i++) {
-        const page = pages[i];
-        const waitingText = await page.getByText('Waiting for your turn').count();
-        if (waitingText === 0) {
-            return i;
-        }
-    }
-    return -1;
-};
-
 const debugPlayerStates = async () => {
     for (let i = 0; i < 3; i++) {
-        const page = pages[i];
+        const page = players[i].page;
         const waitingText = await page.getByText('Waiting for your turn').count();
         const pkgCount = await page.locator('.package-card:not(.disabled) .select-button:not([disabled])').count();
         await step(`  P${i + 1}: waiting=${waitingText > 0}, enabledPkgs=${pkgCount}`);
@@ -43,88 +35,44 @@ const debugPlayerStates = async () => {
 test.describe.serial('3-player game flow', () => {
 
     test.beforeAll(async ({ browser }) => {
-        // Create 3 separate browser contexts (like 3 different users)
-        for (let i = 0; i < 3; i++) {
-            const context = await browser.newContext();
-            const page = await context.newPage();
-            page.setDefaultTimeout(2000);
-
-            // Capture E2E_RECORD console messages
-            page.on('console', msg => {
-                if (msg.text().includes('E2E_RECORD')) {
-                    console.log(`[${playerNames[i]}] ${msg.text()}`);
-                }
-            });
-
-            contexts.push(context);
-            pages.push(page);
-        }
+        players = await createPlayers(browser, playerNames, { defaultTimeout: 2000 });
     });
 
     test.afterAll(async () => {
-        // Cleanup
-        for (const context of contexts) {
-            await context.close();
-        }
-        contexts = [];
-        pages = [];
+        await closePlayers(players);
+        players = [];
     });
 
     test('lobby creation and joining', async () => {
         test.setTimeout(30000);
-        const [p1, p2, p3] = pages;
 
-        // P1 creates lobby
+        // Create and join lobby
         await step('P1 (Alice) creating lobby...');
-        await p1.goto('/');
-        await waitForConnection(p1);
-        await p1.getByRole('button', { name: 'Create Online Game' }).click();
-        await expect(p1.locator('.lobby-code')).toBeVisible();
-        const lobbyCode = (await p1.locator('.lobby-code span').first().innerText()).trim();
+        const lobbyCode = await createAndJoinLobby(players, async (msg) => {
+            // Custom logging that matches original format
+            if (msg.includes('Lobby Code:')) {
+                await step(msg);
+            } else if (msg.includes('Creating lobby')) {
+                // Skip, we already logged P1 creating
+            } else if (msg.includes('Readying')) {
+                await step(msg);
+            }
+        });
         await step(`Lobby Code: ${lobbyCode}`);
-        await p1.locator('.lobby-name-input').fill(playerNames[0]);
-        await p1.locator('.lobby-name-input').press('Enter');
-
-        // P2 joins
         await step('P2 (Bob) joining...');
-        await p2.goto('/');
-        await waitForConnection(p2);
-        await p2.getByPlaceholder('ABCDE').fill(lobbyCode);
-        await p2.getByRole('button', { name: 'Join Online Game' }).click();
-        await expect(p2.locator('.lobby-code')).toBeVisible();
-        await p2.locator('.lobby-name-input').fill(playerNames[1]);
-        await p2.locator('.lobby-name-input').press('Enter');
-
-        // P3 joins
         await step('P3 (Charlie) joining...');
-        await p3.goto('/');
-        await waitForConnection(p3);
-        await p3.getByPlaceholder('ABCDE').fill(lobbyCode);
-        await p3.getByRole('button', { name: 'Join Online Game' }).click();
-        await expect(p3.locator('.lobby-code')).toBeVisible();
-        await p3.locator('.lobby-name-input').fill(playerNames[2]);
-        await p3.locator('.lobby-name-input').press('Enter');
 
-        // Ready up
         await step('Readying up...');
-        await p1.getByRole('button', { name: 'Ready Up' }).click();
-        await p2.getByRole('button', { name: 'Ready Up' }).click();
-        await p3.getByRole('button', { name: 'Ready Up' }).click();
-
-        // Start game
         await step('Starting game...');
-        await expect(p1.getByRole('button', { name: /Start Game/ })).toBeEnabled();
-        await p1.getByRole('button', { name: /Start Game/ }).click();
-
+        await readyUpAndStartGame(players, step);
         await step('Lobby phase complete!');
     });
 
     test('setup phase - package selection and tile placement', async () => {
         test.setTimeout(120000);
-        const p1 = pages[0];
 
         await step('Entering Setup Phase...');
-        await p1.waitForTimeout(100);
+        await players[0].page.waitForTimeout(100);
 
         // Valid tile placements extracted from successful test runs
         const validPlacements = [
@@ -144,6 +92,7 @@ test.describe.serial('3-player game flow', () => {
         let noProgressCount = 0;
         let lastActivePlayer = -1;
         let actionCount = 0;
+        const pages = players.map(p => p.page);
 
         while (!tradePhaseReached && noProgressCount < 40) {
             // Check for Trade phase
@@ -155,7 +104,7 @@ test.describe.serial('3-player game flow', () => {
             }
             if (tradePhaseReached) break;
 
-            const activePlayer = await findActivePlayer();
+            const activePlayer = await findActivePlayer(pages);
 
             if (activePlayer !== lastActivePlayer) {
                 await step(`Turn changed: P${lastActivePlayer + 1} -> P${activePlayer + 1}`);
@@ -169,7 +118,7 @@ test.describe.serial('3-player game flow', () => {
                     await step(`All players waiting? attempt ${noProgressCount}`);
                     await debugPlayerStates();
                 }
-                await p1.waitForTimeout(10);
+                await pages[0].waitForTimeout(10);
                 continue;
             }
 
@@ -217,7 +166,7 @@ test.describe.serial('3-player game flow', () => {
                 noProgressCount = 0;
             } else {
                 noProgressCount++;
-                await p1.waitForTimeout(5);
+                await pages[0].waitForTimeout(5);
             }
 
             if (actionCount > 100) {
@@ -232,8 +181,9 @@ test.describe.serial('3-player game flow', () => {
 
     test('trade phase - execute trade and finish', async () => {
         test.setTimeout(30000);
+        const pages = players.map(p => p.page);
 
-        const activeIdx = await findActivePlayer();
+        const activeIdx = await findActivePlayer(pages);
         expect(activeIdx).toBeGreaterThanOrEqual(0);
 
         const activePage = pages[activeIdx];
@@ -263,7 +213,7 @@ test.describe.serial('3-player game flow', () => {
         // All players pass to finish trade phase
         await step('All players passing to finish Trade phase...');
         for (let turn = 0; turn < 3; turn++) {
-            const activeIdx = await findActivePlayer();
+            const activeIdx = await findActivePlayer(pages);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Trade phase`);
             await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
@@ -273,6 +223,8 @@ test.describe.serial('3-player game flow', () => {
 
     test('development phase - all players pass', async () => {
         test.setTimeout(60000);
+        const pages = players.map(p => p.page);
+
         await step('Waiting for Development phase...');
 
         // Wait for all players to see DEVELOP
@@ -281,7 +233,7 @@ test.describe.serial('3-player game flow', () => {
         }
 
         for (let turn = 0; turn < 3; turn++) {
-            const activeIdx = await findActivePlayer();
+            const activeIdx = await findActivePlayer(pages);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Develop phase`);
             await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
@@ -291,6 +243,8 @@ test.describe.serial('3-player game flow', () => {
 
     test('production phase - simultaneous production', async () => {
         test.setTimeout(30000);
+        const pages = players.map(p => p.page);
+
         await step('Waiting for Production phase...');
 
         // Wait for all players to see PRODUCE

@@ -126,13 +126,16 @@ export function useGameEngine() {
     }, []);
 
     useEffect(() => {
+        // Track if effect is still mounted to prevent state updates after cleanup
+        let isMounted = true;
+
         setConnectionState('connecting');
         setLastError(null);
 
         if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
             setConnectionState('disconnected');
             setLastError('WebSocket not supported in this environment');
-            return () => undefined;
+            return () => { isMounted = false; };
         }
 
         const socket = new WebSocket(DEFAULT_SERVER_URL);
@@ -141,6 +144,11 @@ export function useGameEngine() {
         console.log('[useGameEngine] Attempting WebSocket connection to', DEFAULT_SERVER_URL);
 
         socket.onopen = () => {
+            if (!isMounted) {
+                console.log('[useGameEngine] WebSocket opened but effect unmounted, closing');
+                socket.close();
+                return;
+            }
             console.log('[useGameEngine] WebSocket connected successfully');
             setConnectionState('connected');
             setLastError(null);
@@ -157,6 +165,8 @@ export function useGameEngine() {
         };
 
         socket.onmessage = event => {
+            if (!isMounted) return;
+
             const message = parseServerMessage(event.data);
             if (!message) {
                 setLastError('Failed to process server message');
@@ -254,6 +264,7 @@ export function useGameEngine() {
         };
 
         socket.onerror = event => {
+            if (!isMounted) return;
             console.error('WebSocket error', event);
             console.log('[useGameEngine] Socket readyState:', socket.readyState);
             setConnectionState('disconnected');
@@ -261,6 +272,7 @@ export function useGameEngine() {
         };
 
         socket.onclose = () => {
+            if (!isMounted) return;
             console.log('[useGameEngine] WebSocket closed');
             setConnectionState('disconnected');
             if (socketRef.current === socket) {
@@ -270,10 +282,14 @@ export function useGameEngine() {
 
         return () => {
             console.log('[useGameEngine] Cleanup called, closing WebSocket');
+            isMounted = false;
             if (socketRef.current === socket) {
                 socketRef.current = null;
             }
-            socket.close();
+            // Only close if the socket was opened or is connecting
+            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                socket.close();
+            }
         };
     }, []);
 
