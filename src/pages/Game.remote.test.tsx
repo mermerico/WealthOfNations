@@ -119,25 +119,17 @@ describe('Game remote gating', () => {
         vi.restoreAllMocks();
     });
 
-    it('shows waiting overlay and disables primary actions for non-active remote clients', async () => {
+    it('shows waiting message in action panel for non-active remote clients', async () => {
         render(<Game />);
 
-        const overlayHeading = screen.getByText(/Waiting for Alice/i);
-        const overlayBody = screen.getByText(/only the current player can act/i);
-        expect(overlayHeading).to.exist;
-        expect(overlayBody).to.exist;
+        // Message should be visible in the action panel
+        const waitingHeading = screen.getByText(/Waiting for Alice/i);
+        const waitingBody = screen.getByText(/only the current player can act/i);
+        expect(waitingHeading).to.exist;
+        expect(waitingBody).to.exist;
 
+        // Pass button should still be visible (not covered by overlay)
         screen.getByRole('button', { name: /pass/i });
-
-        // user.click should fail or get intercepted by the overlay
-        // Alternatively, we can just assert the overlay exists (which we did above) 
-        // and that we can't easily click. 
-        // For simplicity and robustness, relying on the overlay presence is often enough for "gating".
-        // But let's try to click and ensure it doesn't trigger if possible, 
-        // or just skip the click check for the blocked case if user-event throws.
-        // Given typically user-event throws if covered, we can't easily assert "not called" without catching.
-        // Let's just remove the button interaction for the blocked case and rely on the overlay check.
-
     });
 
     it('hides overlay and allows actions when the client owns the turn', async () => {

@@ -1020,29 +1020,7 @@ export const Game: React.FC = () => {
                         ✅ {saveSuccess}
                     </div>
                 )}
-                {interactionLocked && (
-                    <div style={{
-                        position: 'absolute',
-                        inset: 0,
-                        zIndex: 5,
-                        background: 'rgba(15, 23, 42, 0.8)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        color: '#e2e8f0',
-                        textAlign: 'center',
-                        padding: '24px'
-                    }}>
-                        <span style={{ fontSize: '18px', fontWeight: 600 }}>
-                            Waiting for {activePlayer ? activePlayer.name : 'other players'}
-                        </span>
-                        <span style={{ fontSize: '14px', color: '#c7d2fe' }}>
-                            You are connected, but only the current player can act.
-                        </span>
-                    </div>
-                )}
+
 
                 {/* Col 1: Players */}
                 <div style={{
@@ -1120,7 +1098,22 @@ export const Game: React.FC = () => {
                     {/* Build / Tools Section */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ color: 'white', margin: '0 0 10px 0', borderBottom: '1px solid #444', paddingBottom: '5px' }}>Actions</h3>
-                        {gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' && gameState.setupPhase.pendingPlacement && (() => {
+                        {/* Waiting message for non-active players in remote games */}
+                        {interactionLocked ? (
+                            <div style={{
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '16px',
+                                color: '#ccc'
+                            }}>
+                                <div style={{ fontSize: '48px' }}>⏳</div>
+                                <h3 style={{ margin: 0 }}>Waiting for {activePlayer ? activePlayer.name : 'other players'}</h3>
+                                <p style={{ margin: 0, opacity: 0.7 }}>You are connected, but only the current player can act.</p>
+                            </div>
+                        ) : gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' && gameState.setupPhase.pendingPlacement && (() => {
                             const { packageId, tilesRemaining } = gameState.setupPhase.pendingPlacement;
                             const pkg = [...getAvailablePackages(gameState.players.length, []), ...getAvailablePackages(gameState.players.length, gameState.setupPhase.takenPackageIds)]
                                 .find(p => p.id === packageId);
