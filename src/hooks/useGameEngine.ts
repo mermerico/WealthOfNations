@@ -350,7 +350,7 @@ export function useGameEngine() {
     }, [lobby, mode, sendMessage, startLocalGame]);
 
     const createLobby = useCallback((name?: string) => {
-        const trimmed = (name || '').trim() || 'Player';
+        const trimmed = (name || lastPlayerNameRef.current || '').trim() || 'Player';
 
         const success = sendMessage({
             type: 'createLobby',
@@ -369,7 +369,7 @@ export function useGameEngine() {
 
     const joinLobby = useCallback((code: string, name?: string) => {
         const formattedCode = code.trim().toUpperCase();
-        const trimmedName = (name || '').trim() || 'Player';
+        const trimmedName = (name || lastPlayerNameRef.current || '').trim() || 'Player';
 
         if (!formattedCode) {
             setLastError('Lobby code is required');
