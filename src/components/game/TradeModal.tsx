@@ -162,7 +162,10 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                     <label style={{ color: '#aaa', display: 'block', marginBottom: '8px' }}>Trade with:</label>
                     <select
                         value={selectedPlayerId}
-                        onChange={(e) => setSelectedPlayerId(e.target.value)}
+                        onChange={(e) => {
+                            setSelectedPlayerId(e.target.value);
+                            setReceiving({ commodities: {}, money: 0, loans: 0 });
+                        }}
                         style={{
                             width: '100%',
                             padding: '8px',
@@ -442,44 +445,52 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                 </div>
 
                 {/* Action Buttons */}
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                    <button
-                        onClick={onCancel}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            background: '#444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={() => onPropose(selectedPlayerId, giving, receiving)}
-                        disabled={!canPropose}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            background: canPropose ? '#10b981' : '#444',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            cursor: canPropose ? 'pointer' : 'not-allowed',
-                            opacity: canPropose ? 1 : 0.5
-                        }}
-                    >
-                        Propose Trade
-                    </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+                    {!selectedPlayerId && (
+                        <div style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center' }}>
+                            Please select a player to trade with
+                        </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button
+                            onClick={onCancel}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                background: '#444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => onPropose(selectedPlayerId, giving, receiving)}
+                            disabled={!canPropose}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                background: canPropose ? '#10b981' : '#444',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                cursor: canPropose ? 'pointer' : 'not-allowed',
+                                opacity: canPropose ? 1 : 0.5
+                            }}
+                        >
+                            Propose Trade
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+
     );
 }
 
