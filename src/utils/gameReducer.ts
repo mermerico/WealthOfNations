@@ -133,6 +133,29 @@ function applyInterestFees(players: Player[]): Player[] {
  * This is a pure function - no side effects, no React dependencies
  */
 export function gameReducer(state: GameState, action: string, payload?: any): ActionResult {
+    // Trade Blocking Logic
+    if (state.pendingTrade) {
+        // Actions that are blocked for the proposer while waiting
+        const blockedActions = [
+            'buy', 'sell', 'pass', 'takeLoan', 'repayLoan',
+            'buildIndustry', 'moveIndustry', 'placeFlag', 'automateBloc',
+            'confirmProduction', 'selectPackage', 'placeSetupTile'
+        ];
+
+        // Also block proposing NEW trades (though the case 'proposeTrade' already checks this, 
+        // adding it here for consistency in "blocked actions" list conceptually, 
+        // but 'proposeTrade' logic is specific so we can leave it or include it)
+        // 'proposeTrade' case has its own check.
+
+        if (blockedActions.includes(action)) {
+            const currentPlayer = state.players[state.currentTurnPlayerIndex];
+            // If the current player is the one who proposed, they must wait
+            if (currentPlayer.id === state.pendingTrade.proposerId) {
+                return { success: false, message: 'Waiting for trade response (action blocked by pending trade)' };
+            }
+        }
+    }
+
     switch (action) {
         // ===== SETUP PHASE ACTIONS =====
         case 'startSetup': {

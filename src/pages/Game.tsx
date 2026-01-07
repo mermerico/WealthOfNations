@@ -1697,109 +1697,127 @@ export const Game: React.FC = () => {
                         ) : gameState.phase === 'Trade' ? (
                             /* Trade Phase Actions */
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                                <button
-                                    onClick={() => setShowTradeModal(true)}
-                                    style={{
-                                        padding: '12px',
-                                        background: '#3b82f6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    🤝 Propose Trade
-                                </button>
-
-                                {/* Promissory Notes Section */}
-                                <div style={{
-                                    background: '#222',
-                                    padding: '10px',
-                                    borderRadius: '4px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '8px'
-                                }}>
+                                {gameState.pendingTrade && gameState.pendingTrade.proposerId === player.id ? (
                                     <div style={{
-                                        color: '#aaa',
-                                        fontSize: '11px',
+                                        padding: '20px',
+                                        background: '#333',
+                                        borderRadius: '8px',
                                         textAlign: 'center',
-                                        fontWeight: 'bold',
-                                        marginBottom: '4px'
+                                        color: '#aaa',
+                                        border: '1px solid #555',
+                                        marginTop: 'auto',
+                                        marginBottom: 'auto'
                                     }}>
-                                        Promissory Notes
+                                        <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+                                        <div>Waiting for {gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)?.name || 'target'} to respond...</div>
                                     </div>
-                                    <button
-                                        onClick={() => handleAction('takeLoan')}
-                                        disabled={20 - player.loans <= 0}
-                                        style={{
-                                            padding: '8px',
-                                            background: 20 - player.loans > 0 ? '#059669' : '#333',
-                                            color: 20 - player.loans > 0 ? 'white' : '#666',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            cursor: 20 - player.loans > 0 ? 'pointer' : 'not-allowed'
-                                        }}
-                                    >
-                                        💸 Take Loan (+${20 - player.loans})
-                                    </button>
-                                    <button
-                                        onClick={() => handleAction('repayLoan')}
-                                        disabled={player.loans === 0 || player.money < 25}
-                                        style={{
-                                            padding: '8px',
-                                            background: player.loans > 0 && player.money >= 25 ? '#dc2626' : '#333',
-                                            color: player.loans > 0 && player.money >= 25 ? 'white' : '#666',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            fontSize: '12px',
-                                            cursor: player.loans > 0 && player.money >= 25 ? 'pointer' : 'not-allowed'
-                                        }}
-                                    >
-                                        💰 Repay Loan (-$25)
-                                    </button>
-                                    {player.loans > 0 && (
+                                ) : (
+                                    <>
+                                        <button
+                                            onClick={() => setShowTradeModal(true)}
+                                            style={{
+                                                padding: '12px',
+                                                background: '#3b82f6',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            🤝 Propose Trade
+                                        </button>
+
+                                        {/* Promissory Notes Section */}
                                         <div style={{
-                                            color: '#ef4444',
-                                            fontSize: '10px',
+                                            background: '#222',
+                                            padding: '10px',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '8px'
+                                        }}>
+                                            <div style={{
+                                                color: '#aaa',
+                                                fontSize: '11px',
+                                                textAlign: 'center',
+                                                fontWeight: 'bold',
+                                                marginBottom: '4px'
+                                            }}>
+                                                Promissory Notes
+                                            </div>
+                                            <button
+                                                onClick={() => handleAction('takeLoan')}
+                                                disabled={20 - player.loans <= 0}
+                                                style={{
+                                                    padding: '8px',
+                                                    background: 20 - player.loans > 0 ? '#059669' : '#333',
+                                                    color: 20 - player.loans > 0 ? 'white' : '#666',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    cursor: 20 - player.loans > 0 ? 'pointer' : 'not-allowed'
+                                                }}
+                                            >
+                                                💸 Take Loan (+${20 - player.loans})
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction('repayLoan')}
+                                                disabled={player.loans === 0 || player.money < 25}
+                                                style={{
+                                                    padding: '8px',
+                                                    background: player.loans > 0 && player.money >= 25 ? '#dc2626' : '#333',
+                                                    color: player.loans > 0 && player.money >= 25 ? 'white' : '#666',
+                                                    border: 'none',
+                                                    borderRadius: '4px',
+                                                    fontSize: '12px',
+                                                    cursor: player.loans > 0 && player.money >= 25 ? 'pointer' : 'not-allowed'
+                                                }}
+                                            >
+                                                💰 Repay Loan (-$25)
+                                            </button>
+                                            {player.loans > 0 && (
+                                                <div style={{
+                                                    color: '#ef4444',
+                                                    fontSize: '10px',
+                                                    textAlign: 'center'
+                                                }}>
+                                                    {player.loans} note{player.loans > 1 ? 's' : ''} outstanding (-{player.loans * 3} VPs)
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{
+                                            background: '#222',
+                                            padding: '10px',
+                                            borderRadius: '4px',
+                                            color: '#aaa',
+                                            fontSize: '12px',
                                             textAlign: 'center'
                                         }}>
-                                            {player.loans} note{player.loans > 1 ? 's' : ''} outstanding (-{player.loans * 3} VPs)
+                                            Click on the market to buy or sell commodities, or propose a trade with another player.
                                         </div>
-                                    )}
-                                </div>
 
-                                <div style={{
-                                    background: '#222',
-                                    padding: '10px',
-                                    borderRadius: '4px',
-                                    color: '#aaa',
-                                    fontSize: '12px',
-                                    textAlign: 'center'
-                                }}>
-                                    Click on the market to buy or sell commodities, or propose a trade with another player.
-                                </div>
-
-                                {/* Pass Button */}
-                                <button
-                                    onClick={() => handleAction('pass')}
-                                    style={{
-                                        padding: '12px',
-                                        background: '#059669',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        marginTop: 'auto'
-                                    }}
-                                >
-                                    ✓ Pass
-                                </button>
+                                        {/* Pass Button */}
+                                        <button
+                                            onClick={() => handleAction('pass')}
+                                            style={{
+                                                padding: '12px',
+                                                background: '#059669',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                marginTop: 'auto'
+                                            }}
+                                        >
+                                            ✓ Pass
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         ) : (
                             /* Existing Build Menu */
