@@ -60,22 +60,22 @@ test.describe.serial('save and restore game flow', () => {
     test('restore game with same code after disconnect', async ({ browser }) => {
         test.setTimeout(45000);
 
-        // Leave game to clean up lobby on server (triggering persistent save check on next join)
-        await step('Leaving game to cleanup lobby...');
+        // Quit game to clean up lobby on server (triggering persistent save check on next join)
+        await step('Quitting game to cleanup lobby...');
         for (const player of players) {
-            // Try to leave from game screen (Leave Game) or lobby screen (Leave Lobby)
-            const leaveGameBtn = player.page.getByRole('button', { name: 'Leave Game' });
-            const leaveLobbyBtn = player.page.getByRole('button', { name: 'Leave Lobby' });
+            // Try to quit from game screen (Quit Game) or lobby screen (Quit Lobby)
+            const quitGameBtn = player.page.getByRole('button', { name: 'Quit Game' });
+            const quitLobbyBtn = player.page.getByRole('button', { name: 'Quit Lobby' });
 
-            if (await leaveGameBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await leaveGameBtn.click();
-                // Confirm leave
-                await player.page.getByRole('button', { name: 'Confirm' }).click();
+            if (await quitGameBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await quitGameBtn.click();
+                // Confirm quit (click the 'Quit' button in the confirmation modal)
+                await player.page.getByRole('button', { name: 'Quit', exact: true }).click();
                 // Wait for return to landing page
                 await expect(player.page.locator('.landing-container')).toBeVisible({ timeout: 10000 });
-            } else if (await leaveLobbyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-                await leaveLobbyBtn.click();
-                // Wait for return to landing page (no confirmation needed for lobby leave)
+            } else if (await quitLobbyBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+                await quitLobbyBtn.click();
+                // Wait for return to landing page (no confirmation needed for lobby quit)
                 await expect(player.page.locator('.landing-container')).toBeVisible({ timeout: 10000 });
             }
         }

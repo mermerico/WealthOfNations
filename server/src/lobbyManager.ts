@@ -360,9 +360,7 @@ export class LobbyManager {
      */
     async saveGame(clientId: string): Promise<string> {
         const { lobby } = this.requireLookup(clientId);
-        if (lobby.hostClientId !== clientId) {
-            throw new Error('Only the host can save the game');
-        }
+        // host restriction removed per user request
         if (lobby.phase !== 'inGame' || !lobby.state) {
             throw new Error('No active game to save');
         }

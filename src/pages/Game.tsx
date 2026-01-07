@@ -995,7 +995,6 @@ export const Game: React.FC = () => {
                 lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
                 onLeave={() => setShowLeaveConfirmation(true)}
                 onSave={mode === 'remote' && lobby?.phase === 'inGame' ? saveGame : undefined}
-                isHost={selfPlayer?.isHost}
             />
 
             {/* Main Layout - 4 Columns */}
@@ -2195,13 +2194,42 @@ export const Game: React.FC = () => {
 
             <ConfirmationModal
                 isOpen={showLeaveConfirmation}
-                onConfirm={() => {
-                    const leaveAction = mode === 'remote' ? leaveLobby : () => window.location.reload();
-                    leaveAction();
-                    setShowLeaveConfirmation(false);
-                }}
-                onCancel={() => setShowLeaveConfirmation(false)}
-                message="Are you sure you want to leave the game?"
+                message="Are you sure you want to quit the game?"
+                actions={[
+                    // Save and Quit option (available to everyone)
+                    ...(!gameState.gameEnded ? [{
+                        label: 'Save and Quit',
+                        onClick: () => {
+                            if (mode === 'local') {
+                                if (saveGame) {
+                                    saveGame();
+                                }
+                                window.location.reload();
+                            } else {
+                                if (saveGame) saveGame();
+                                leaveLobby();
+                            }
+                            setShowLeaveConfirmation(false);
+                        },
+                        variant: 'primary' as const
+                    }] : []),
+                    // Standard Quit option
+                    {
+                        label: 'Quit',
+                        onClick: () => {
+                            const leaveAction = mode === 'remote' ? leaveLobby : () => window.location.reload();
+                            leaveAction();
+                            setShowLeaveConfirmation(false);
+                        },
+                        variant: 'danger' as const
+                    },
+                    // Cancel option
+                    {
+                        label: 'Cancel',
+                        onClick: () => setShowLeaveConfirmation(false),
+                        variant: 'secondary' as const
+                    }
+                ]}
             />
         </div>
     );

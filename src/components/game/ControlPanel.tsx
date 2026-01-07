@@ -8,10 +8,9 @@ interface ControlPanelProps {
     lobbyCode?: string;
     onLeave?: () => void;
     onSave?: () => void;
-    isHost?: boolean;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = true, lobbyCode, onLeave, onSave, isHost }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = true, lobbyCode, onLeave, onSave }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -106,11 +105,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = 
                             cursor: 'pointer'
                         }}
                     >
-                        Leave Game
+                        Quit Game
                     </button>
                 )}
 
-                {onSave && isHost && !gameState.gameEnded && (
+                {onSave && !gameState.gameEnded && (
                     <button
                         onClick={onSave}
                         style={{
