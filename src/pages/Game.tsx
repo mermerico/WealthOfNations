@@ -36,7 +36,7 @@ export const Game: React.FC = () => {
 
     // UI State
     const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
-    const [selectedTool, setSelectedTool] = useState<IndustryType | 'Flag' | 'Eraser' | 'Rotate' | 'Move' | 'Automate'>('Farm');
+    const [selectedTool, setSelectedTool] = useState<IndustryType | 'Flag' | 'Eraser' | 'Rotate' | 'Move' | 'Automate' | null>(null);
     const [forceMode, setForceMode] = useState(false);
     const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
     const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
@@ -153,6 +153,11 @@ export const Game: React.FC = () => {
         }
         dispatchAction(action, payload);
     }, [dispatchAction, mode, selfPlayer, canAct, gameState.pendingTrade]);
+
+    // Reset selected tool when turn changes
+    useEffect(() => {
+        setSelectedTool(null);
+    }, [gameState.currentTurnPlayerIndex]);
 
     // Update setup valid placements when setup tile is selected
     useEffect(() => {
