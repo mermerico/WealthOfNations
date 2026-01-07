@@ -1,5 +1,7 @@
 import type { Package } from '../../utils/packageDefinitions';
 import { COMMODITY_COLORS } from '../../utils/tileDefinitions';
+import { Hex } from './Hex';
+import type { HexCell, IndustryTile } from '../../types/gameState';
 import './PackageCard.css';
 
 interface PackageCardProps {
@@ -36,9 +38,39 @@ export default function PackageCard({ package: pkg, onSelect, disabled = false }
             {isIndustry ? (
                 <div className="package-content">
                     <div className="tile-list">
-                        {pkg.tiles.map((tile, idx) => (
-                            <div key={idx} className="tile-item">{tile}</div>
-                        ))}
+                        {pkg.tiles.map((tileType, idx) => {
+                            // Create a temporary mock cell/tile for display
+                            const mockTile: IndustryTile = {
+                                id: `preview-${pkg.id}-${idx}`,
+                                type: tileType,
+                                ownerId: 'p1', // Dummy ID (color logic handled by theme or not important here) or maybe 'preview'
+                                orientation: 0,
+                                active: true,
+                            };
+
+                            const mockCell: HexCell = {
+                                q: 0,
+                                r: 0,
+                                occupant: {
+                                    type: 'Industry',
+                                    playerId: 'p1',
+                                    tile: mockTile
+                                }
+                            };
+
+                            return (
+                                <div key={idx} className="tile-item-hex">
+                                    <svg width="60" height="60" viewBox="-55 -48 110 96">
+                                        <Hex
+                                            cell={mockCell}
+                                            hideFlag={true}
+                                            renderBorder={false} // Just the hex
+                                        />
+                                    </svg>
+                                    <div className="tile-label">{tileType}</div>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             ) : (

@@ -13,6 +13,7 @@ interface HexProps {
     isHighlighted?: boolean;
     isHoverHighlighted?: boolean;
     renderBorder?: boolean;
+    hideFlag?: boolean;
 }
 
 const HEX_POINTS = calculateHexPoints(HEX_SIZE);
@@ -45,7 +46,7 @@ const EDGE_ANGLES = [270, 330, 30, 90, 150, 210];
 // Angles for Corners (0=Between N and NE -> Top Right Vertex)
 const CORNER_ANGLES = [300, 0, 60, 120, 180, 240];
 
-export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelected, ghostTile, isHighlighted, isHoverHighlighted, renderBorder = false }) => {
+export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelected, ghostTile, isHighlighted, isHoverHighlighted, renderBorder = false, hideFlag = false }) => {
     const { x, y } = hexToPixel(cell.q, cell.r);
 
     // Central hex is black (forbidden)
@@ -199,7 +200,7 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
         );
     };
 
-    if (cell.occupant) {
+    if (cell.occupant && !hideFlag) {
         if (cell.occupant.type === 'Flag') {
             flagElements.push(renderFlag(cell.occupant.playerId, 20, 0, 0));
         } else if (cell.occupant.type === 'Industry') {
