@@ -56,6 +56,10 @@ export const Game: React.FC = () => {
         const currentKey = `${gameState.phase}-${gameState.currentTurnPlayerIndex}`;
         if (currentKey !== prevTurnKey.current && !gameState.gameEnded) {
             prevTurnKey.current = currentKey;
+
+            // Skip sound in test environments
+            if (navigator.webdriver) return;
+
             turnSound.currentTime = 0;
             turnSound.play().catch(e => {
                 // Ignore autoplay errors (user interaction required first)
