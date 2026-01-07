@@ -48,25 +48,8 @@ export const Game: React.FC = () => {
     const [moveForceMode, setMoveForceMode] = useState(false);
     const [pendingMoveTarget, setPendingMoveTarget] = useState<{ from: string, to: string, orientation: number } | null>(null);
 
-    // Turn Notification Sound
-    const turnSound = useMemo(() => new Audio('/sounds/turn-start.wav'), []);
-    const prevTurnKey = React.useRef(`${gameState.phase}-${gameState.currentTurnPlayerIndex}`);
+    // Turn Notification Sound Logic Moved Below activePlayerId Definition
 
-    useEffect(() => {
-        const currentKey = `${gameState.phase}-${gameState.currentTurnPlayerIndex}`;
-        if (currentKey !== prevTurnKey.current && !gameState.gameEnded) {
-            prevTurnKey.current = currentKey;
-
-            // Skip sound in test environments
-            if (navigator.webdriver) return;
-
-            turnSound.currentTime = 0;
-            turnSound.play().catch(e => {
-                // Ignore autoplay errors (user interaction required first)
-                console.log('Turn notification sound blocked:', e);
-            });
-        }
-    }, [gameState.phase, gameState.currentTurnPlayerIndex, gameState.gameEnded, turnSound]);
 
 
     // Interaction State
@@ -113,6 +96,32 @@ export const Game: React.FC = () => {
         const current = gameState.players[gameState.currentTurnPlayerIndex];
         return current ? current.id : null;
     }, [gameState, mode, selfPlayer]);
+
+    // Turn Notification Sound
+    const turnSound = useMemo(() => new Audio('/sounds/turn-start.wav'), []);
+    const prevTurnKey = React.useRef(`${gameState.phase}-${gameState.currentTurnPlayerIndex}`);
+
+    useEffect(() => {
+        const currentKey = `${gameState.phase}-${gameState.currentTurnPlayerIndex}`;
+        if (currentKey !== prevTurnKey.current && !gameState.gameEnded) {
+            prevTurnKey.current = currentKey;
+
+            // Skip sound in test environments
+            if (navigator.webdriver) return;
+
+            // In remote mode, only play sound for the active player
+            if (mode === 'remote' && activePlayerId !== selfPlayer?.playerId) {
+                return;
+            }
+
+            turnSound.currentTime = 0;
+            turnSound.play().catch(e => {
+                // Ignore autoplay errors (user interaction required first)
+                console.log('Turn notification sound blocked:', e);
+            });
+        }
+    }, [gameState.phase, gameState.currentTurnPlayerIndex, gameState.gameEnded, turnSound, mode, activePlayerId, selfPlayer?.playerId]);
+
 
     const activePlayer = useMemo(() => {
         if (!activePlayerId) return null;
