@@ -2013,11 +2013,11 @@ export const Game: React.FC = () => {
                             borderRadius: '5px',
                             marginTop: 'auto'
                         }}>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Current Needs</h4>
+                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Operating Costs</h4>
                             <div style={{ fontSize: '12px', color: '#aaa' }}>
-                                To run all your tiles:
+                                To run all your tiles (Stock / Required):
                             </div>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
                                 {Object.values(gameState.board).filter(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id).length > 0 ? (
                                     <>
                                         {(() => {
@@ -2047,18 +2047,18 @@ export const Game: React.FC = () => {
                                             return (
                                                 <>
                                                     {foodNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Food >= foodNeeded ? '#4ade80' : '#f87171' }}>
-                                                            Food: {foodNeeded} / {player.resources.Food}
+                                                        <span style={{ color: player.resources.Food >= foodNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <ResourceIcon type="Food" size={12} />: {player.resources.Food} / {foodNeeded}
                                                         </span>
                                                     )}
                                                     {energyNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171' }}>
-                                                            Energy: {energyNeeded} / {player.resources.Energy}
+                                                        <span style={{ color: player.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <ResourceIcon type="Energy" size={12} />: {player.resources.Energy} / {energyNeeded}
                                                         </span>
                                                     )}
                                                     {oreNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171' }}>
-                                                            Ore: {oreNeeded} / {player.resources.Ore}
+                                                        <span style={{ color: player.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <ResourceIcon type="Ore" size={12} />: {player.resources.Ore} / {oreNeeded}
                                                         </span>
                                                     )}
                                                     {foodNeeded === 0 && energyNeeded === 0 && oreNeeded === 0 && (
