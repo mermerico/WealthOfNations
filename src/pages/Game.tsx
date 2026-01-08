@@ -19,6 +19,7 @@ import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { TradeActionPanel } from '../components/game/TradeActionPanel';
+import { PlayerAid } from '../components/game/PlayerAid';
 
 export const Game: React.FC = () => {
     // Game Engine State
@@ -41,6 +42,7 @@ export const Game: React.FC = () => {
     const [forceMode, setForceMode] = useState(false);
     const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
     const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
+    const [showPlayerAid, setShowPlayerAid] = useState(false);
 
     // Move operation state
     const [moveHistory, setMoveHistory] = useState<Array<{ from: string, to: string }>>([]);
@@ -1011,6 +1013,7 @@ export const Game: React.FC = () => {
                 lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
                 onLeave={() => setShowLeaveConfirmation(true)}
                 onSave={mode === 'remote' && lobby?.phase === 'inGame' ? saveGame : undefined}
+                onOpenPlayerAid={() => setShowPlayerAid(true)}
             />
 
             {/* Main Layout - 4 Columns */}
@@ -2101,6 +2104,11 @@ export const Game: React.FC = () => {
                     onReject={handleRejectTrade}
                 />
             )}
+
+            <PlayerAid
+                isOpen={showPlayerAid}
+                onClose={() => setShowPlayerAid(false)}
+            />
 
             <ConfirmationModal
                 isOpen={showLeaveConfirmation}

@@ -1,0 +1,282 @@
+.player-aid-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.player-aid-modal {
+    background: #1a1a1a;
+    border: 2px solid #fbbf24;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 1050px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.player-aid-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: 1px solid #666;
+    color: #aaa;
+    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-aid-close:hover {
+    background: #333;
+    color: #fff;
+    border-color: #888;
+}
+
+.player-aid-title {
+    color: #fbbf24;
+    text-align: center;
+    margin: 0 0 20px 0;
+    font-size: 1.8rem;
+}
+
+.player-aid-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 800px) {
+    .player-aid-sections {
+        grid-template-columns: 1fr;
+    }
+}
+
+.player-aid-section {
+    background: #222;
+    border-radius: 8px;
+    padding: 16px;
+    border-top: 3px solid;
+}
+
+.player-aid-section.trade {
+    border-color: #a855f7;
+}
+
+.player-aid-section.develop {
+    border-color: #3b82f6;
+}
+
+.player-aid-section.produce {
+    border-color: #10b981;
+}
+
+.player-aid-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-aid-section.trade h3 {
+    color: #a855f7;
+}
+
+.player-aid-section.develop h3 {
+    color: #3b82f6;
+}
+
+.player-aid-section.produce h3 {
+    color: #10b981;
+}
+
+.player-aid-section h4 {
+    margin: 12px 0 6px 0;
+    color: #888;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.player-aid-section h4:first-of-type {
+    margin-top: 0;
+}
+
+.player-aid-section p,
+.player-aid-section li {
+    color: #ccc;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 4px 0;
+}
+
+.player-aid-section ul {
+    margin: 0;
+    padding-left: 16px;
+}
+
+/* Cost Tables */
+.cost-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.cost-table th,
+.cost-table td {
+    padding: 5px 6px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.cost-table th {
+    color: #666;
+    font-weight: normal;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid #333;
+}
+
+.cost-table td {
+    color: #ddd;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.cost-table .action-name {
+    color: #fff;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.cost-table .cost-icons {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+}
+
+.cost-table .text-cell {
+    color: #aaa;
+    font-size: 0.8rem;
+}
+
+/* Table divider for develop phase */
+.table-divider {
+    height: 1px;
+    background: #444;
+    margin: 10px 0;
+}
+
+.table-note {
+    color: #888;
+    font-size: 0.75rem;
+    font-style: italic;
+    margin: 4px 0 8px 0 !important;
+}
+
+/* Produce table specific styles */
+.produce-table th,
+.produce-table td {
+    padding: 4px 4px;
+}
+
+.produce-table th:nth-child(1),
+.produce-table td:nth-child(1) {
+    width: 70px;
+}
+
+.produce-table th:nth-child(2),
+.produce-table td:nth-child(2),
+.produce-table th:nth-child(3),
+.produce-table td:nth-child(3) {
+    width: 55px;
+}
+
+.produce-table .cost-icons span {
+    font-size: 0.75rem;
+    color: #999;
+}
+
+/* Automation note */
+.automation-note {
+    margin-top: 12px;
+    padding: 8px;
+    background: #2a2a2a;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.automation-note strong {
+    color: #10b981;
+}
+
+/* Victory Points Section */
+.victory-section {
+    background: #222;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+    border-top: 3px solid #fbbf24;
+}
+
+.victory-section h3 {
+    color: #fbbf24;
+    margin: 0 0 12px 0;
+    font-size: 1.1rem;
+}
+
+.victory-items {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+}
+
+.victory-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.victory-item.positive {
+    color: #10b981;
+}
+
+.victory-item.negative {
+    color: #ef4444;
+}
+
+.victory-item .vp-value {
+    font-weight: bold;
+    font-size: 1rem;
+}

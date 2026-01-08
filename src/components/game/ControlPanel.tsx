@@ -8,9 +8,10 @@ interface ControlPanelProps {
     lobbyCode?: string;
     onLeave?: () => void;
     onSave?: () => void;
+    onOpenPlayerAid?: () => void;
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = true, lobbyCode, onLeave, onSave }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = true, lobbyCode, onLeave, onSave, onOpenPlayerAid }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -93,6 +94,26 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = 
                     <span style={{ color: '#f87171', fontWeight: 'bold' }}>
                         Waiting for your turn
                     </span>
+                )}
+
+                {onOpenPlayerAid && (
+                    <button
+                        onClick={onOpenPlayerAid}
+                        data-testid="player-aid-button"
+                        style={{
+                            background: '#374151',
+                            borderColor: '#4b5563',
+                            fontSize: '14px',
+                            cursor: 'pointer',
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            color: '#fbbf24',
+                            fontWeight: 'bold'
+                        }}
+                        title="Player Aid"
+                    >
+                        Player Aid
+                    </button>
                 )}
 
                 {onLeave && (
