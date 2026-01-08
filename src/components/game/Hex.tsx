@@ -51,7 +51,7 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
 
     // Central hex is black (forbidden)
     const isCentralHex = cell.q === 0 && cell.r === 0;
-    let fill = isCentralHex ? '#000' : '#333';
+    let fill = isCentralHex ? '#000' : '#222';
     // label variable removed
     let features: React.ReactNode[] = [];
     let rotation = 0;
@@ -67,10 +67,34 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
     const clipId = `clip-${cell.q}-${cell.r}`;
 
     if (activeTileType) {
-        fill = ghostTile ? '#555555' : '#555';
-        rotation = (activeOrientation || 0) * 60;
-
+        // Find representative commodity for this industry
         const def = TILE_DEFINITIONS[activeTileType];
+        const primaryCommodity = (activeTileType === 'Bank') ? 'Money' :
+            (activeTileType === 'Factory') ? 'Capital' :
+                (def?.features[0]?.commodity || null);
+
+        if (primaryCommodity && COMMODITY_COLORS[primaryCommodity]) {
+            // Apply 20% tint of dotColor over dark background
+            const tints: Record<string, string> = {
+                Food: '#5a5848',    // Lighter tinted Yellow
+                Energy: '#484d5a',  // Lighter tinted Blue
+                Labor: '#5a4848',   // Lighter tinted Red
+                Ore: '#555555',     // Original Gray
+                Capital: '#4d4d4d', // Slightly tinted Black/Dark Gray
+                Money: '#52485a',   // Lighter tinted Purple
+            };
+
+            fill = tints[primaryCommodity as string] || (ghostTile ? '#555555' : '#555');
+
+            // If it's a ghost tile, make it slightly lighter/transparent-feeling
+            if (ghostTile) {
+                fill = fill + '99'; // ~60% opacity
+            }
+        } else {
+            fill = ghostTile ? '#555555' : '#555';
+        }
+
+        rotation = (activeOrientation || 0) * 60;
         if (def) {
             // Render Center Dot
             if (def.hasCenterDot) {

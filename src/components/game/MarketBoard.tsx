@@ -109,7 +109,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }
 
                 {/* Barter Price */}
                 {currentBarterPrice !== null && (
-                    <div style={{ fontSize: '9px', color: '#888', textAlign: 'center' }}>
+                    <div style={{ fontSize: '11px', color: '#bbb', textAlign: 'center' }}>
                         Barter: ${currentBarterPrice}
                     </div>
                 )}
@@ -180,8 +180,8 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }
                                             ? 'repeating-linear-gradient(45deg, #111, #111 10px, #444 10px, #444 12px)'
                                             : `${color}`)
                                         : 'transparent'),
-                                opacity: isFilled && stockLevel === stock ? 1 : undefined,
-                                borderBottom: visualIndex < maxStock - 1 ? '1px solid #222' : 'none',
+                                border: isFilled && stockLevel === stock ? '1px solid #CCC' : undefined,
+                                borderBottom: isFilled && stockLevel === stock ? '1px solid #CCC' : (visualIndex < maxStock - 1 ? '1px solid #222' : 'none'),
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -309,8 +309,8 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
     return (
         <div style={{
             display: 'flex',
-            gap: '8px',
-            padding: '10px',
+            gap: '6px',
+            padding: '6px',
             background: '#1a1a1a',
             borderRadius: '8px',
             height: '100%',

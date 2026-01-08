@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Board } from '../components/game/Board';
 import type { HexCell, IndustryType, CommodityType, TradeOffer } from '../types/gameState';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
@@ -20,6 +20,7 @@ import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { TradeActionPanel } from '../components/game/TradeActionPanel';
 import { PlayerAid } from '../components/game/PlayerAid';
+import { TileIcon } from '../components/ui/TileIcon';
 
 export const Game: React.FC = () => {
     // Game Engine State
@@ -79,6 +80,10 @@ export const Game: React.FC = () => {
         amount: number;
     } | null>(null);
     const [marketErrorMessage, setMarketErrorMessage] = useState<string | null>(null);
+    const [tradeAcceptedToast, setTradeAcceptedToast] = useState(false);
+    const [showProductionConfirmation, setShowProductionConfirmation] = useState(false);
+    const prevPendingTradeRef = useRef<any>(null);
+    const prevTurnIndexRef = useRef<number>(gameState.currentTurnPlayerIndex);
 
     // Helper to get active player (the player whose turn it is, or the local player during simultaneous phases)
     const player = useMemo(() => {
@@ -173,6 +178,23 @@ export const Game: React.FC = () => {
         }
         dispatchAction(action, payload);
     }, [dispatchAction, mode, selfPlayer, canAct, gameState.pendingTrade]);
+
+    // Trade Acceptance Notification
+    useEffect(() => {
+        if (prevPendingTradeRef.current && !gameState.pendingTrade) {
+            // Trade vanished. Was it accepted?
+            // In acceptTrade, the turn always advances. In rejectTrade, it doesn't.
+            const turnChanged = gameState.currentTurnPlayerIndex !== prevTurnIndexRef.current;
+            const wasLocalProposer = prevPendingTradeRef.current.proposerId === player.id;
+
+            if (turnChanged && wasLocalProposer) {
+                setTradeAcceptedToast(true);
+                setTimeout(() => setTradeAcceptedToast(false), 3000);
+            }
+        }
+        prevPendingTradeRef.current = gameState.pendingTrade;
+        prevTurnIndexRef.current = gameState.currentTurnPlayerIndex;
+    }, [gameState.pendingTrade, gameState.currentTurnPlayerIndex, player.id]);
 
     // Reset selected tool when turn changes
     useEffect(() => {
@@ -1040,6 +1062,30 @@ export const Game: React.FC = () => {
                     </div>
                 )}
 
+                {tradeAcceptedToast && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: '#1c3320',
+                        color: '#22c55e',
+                        padding: '12px 24px',
+                        borderRadius: '8px',
+                        zIndex: 100,
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
+                        border: '2px solid #22c55e',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '18px',
+                        animation: 'fadeIn 0.3s ease-out'
+                    }}>
+                        🤝 Trade Accepted!
+                    </div>
+                )}
+
 
                 {/* Col 1: Players */}
                 <div style={{
@@ -1117,8 +1163,8 @@ export const Game: React.FC = () => {
                     {/* Build / Tools Section */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ color: 'white', margin: '0 0 10px 0', borderBottom: '1px solid #444', paddingBottom: '5px' }}>Actions</h3>
-                        {/* Waiting message for non-active players in remote games */}
-                        {interactionLocked ? (
+                        {/* Waiting message for non-active players in remote games (except in Production phase where we show production specific waiting) */}
+                        {interactionLocked && gameState.phase !== 'Produce' ? (
                             <div style={{
                                 flex: 1,
                                 display: 'flex',
@@ -1705,7 +1751,7 @@ export const Game: React.FC = () => {
                                     {/* Run Production Button */}
                                     <button
                                         data-testid="run-production-button"
-                                        onClick={handleRunProduction}
+                                        onClick={() => setShowProductionConfirmation(true)}
                                         disabled={player.resources.Food < productionTotals.totalFoodCost || player.resources.Energy < productionTotals.totalEnergyCost}
                                         style={{
                                             padding: '12px',
@@ -1719,6 +1765,38 @@ export const Game: React.FC = () => {
                                     >
                                         Run Production
                                     </button>
+
+                                    {showProductionConfirmation && (
+                                        <ConfirmationModal
+                                            isOpen={showProductionConfirmation}
+                                            title="Run Production"
+                                            message={
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                    <div>Are you sure you want to run production?</div>
+                                                    <div style={{ background: '#111', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>
+                                                        <div style={{ color: '#f87171', marginBottom: '4px' }}>
+                                                            <strong>Consuming:</strong>
+                                                            {productionTotals.totalFoodCost > 0 && ` ${productionTotals.totalFoodCost} Food`}
+                                                            {productionTotals.totalFoodCost > 0 && productionTotals.totalEnergyCost > 0 && ','}
+                                                            {productionTotals.totalEnergyCost > 0 && ` ${productionTotals.totalEnergyCost} Energy`}
+                                                            {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
+                                                            {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' Nothing'}
+                                                        </div>
+                                                        <div style={{ color: '#4ade80' }}>
+                                                            <strong>Producing:</strong> {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || 'Nothing'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            onConfirm={() => {
+                                                handleRunProduction();
+                                                setShowProductionConfirmation(false);
+                                            }}
+                                            onCancel={() => setShowProductionConfirmation(false)}
+                                            confirmText="Confirm"
+                                            cancelText="Back"
+                                        />
+                                    )}
                                 </div>
                             )
                         ) : gameState.phase === 'Trade' ? (
@@ -1780,7 +1858,15 @@ export const Game: React.FC = () => {
                                             cursor: (player.resources.Labor >= 1 && player.flags > 0) ? 'pointer' : 'not-allowed'
                                         }}
                                     >
-                                        <span style={{ fontWeight: 'bold' }}>Flag</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <svg width="24" height="12" viewBox="0 0 24 12">
+                                                <image
+                                                    href={`/flags/${player.flag || (player.id === 'p1' ? 'anglica.svg' : 'bolshevica.svg')}`}
+                                                    x="0" y="0" width="24" height="12"
+                                                />
+                                            </svg>
+                                            <span style={{ fontWeight: 'bold' }}>Flag</span>
+                                        </div>
                                         <div style={{ display: 'flex', gap: '2px', marginTop: '4px', alignItems: 'center' }}>
                                             <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
                                             <ResourceIcon type="Labor" size={10} />
@@ -1802,7 +1888,18 @@ export const Game: React.FC = () => {
                                             cursor: (player.resources.Energy >= 1 && player.resources.Capital >= 2 && Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)) ? 'pointer' : 'not-allowed'
                                         }}
                                     >
-                                        <span style={{ fontWeight: 'bold' }}>Auto</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <svg width="16" height="16" viewBox="-22 -22 44 44">
+                                                <path
+                                                    d="M0,-21 L18.18,-10.5 18.18,10.5 0,21 -18.18,10.5 -18.18,-10.5 Z M0,-9 A9,9 0 1,1 -0.001,-9 Z"
+                                                    fill="#999"
+                                                    stroke="white"
+                                                    strokeWidth="1.5"
+                                                    fillRule="evenodd"
+                                                />
+                                            </svg>
+                                            <span style={{ fontWeight: 'bold' }}>Auto</span>
+                                        </div>
                                         <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                                                 <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
@@ -1823,7 +1920,7 @@ export const Game: React.FC = () => {
                                     <span style={{ color: '#fff', fontSize: '14px' }}>Build Industry</span>
                                     <label style={{ fontSize: '12px', color: forceMode ? 'magenta' : '#888', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
                                         <input type="checkbox" checked={forceMode} onChange={(e) => setForceMode(e.target.checked)} />
-                                        Force (+1 Cap)
+                                        Force (<ResourceIcon type="Capital" size={12} />+1)
                                     </label>
                                 </div>
 
@@ -1852,7 +1949,10 @@ export const Game: React.FC = () => {
                                                     cursor: affordable ? 'pointer' : 'not-allowed'
                                                 }}
                                             >
-                                                <span style={{ fontWeight: 'bold' }}>{type}</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <TileIcon type={type} size={20} />
+                                                    <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{type}</span>
+                                                </div>
                                                 <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
                                                     {costComponents.map((c, i) => (
                                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
@@ -2021,7 +2121,7 @@ export const Game: React.FC = () => {
 
                 {/* Col 4: Market + Cheat */}
                 <div style={{
-                    width: '420px',
+                    width: '450px',
                     background: '#1a1a1a',
                     borderLeft: '1px solid #333',
                     display: 'flex',
@@ -2030,7 +2130,7 @@ export const Game: React.FC = () => {
                 }}>
                     {/* Market Section */}
                     <div style={{
-                        padding: '10px',
+                        padding: '6px',
                         flex: 1,
                         display: 'flex',
                         flexDirection: 'column',
