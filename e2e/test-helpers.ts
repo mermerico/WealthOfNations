@@ -25,18 +25,23 @@ export async function waitForConnection(page: Page): Promise<void> {
  */
 export async function findActivePlayer(players: TestPlayer[]): Promise<number> {
     const pages = players.map(p => p.page);
-    await pages[0].waitForTimeout(5);
 
-    // Strategy 1: Check Control Panel for Active Player Name
+    // Wait for at least one player to become active
+    // We check all players' control panels for the "Your Turn" indicator or similar
+    // Actually, looking at the code, we can check the active player name in the control panel
+    // It's safer to wait for the element to appear first
+
     try {
         const activeNameElement = pages[0].getByTestId('active-player-name');
+        await activeNameElement.waitFor({ state: 'visible', timeout: 5000 });
+
         if (await activeNameElement.count() > 0) {
             const activeName = (await activeNameElement.innerText()).trim();
             const index = players.findIndex(p => p.name === activeName);
             if (index !== -1) return index;
         }
     } catch (e) {
-        console.log('Error reading active player from control panel:', e);
+        // console.log('Error reading active player from control panel:', e);
     }
 
     return -1;
@@ -162,8 +167,11 @@ export async function runSetupPhase(
     ];
     let placementIndex = 0;
 
+    await debugPlayerStates(players, log);
+
     let tradePhaseReached = false;
     let noProgressCount = 0;
+    let lastActivePlayer = -1;
     let actionCount = 0;
 
     while (!tradePhaseReached && noProgressCount < 40) {
@@ -178,8 +186,18 @@ export async function runSetupPhase(
 
         const activePlayer = await findActivePlayer(players);
 
+        if (activePlayer !== lastActivePlayer) {
+            await log(`Turn changed: P${lastActivePlayer + 1} -> P${activePlayer + 1}`);
+            await debugPlayerStates(players, log);
+            lastActivePlayer = activePlayer;
+        }
+
         if (activePlayer === -1) {
             noProgressCount++;
+            if (noProgressCount % 10 === 0) {
+                await log(`All players waiting? attempt ${noProgressCount}`);
+                await debugPlayerStates(players, log);
+            }
             await pages[0].waitForTimeout(10);
             continue;
         }
@@ -190,6 +208,7 @@ export async function runSetupPhase(
         // Try package selection
         const pkgBtn = page.getByTestId(/package-select-button-.+/).filter({ hasNot: page.locator('[disabled]') }).first();
         if (await pkgBtn.count() > 0) {
+            await log(`P${activePlayer + 1} selecting package...`);
             await pkgBtn.click({ timeout: 2000 });
             await page.waitForTimeout(10);
             madeProgress = true;
@@ -200,6 +219,7 @@ export async function runSetupPhase(
         if (!madeProgress) {
             const passBtn = page.getByTestId('setup-pass-button').filter({ hasNot: page.locator('[disabled]') });
             if (await passBtn.count() > 0 && await passBtn.isEnabled()) {
+                await log(`P${activePlayer + 1} clicking Pass (Continue)...`);
                 await passBtn.click({ timeout: 2000 });
                 await page.waitForTimeout(10);
                 madeProgress = true;
@@ -211,7 +231,14 @@ export async function runSetupPhase(
         if (!madeProgress && placementIndex < validPlacements.length) {
             const cellId = validPlacements[placementIndex];
             try {
+                // Check if hex exists first to avoid waiting
+                // Actually the try/catch around click is what made it robust in the original test
+                // But we can enable the hex only if it's essentially valid? 
+                // The original code had:
+                // await page.getByTestId(`hex-${cellId}`).click({ timeout: 300 });
+
                 await page.getByTestId(`hex-${cellId}`).click({ timeout: 300 });
+                await log(`P${activePlayer + 1} placed at ${cellId}`);
                 await page.waitForTimeout(10);
                 madeProgress = true;
                 actionCount++;
@@ -229,7 +256,8 @@ export async function runSetupPhase(
         }
 
         if (actionCount > 100) {
-            throw new Error('Too many actions without reaching Trade phase');
+            await log('Too many actions without reaching Trade phase');
+            break;
         }
     }
 
@@ -238,6 +266,18 @@ export async function runSetupPhase(
     }
 
     await log('Setup phase complete - Trade Phase Reached!');
+}
+
+/**
+ * Helper to log player states for debugging
+ */
+async function debugPlayerStates(players: TestPlayer[], log: StepLogger) {
+    for (let i = 0; i < players.length; i++) {
+        const page = players[i].page;
+        const waitingText = await page.getByText('Waiting for your turn').count();
+        const pkgCount = await page.locator('.package-card:not(.disabled) .select-button:not([disabled])').count();
+        await log(`  P${i + 1}: waiting=${waitingText > 0}, enabledPkgs=${pkgCount}`);
+    }
 }
 
 /**

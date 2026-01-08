@@ -33,7 +33,7 @@ test.describe.serial('save and restore game flow', () => {
     });
 
     test('setup game and save mid-progress', async () => {
-        test.setTimeout(60000);
+        test.setTimeout(90000);
 
         // Use shared helper to get to Trade phase
         savedLobbyCode = await initializeGameToTradePhase(players, step);

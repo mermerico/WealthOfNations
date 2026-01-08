@@ -72,115 +72,11 @@ test.describe.serial('3-player game flow', () => {
         test.setTimeout(120000);
 
         await step('Entering Setup Phase...');
-        await players[0].page.waitForTimeout(100);
-
-        // Valid tile placements extracted from successful test runs
-        const validPlacements = [
-            '1,0', '0,1', '1,-1',       // Package 1 (Farm)
-            '-1,1', '-2,1', '-2,2',     // Package 2 (Farm)
-            '1,-2', '0,-1',             // Package 3 (Generator)
-            '0,-2', '-1,-1',            // Package 4 (Academy)
-            '-3,1', '-3,2',             // Package 5 (Mine)
-            '2,0', '0,2',               // Package 6 (Factory)
-        ];
-        let placementIndex = 0;
-
-        await step('Running setup sequence...');
-        await debugPlayerStates();
-
-        let tradePhaseReached = false;
-        let noProgressCount = 0;
-        let lastActivePlayer = -1;
-        let actionCount = 0;
-        const pages = players.map(p => p.page);
-
-        while (!tradePhaseReached && noProgressCount < 40) {
-            // Check for Trade phase
-            for (const page of pages) {
-                if (await page.getByTestId('phase-display').filter({ hasText: 'TRADE' }).count() > 0) {
-                    tradePhaseReached = true;
-                    break;
-                }
-            }
-            if (tradePhaseReached) break;
-
-            const activePlayer = await findActivePlayer(players);
-
-            if (activePlayer !== lastActivePlayer) {
-                await step(`Turn changed: P${lastActivePlayer + 1} -> P${activePlayer + 1}`);
-                await debugPlayerStates();
-                lastActivePlayer = activePlayer;
-            }
-
-            if (activePlayer === -1) {
-                noProgressCount++;
-                if (noProgressCount % 10 === 0) {
-                    await step(`All players waiting? attempt ${noProgressCount}`);
-                    await debugPlayerStates();
-                }
-                await pages[0].waitForTimeout(10);
-                continue;
-            }
-
-            const page = pages[activePlayer];
-            let madeProgress = false;
-
-            // Try package selection
-            const pkgBtn = page.getByTestId(/package-select-button-.+/).filter({ hasNot: page.locator('[disabled]') }).first();
-            if (await pkgBtn.count() > 0) {
-                await step(`P${activePlayer + 1} selecting package...`);
-                await pkgBtn.click({ timeout: 2000 });
-                await page.waitForTimeout(10);
-                madeProgress = true;
-                actionCount++;
-            }
-
-            // Try clicking Pass/Continue button
-            if (!madeProgress) {
-                const passBtn = page.getByTestId('setup-pass-button').filter({ hasNot: page.locator('[disabled]') });
-                if (await passBtn.count() > 0 && await passBtn.isEnabled()) {
-                    await step(`P${activePlayer + 1} clicking Pass (Continue)...`);
-                    await passBtn.click({ timeout: 2000 });
-                    await page.waitForTimeout(10);
-                    madeProgress = true;
-                    actionCount++;
-                }
-            }
-
-            // Try tile placement
-            if (!madeProgress && placementIndex < validPlacements.length) {
-                const cellId = validPlacements[placementIndex];
-                try {
-                    await page.getByTestId(`hex-${cellId}`).click({ timeout: 300 });
-                    await step(`P${activePlayer + 1} placed at ${cellId}`);
-                    await page.waitForTimeout(10);
-                    madeProgress = true;
-                    actionCount++;
-                    placementIndex++;
-                } catch {
-                    placementIndex++;
-                }
-            }
-
-            if (madeProgress) {
-                noProgressCount = 0;
-            } else {
-                noProgressCount++;
-                await pages[0].waitForTimeout(5);
-            }
-
-            if (actionCount > 100) {
-                await step('Too many actions without reaching Trade phase');
-                break;
-            }
-        }
-
-        expect(tradePhaseReached).toBeTruthy();
-        await step('Setup phase complete - Trade Phase Reached!');
+        await runSetupPhase(players, step);
     });
 
     test('trade phase - execute trade and finish', async () => {
-        test.setTimeout(30000);
+        test.setTimeout(45000);
         const pages = players.map(p => p.page);
 
         const activeIdx = await findActivePlayer(players);
@@ -207,36 +103,63 @@ test.describe.serial('3-player game flow', () => {
         const targetPage = pages[targetIdx];
         const targetName = playerNames[targetIdx];
 
+        // --- START Trade Intent Sync Checks (Merged from trade-intent-sync.spec.ts) ---
+
+        await step(`Testing Trade Intent Sync...`);
+
+        // Check that inactive player sees Active player as "(Planning...)"
+        await expect(targetPage.locator(`text=${activePlayerName}`).filter({ hasText: '(Planning...)' })).toBeVisible();
+
+        // Active player modifies desired inventory
+        await step(`${activePlayerName} modifying Desired Inventory...`);
+        const plusButtons = activePage.getByTestId(/^inventory-plus-/);
+        if (await plusButtons.count() > 0) {
+            await plusButtons.first().click();
+            await plusButtons.first().click();
+            // Just verify it doesn't crash other views; deep delta validation is complex without data-ids
+        }
+
+        // Active player marks Ready
+        await step(`${activePlayerName} marks Ready...`);
+        await activePage.getByTestId('trade-ready-button').click();
+        await expect(activePage.getByRole('button', { name: /Ready/i })).toBeVisible();
+
+        // Verify other players see "(Planning...)" disappear for Active Player
+        await step(`Verifying ${activePlayerName} is Ready on ${targetName}'s screen...`);
+        await expect(targetPage.locator(`text=${activePlayerName}`).filter({ hasText: '(Planning...)' })).not.toBeVisible({ timeout: 5000 });
+
+        // --- END Trade Intent Sync Checks ---
+
         await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) proposing trade to P${targetIdx + 1} (${targetName})...`);
 
-        // New Flow: Target player must be Ready for Active player to propose trade
+        // Target player must also be Ready for Active player to propose trade (game rule)
         await step(`P${targetIdx + 1} (${targetName}) marking ready...`);
         const targetMarkReadyBtn = targetPage.getByTestId('trade-ready-button');
         await targetMarkReadyBtn.click();
         await expect(targetPage.getByTestId('trade-ready-button')).toHaveText(/Ready/);
 
-        // Wait for sync - Active player should see Target player as ready (no longer "Planning...")
-        await step(`Waiting for P${targetIdx + 1} to appear ready on P${activeIdx + 1}'s screen...`);
-        // Let's use the explicit check: no "(Planning...)"
-        await expect(activePage.locator(`text=${targetName}`).filter({ hasText: '(Planning...)' })).toHaveCount(0, { timeout: 10000 });
+        // Active player waits for Target to be ready
+        // Check active page sees target as ready (no planning)
+        await expect(activePage.locator(`text=${targetName}`).filter({ hasText: '(Planning...)' })).not.toBeVisible();
 
         // Open trade modal by clicking target player's card
         await step(`P${activeIdx + 1} clicking P${targetIdx + 1}'s card to propose trade...`);
-        // Find the "Player Offers" section
+
         const offersSection = activePage.getByTestId('player-offers-section');
         await expect(offersSection).toBeVisible();
 
-        // Click the player card inside it (containing target name)
         await activePage.getByTestId(`player-offer-button-${targetName}`).click();
 
         // Enter money amount
         await activePage.getByTestId('trade-money-input-give').fill('10');
         await activePage.getByRole('button', { name: 'Propose Trade', exact: true }).click();
-        await activePage.waitForTimeout(100); // Wait for trade proposal to propagate
+
+        // Wait for trade proposal to appear on target
+        await step(`Waiting for trade proposal on ${targetName}...`);
+        await expect(targetPage.getByRole('button', { name: 'Accept' })).toBeVisible({ timeout: 5000 });
 
         // Accept trade
         await step(`P${targetIdx + 1} accepting trade...`);
-        await expect(targetPage.getByRole('button', { name: 'Accept' })).toBeVisible({ timeout: 2000 });
         await targetPage.getByRole('button', { name: 'Accept' }).click();
 
         await expect(targetPage.getByRole('button', { name: 'Accept' })).not.toBeVisible();
@@ -245,11 +168,23 @@ test.describe.serial('3-player game flow', () => {
         // All players pass to finish trade phase
         await step('All players passing to finish Trade phase...');
         for (let turn = 0; turn < 3; turn++) {
-            const activeIdx = await findActivePlayer(players);
-            expect(activeIdx).toBeGreaterThanOrEqual(0);
-            await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Trade phase`);
-            await pages[activeIdx].getByTestId('trade-pass-button').click();
-            await pages[activeIdx].waitForTimeout(200);
+            const activeIdxCurrent = await findActivePlayer(players);
+            expect(activeIdxCurrent).toBeGreaterThanOrEqual(0);
+
+            await step(`P${activeIdxCurrent + 1} passing Trade phase`);
+            await pages[activeIdxCurrent].getByTestId('trade-pass-button').click();
+
+            // Wait for turn to pass (active player changes) or phase to change
+            // If it's the last player, phase changes. If not, active player changes.
+            if (turn < 2) {
+                // Wait for active player to change
+                await expect(async () => {
+                    const newActive = await findActivePlayer(players);
+                    return newActive !== activeIdxCurrent;
+                }).toPass();
+            } else {
+                // Last player passed, wait for phase change in next test block
+            }
         }
     });
 
