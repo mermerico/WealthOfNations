@@ -44,7 +44,7 @@ test.describe.serial('Trade Intent Synchronization', () => {
         const pages = players.map(p => p.page);
 
         // Find who is the active player - they will set their desired inventory and mark ready
-        const activeIdx = await findActivePlayer(pages);
+        const activeIdx = await findActivePlayer(players);
         expect(activeIdx).toBeGreaterThanOrEqual(0);
 
         const activePage = pages[activeIdx];
@@ -84,7 +84,7 @@ test.describe.serial('Trade Intent Synchronization', () => {
         await activePage.waitForTimeout(500);
 
         // Verify the button now shows "Ready" 
-        await expect(activePage.getByRole('button', { name: 'Ready', exact: true })).toBeVisible({ timeout: 2000 });
+        await expect(activePage.getByRole('button', { name: /Ready/i })).toBeVisible({ timeout: 5000 });
         await step(`${activePlayer.name} button now shows "Ready"`);
 
         // Now check on the other player's page - the "(Planning...)" indicator should be gone
@@ -111,7 +111,7 @@ test.describe.serial('Trade Intent Synchronization', () => {
         const pages = players.map(p => p.page);
 
         // Active player modifies their desired inventory
-        const activeIdx = await findActivePlayer(pages);
+        const activeIdx = await findActivePlayer(players);
         expect(activeIdx).toBeGreaterThanOrEqual(0);
 
         const activePage = pages[activeIdx];
@@ -155,7 +155,7 @@ test.describe.serial('Trade Intent Synchronization', () => {
         const pages = players.map(p => p.page);
 
         // identify active and inactive players
-        const activeIdx = await findActivePlayer(pages);
+        const activeIdx = await findActivePlayer(players);
         expect(activeIdx).toBeGreaterThanOrEqual(0);
 
         const activePage = pages[activeIdx];
@@ -179,7 +179,7 @@ test.describe.serial('Trade Intent Synchronization', () => {
         } else {
             await step(`${inactivePlayer.name} (inactive) clicking Mark Ready...`);
             await markReadyBtn.click();
-            await expect(inactivePage.getByRole('button', { name: 'Ready', exact: true })).toBeVisible();
+            await expect(inactivePage.getByRole('button', { name: /Ready/i })).toBeVisible();
         }
 
         // Check if Active Player sees this

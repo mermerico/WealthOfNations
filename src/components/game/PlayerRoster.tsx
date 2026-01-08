@@ -28,6 +28,7 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                 return (
                     <div
                         key={player.id}
+                        data-testid={`player-roster-card-${player.name}`}
                         style={{
                             background: '#222',
                             border: `2px solid ${isCurrent ? '#22c55e' : 'transparent'}`,
@@ -53,7 +54,10 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                             </div>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                 {isCurrent && (
-                                    <span style={{ fontSize: '10px', background: '#22c55e', color: '#000', padding: '2px 6px', borderRadius: '4px' }}>
+                                    <span
+                                        data-testid={`turn-badge-${player.name}`}
+                                        style={{ fontSize: '10px', background: '#22c55e', color: '#000', padding: '2px 6px', borderRadius: '4px' }}
+                                    >
                                         TURN
                                     </span>
                                 )}

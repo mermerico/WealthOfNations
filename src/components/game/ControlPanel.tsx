@@ -51,7 +51,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
                                     alt={currentPlayer.name}
                                     style={{ width: '20px', height: '10px', objectFit: 'cover' }}
                                 />
-                                <span style={{ fontWeight: 'bold', color: currentPlayer.color }}>{currentPlayer.name}</span>
+                                <span data-testid="active-player-name" style={{ fontWeight: 'bold', color: currentPlayer.color }}>{currentPlayer.name}</span>
                             </>
                         )}
                     </div>

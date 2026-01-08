@@ -23,14 +23,22 @@ export async function waitForConnection(page: Page): Promise<void> {
 /**
  * Find which player is currently active (not waiting for their turn)
  */
-export async function findActivePlayer(pages: Page[]): Promise<number> {
+export async function findActivePlayer(players: TestPlayer[]): Promise<number> {
+    const pages = players.map(p => p.page);
     await pages[0].waitForTimeout(5);
-    for (let i = 0; i < pages.length; i++) {
-        const waitingText = await pages[i].getByText('Waiting for your turn').count();
-        if (waitingText === 0) {
-            return i;
+
+    // Strategy 1: Check Control Panel for Active Player Name
+    try {
+        const activeNameElement = pages[0].getByTestId('active-player-name');
+        if (await activeNameElement.count() > 0) {
+            const activeName = (await activeNameElement.innerText()).trim();
+            const index = players.findIndex(p => p.name === activeName);
+            if (index !== -1) return index;
         }
+    } catch (e) {
+        console.log('Error reading active player from control panel:', e);
     }
+
     return -1;
 }
 
@@ -134,10 +142,11 @@ export async function readyUpAndStartGame(
  * Uses a fast, reliable approach with predefined valid placements
  */
 export async function runSetupPhase(
-    pages: Page[],
+    players: TestPlayer[],
     step?: StepLogger
 ): Promise<void> {
     const log = step ?? (async (msg: string) => console.log(`[Setup] ${msg}`));
+    const pages = players.map(p => p.page);
 
     await log('Running setup phase...');
     await pages[0].waitForTimeout(100);
@@ -167,7 +176,7 @@ export async function runSetupPhase(
         }
         if (tradePhaseReached) break;
 
-        const activePlayer = await findActivePlayer(pages);
+        const activePlayer = await findActivePlayer(players);
 
         if (activePlayer === -1) {
             noProgressCount++;
@@ -241,6 +250,6 @@ export async function initializeGameToTradePhase(
 ): Promise<string> {
     const lobbyCode = await createAndJoinLobby(players, step);
     await readyUpAndStartGame(players, step);
-    await runSetupPhase(players.map(p => p.page), step);
+    await runSetupPhase(players, step);
     return lobbyCode;
 }

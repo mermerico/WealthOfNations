@@ -1230,11 +1230,7 @@ export const Game: React.FC = () => {
                 }}>
                     <PlayerRoster
                         players={gameState.players}
-                        currentPlayerId={
-                            gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
-                                ? gameState.players[gameState.setupPhase.currentDrafterIndex].id
-                                : player.id
-                        }
+                        currentPlayerId={activePlayerId || ''}
                         firstPlayerIndex={gameState.firstPlayerIndex}
                     />
 

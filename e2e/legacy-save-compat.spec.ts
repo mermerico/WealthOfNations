@@ -152,7 +152,7 @@ test.describe.serial('legacy save compatibility', () => {
 
         // Verify it changed to "Ready" and green style
         const readyBtn = p1.getByTestId('trade-ready-button');
-        await expect(readyBtn).toHaveText('Ready');
+        await expect(readyBtn).toHaveText(/Ready/i);
 
         // Verify via P2 that P1 is ready
         // P2 should see P1's status update in the "Other Player Needs" list

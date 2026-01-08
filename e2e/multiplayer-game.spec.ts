@@ -97,14 +97,14 @@ test.describe.serial('3-player game flow', () => {
         while (!tradePhaseReached && noProgressCount < 40) {
             // Check for Trade phase
             for (const page of pages) {
-                if (await page.locator('text=TRADE').count() > 0) {
+                if (await page.getByTestId('phase-display').filter({ hasText: 'TRADE' }).count() > 0) {
                     tradePhaseReached = true;
                     break;
                 }
             }
             if (tradePhaseReached) break;
 
-            const activePlayer = await findActivePlayer(pages);
+            const activePlayer = await findActivePlayer(players);
 
             if (activePlayer !== lastActivePlayer) {
                 await step(`Turn changed: P${lastActivePlayer + 1} -> P${activePlayer + 1}`);
@@ -126,7 +126,7 @@ test.describe.serial('3-player game flow', () => {
             let madeProgress = false;
 
             // Try package selection
-            const pkgBtn = page.locator('.package-card:not(.disabled) .select-button:not([disabled])').first();
+            const pkgBtn = page.getByTestId(/package-select-button-.+/).filter({ hasNot: page.locator('[disabled]') }).first();
             if (await pkgBtn.count() > 0) {
                 await step(`P${activePlayer + 1} selecting package...`);
                 await pkgBtn.click({ timeout: 2000 });
@@ -137,7 +137,7 @@ test.describe.serial('3-player game flow', () => {
 
             // Try clicking Pass/Continue button
             if (!madeProgress) {
-                const passBtn = page.getByRole('button', { name: /Pass.*Continue/i }).filter({ hasNot: page.locator('[disabled]') });
+                const passBtn = page.getByTestId('setup-pass-button').filter({ hasNot: page.locator('[disabled]') });
                 if (await passBtn.count() > 0 && await passBtn.isEnabled()) {
                     await step(`P${activePlayer + 1} clicking Pass (Continue)...`);
                     await passBtn.click({ timeout: 2000 });
@@ -183,8 +183,24 @@ test.describe.serial('3-player game flow', () => {
         test.setTimeout(30000);
         const pages = players.map(p => p.page);
 
-        const activeIdx = await findActivePlayer(pages);
+        const activeIdx = await findActivePlayer(players);
         expect(activeIdx).toBeGreaterThanOrEqual(0);
+
+        // Verify Turn Indicators
+        const activePlayerName = playerNames[activeIdx];
+        const inactiveIdxCheck = (activeIdx + 1) % 3;
+        const inactivePlayerNameCheck = playerNames[inactiveIdxCheck];
+        const inactivePageCheck = pages[inactiveIdxCheck];
+
+        // 1. Check if Inactive Player sees TURN badge on Inactive Player (Self) -> Should be 0
+        const selfHaveTurnBadge = await inactivePageCheck.getByTestId(`turn-badge-${inactivePlayerNameCheck}`).count();
+        expect(selfHaveTurnBadge, 'Inactive player should NOT see TURN badge on themselves').toBe(0);
+
+        // 2. Check if Inactive Player sees TURN badge on Active Player -> Should be > 0
+        const activeHaveTurnBadge = await inactivePageCheck.getByTestId(`turn-badge-${activePlayerName}`).count();
+        expect(activeHaveTurnBadge, 'Inactive player SHOULD see TURN badge on active player').toBeGreaterThan(0);
+
+        await step('Verified: Turn indicators are correct.');
 
         const activePage = pages[activeIdx];
         const targetIdx = (activeIdx + 1) % 3;
@@ -197,7 +213,7 @@ test.describe.serial('3-player game flow', () => {
         await step(`P${targetIdx + 1} (${targetName}) marking ready...`);
         const targetMarkReadyBtn = targetPage.getByTestId('trade-ready-button');
         await targetMarkReadyBtn.click();
-        await expect(targetPage.getByTestId('trade-ready-button')).toHaveText('Ready');
+        await expect(targetPage.getByTestId('trade-ready-button')).toHaveText(/Ready/);
 
         // Wait for sync - Active player should see Target player as ready (no longer "Planning...")
         await step(`Waiting for P${targetIdx + 1} to appear ready on P${activeIdx + 1}'s screen...`);
@@ -229,7 +245,7 @@ test.describe.serial('3-player game flow', () => {
         // All players pass to finish trade phase
         await step('All players passing to finish Trade phase...');
         for (let turn = 0; turn < 3; turn++) {
-            const activeIdx = await findActivePlayer(pages);
+            const activeIdx = await findActivePlayer(players);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Trade phase`);
             await pages[activeIdx].getByTestId('trade-pass-button').click();
@@ -245,11 +261,11 @@ test.describe.serial('3-player game flow', () => {
 
         // Wait for all players to see DEVELOP
         for (let i = 0; i < 3; i++) {
-            await expect(pages[i].locator('text=DEVELOP')).toBeVisible({ timeout: 5000 });
+            await expect(pages[i].getByTestId('phase-display').filter({ hasText: 'DEVELOP' })).toBeVisible({ timeout: 5000 });
         }
 
         for (let turn = 0; turn < 3; turn++) {
-            const activeIdx = await findActivePlayer(pages);
+            const activeIdx = await findActivePlayer(players);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Develop phase`);
             await pages[activeIdx].getByTestId('develop-pass-button').click();
@@ -278,6 +294,10 @@ test.describe.serial('3-player game flow', () => {
             // Wait for button to be available and click
             const btn = pages[i].getByTestId('run-production-button');
             await btn.click();
+
+            // Handle confirmation modal
+            await expect(pages[i].getByText('Are you sure you want to run production?')).toBeVisible();
+            await pages[i].getByRole('button', { name: 'Confirm' }).click();
 
             // Verify roster reflects status (assuming there's a status indicator)
             // This adds synchronization
