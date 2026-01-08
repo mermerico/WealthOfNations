@@ -375,7 +375,9 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                                     fontWeight: 'bold',
                                     color: delta > 0 ? '#ef4444' : delta < 0 ? '#22c55e' : '#555',
                                     minHeight: '12px'
-                                }}>
+                                }}
+                                    data-testid={`inventory-delta-${c}`}
+                                >
                                     {delta !== 0 ? Math.abs(delta) : ''}
                                 </div>
                             </div>
@@ -476,7 +478,7 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                                     const delta = theirNeeds - p.resources[c];
                                     // Positive delta = they need to buy, Negative delta = they can sell
                                     return (
-                                        <div key={c} style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: delta === 0 ? 0.3 : 1 }}>
+                                        <div key={c} style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: delta === 0 ? 0.3 : 1 }} data-testid={`offer-item-${c}`}>
                                             <ResourceIcon type={c} size={14} />
                                             {delta !== 0 ? (
                                                 <span style={{
