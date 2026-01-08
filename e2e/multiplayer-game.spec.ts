@@ -220,9 +220,29 @@ test.describe.serial('3-player game flow', () => {
         }
 
         await step('All players running production...');
-        // Click in non-sequential order to verify simultaneity
-        const indices = [1, 0, 2];
-        for (const i of indices) {
+
+        // P1 runs production first and waits
+        const p1 = pages[0];
+        const p1Name = playerNames[0];
+
+        await step(`P1 (${p1Name}) running production...`);
+        await p1.getByTestId('run-production-button').click();
+        await expect(p1.getByText('Are you sure you want to run production?')).toBeVisible();
+        await p1.getByRole('button', { name: 'Confirm' }).click();
+
+        // Check P1 sees waiting message
+        await step(`Verifying P1 sees waiting message...`);
+        await expect(p1.getByText('Production Complete')).toBeVisible();
+        await expect(p1.getByText('Waiting for other players to finish...')).toBeVisible();
+
+        // Check P2 still has button (not waiting)
+        const p2 = pages[1];
+        await expect(p2.getByTestId('run-production-button')).toBeVisible();
+        await expect(p2.getByText('Production Complete')).not.toBeVisible();
+
+        // Remaining players run production
+        const remainingIndices = [1, 2];
+        for (const i of remainingIndices) {
             const name = playerNames[i];
             await step(`P${i + 1} (${name}) clicking Run Production...`);
 
@@ -245,10 +265,9 @@ test.describe.serial('3-player game flow', () => {
         // Use more robust selectors for phase and round
         // Phase should be TRADE in Round 2
         for (let i = 0; i < 3; i++) {
-            await expect(pages[i].getByText('TRADE', { exact: true })).toBeVisible({ timeout: 10000 });
+            await expect(pages[i].getByTestId('phase-display')).toHaveText('TRADE', { timeout: 10000 });
             // Look for the round number "2" specifically in the Control Panel status info
-            const roundContainer = pages[i].locator('div:has-text("ROUND")').last(); // Get the inner one
-            await expect(roundContainer.getByText('2', { exact: true })).toBeVisible({ timeout: 5000 });
+            await expect(pages[i].getByTestId('round-indicator')).toHaveText('2', { timeout: 5000 });
         }
     });
 });

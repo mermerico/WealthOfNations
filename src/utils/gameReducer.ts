@@ -623,7 +623,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                             ...state,
                             players: playersReadyToProduce,
                             phase: 'Produce',
-                            consecutivePasses: 0
+                            consecutivePasses: 0,
+                            currentTurnPlayerIndex: state.firstPlayerIndex
                         }
                     };
                 } else if (state.phase === 'Produce') {
@@ -1438,11 +1439,22 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 };
             }
 
+            // Not all produced - advance to next player who hasn't produced
+            let nextIndex = state.currentTurnPlayerIndex;
+            for (let i = 1; i < state.players.length; i++) {
+                const tryIndex = (state.currentTurnPlayerIndex + i) % state.players.length;
+                if (!newPlayers[tryIndex].hasProduced) {
+                    nextIndex = tryIndex;
+                    break;
+                }
+            }
+
             return {
                 success: true,
                 newState: {
                     ...state,
-                    players: newPlayers
+                    players: newPlayers,
+                    currentTurnPlayerIndex: nextIndex
                 }
             };
         }
