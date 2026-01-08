@@ -80,7 +80,8 @@ function createGameState(overrides: Partial<GameState> = {}): GameState {
         isLastRound: overrides.isLastRound ?? false,
         gameEnded: overrides.gameEnded ?? false,
         initialFlagsPerPlayer: overrides.initialFlagsPerPlayer ?? 5,
-        initialTiles: overrides.initialTiles ?? createTilesRemaining()
+        initialTiles: overrides.initialTiles ?? createTilesRemaining(),
+        settings: overrides.settings ?? { promissoryNoteInterestFees: false }
     } satisfies GameState;
 }
 

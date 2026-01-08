@@ -10,6 +10,7 @@ interface TradeActionPanelProps {
     onAction: (action: string, payload?: any) => void;
     onOpenTradeWithPlayer: (targetId: string, giving: TradeOffer, receiving: TradeOffer) => void;
     onSelectedPlayerChange?: (playerId: string) => void;
+    canAct?: boolean;
 }
 
 interface TradeOffer {
@@ -90,7 +91,7 @@ function calculateOptimalTrade(
     };
 }
 
-export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, player, mode, onAction, onOpenTradeWithPlayer, onSelectedPlayerChange }) => {
+export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, player, mode, onAction, onOpenTradeWithPlayer, onSelectedPlayerChange, canAct = true }) => {
     // For local hotseat, allow selecting which player's needs to set
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>(player.id);
 
@@ -273,27 +274,29 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                 <div style={{ display: 'flex', gap: '4px' }}>
                     <button
                         onClick={() => onAction('takeLoan')}
-                        disabled={20 - player.loans <= 0}
+                        disabled={!canAct || 20 - player.loans <= 0}
                         style={{
                             flex: 1, padding: '4px', fontSize: '10px',
-                            background: 20 - player.loans > 0 ? '#059669' : '#333',
-                            color: 20 - player.loans > 0 ? 'white' : '#666',
-                            border: 'none', borderRadius: '4px', cursor: 20 - player.loans > 0 ? 'pointer' : 'not-allowed',
-                            fontWeight: 'bold'
+                            background: (canAct && 20 - player.loans > 0) ? '#059669' : '#333',
+                            color: (canAct && 20 - player.loans > 0) ? 'white' : '#666',
+                            border: 'none', borderRadius: '4px', cursor: (canAct && 20 - player.loans > 0) ? 'pointer' : 'not-allowed',
+                            fontWeight: 'bold',
+                            opacity: canAct ? 1 : 0.5
                         }}
                     >
                         Take (+${20 - player.loans})
                     </button>
                     <button
                         onClick={() => onAction('repayLoan')}
-                        disabled={player.loans === 0 || player.money < 25}
+                        disabled={!canAct || player.loans === 0 || player.money < 25}
                         style={{
                             flex: 1, padding: '4px', fontSize: '10px',
-                            background: player.loans > 0 && player.money >= 25 ? '#dc2626' : '#333',
-                            color: player.loans > 0 && player.money >= 25 ? 'white' : '#666',
+                            background: (canAct && player.loans > 0 && player.money >= 25) ? '#dc2626' : '#333',
+                            color: (canAct && player.loans > 0 && player.money >= 25) ? 'white' : '#666',
                             border: 'none', borderRadius: '4px',
-                            cursor: player.loans > 0 && player.money >= 25 ? 'pointer' : 'not-allowed',
-                            fontWeight: 'bold'
+                            cursor: (canAct && player.loans > 0 && player.money >= 25) ? 'pointer' : 'not-allowed',
+                            fontWeight: 'bold',
+                            opacity: canAct ? 1 : 0.5
                         }}
                     >
                         Pay (-$25)
@@ -410,16 +413,30 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                         style={{
                             marginTop: '8px',
                             padding: '6px 10px',
-                            background: isReady ? '#22c55e' : '#222',
-                            color: isReady ? 'black' : '#aaa',
-                            border: '1px solid #444',
+                            background: isReady ? '#22c55e' : '#333',
+                            color: isReady ? 'black' : 'white',
+                            border: isReady ? '1px solid #16a34a' : '1px solid #4b5563',
                             borderRadius: '4px',
                             cursor: 'pointer',
                             fontWeight: 'bold',
                             fontSize: '11px',
+                            transition: 'all 0.2s',
+                            boxShadow: isReady ? 'none' : '0 2px 4px rgba(0,0,0,0.3)'
+                        }}
+                        onMouseOver={(e) => {
+                            if (!isReady) {
+                                e.currentTarget.style.background = '#444';
+                                e.currentTarget.style.borderColor = '#6b7280';
+                            }
+                        }}
+                        onMouseOut={(e) => {
+                            if (!isReady) {
+                                e.currentTarget.style.background = '#333';
+                                e.currentTarget.style.borderColor = '#4b5563';
+                            }
                         }}
                     >
-                        {isReady ? 'Ready' : 'Mark Ready'}
+                        {isReady ? '✓ Ready' : 'Mark Ready'}
                     </button>
                 )}
             </div>
@@ -444,15 +461,16 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                         <div
                             key={p.id}
                             data-testid={`player-offer-button-${p.name}`}
-                            onClick={() => handlePlayerClick(p.id)}
+                            onClick={() => canAct && handlePlayerClick(p.id)}
                             style={{
                                 background: isBestPartner ? '#1a2a1a' : '#222',
                                 borderRadius: '8px',
                                 padding: '10px',
                                 border: isBestPartner ? '2px solid #22c55e' : '1px solid #333',
-                                opacity: pIsReady ? 1 : 0.7,
+                                opacity: (pIsReady && canAct) ? 1 : 0.5,
                                 transition: 'all 0.3s',
-                                cursor: 'pointer',
+                                cursor: (pIsReady && canAct) ? 'pointer' : 'not-allowed',
+                                filter: canAct ? 'none' : 'grayscale(0.5)'
                             }}
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -505,16 +523,18 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
             <button
                 data-testid="trade-pass-button"
                 onClick={() => onAction('pass')}
+                disabled={!canAct}
                 style={{
                     padding: '12px',
-                    background: '#059669',
-                    color: 'white',
+                    background: canAct ? '#059669' : '#333',
+                    color: canAct ? 'white' : '#666',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    cursor: 'pointer',
-                    marginTop: 'auto'
+                    cursor: canAct ? 'pointer' : 'not-allowed',
+                    marginTop: 'auto',
+                    opacity: canAct ? 1 : 0.5
                 }}
             >
                 ✓ Pass

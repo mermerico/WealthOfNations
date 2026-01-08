@@ -1163,8 +1163,8 @@ export const Game: React.FC = () => {
                     {/* Build / Tools Section */}
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                         <h3 style={{ color: 'white', margin: '0 0 10px 0', borderBottom: '1px solid #444', paddingBottom: '5px' }}>Actions</h3>
-                        {/* Waiting message for non-active players in remote games (except in Production phase where we show production specific waiting) */}
-                        {interactionLocked && gameState.phase !== 'Produce' ? (
+                        {/* Waiting message overlay for other phases (e.g. game ended or other non-actionable states) */}
+                        {interactionLocked && !['Produce', 'Trade', 'Develop'].includes(gameState.phase) ? (
                             <div style={{
                                 flex: 1,
                                 display: 'flex',
@@ -1178,134 +1178,76 @@ export const Game: React.FC = () => {
                                 <h3 style={{ margin: 0 }}>Waiting for {activePlayer ? activePlayer.name : 'other players'}</h3>
                                 <p style={{ margin: 0, opacity: 0.7 }}>You are connected, but only the current player can act.</p>
                             </div>
-                        ) : gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' && gameState.setupPhase.pendingPlacement && (() => {
-                            const { packageId, tilesRemaining } = gameState.setupPhase.pendingPlacement;
-                            const pkg = [...getAvailablePackages(gameState.players.length, []), ...getAvailablePackages(gameState.players.length, gameState.setupPhase.takenPackageIds)]
-                                .find(p => p.id === packageId);
-                            const totalTiles = pkg?.tiles.length || 0;
-                            const tilesPlaced = totalTiles - tilesRemaining.length;
-                            const allTilesPlaced = tilesRemaining.length === 0;
-                            return (
-                                <div style={{ background: '#222', padding: '8px', borderRadius: '4px', marginBottom: '10px', border: '2px solid #fbbf24' }}>
-                                    <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
-                                        {allTilesPlaced
-                                            ? 'All tiles placed!'
-                                            : `Click on map to place ${tilesRemaining[0]} tile`
-                                        }
+                        ) : (
+                            <>
+                                {/* Centralized Waiting Banner for Trade and Develop phases */}
+                                {interactionLocked && ['Trade', 'Develop'].includes(gameState.phase) && (
+                                    <div style={{
+                                        background: '#222',
+                                        border: '1px solid #444',
+                                        padding: '16px',
+                                        borderRadius: '8px',
+                                        textAlign: 'center',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        color: '#ccc',
+                                        marginBottom: '12px'
+                                    }}>
+                                        <div style={{ fontSize: '24px' }}>⏳</div>
+                                        <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'white' }}>
+                                            Waiting for {activePlayer ? activePlayer.name : 'other players'}
+                                        </div>
+                                        <div style={{ fontSize: '12px', opacity: 0.7 }}>
+                                            You are connected, but only the current player can act.
+                                        </div>
                                     </div>
-                                    <div style={{ color: '#888', fontSize: '11px' }}>
-                                        {tilesPlaced}/{totalTiles} placed
-                                    </div>
-                                </div>
-                            );
-                        })()}
+                                )}
 
-                        {interactionMode === 'placing' && pendingBuild ? (
-                            /* Tile Placement Confirmation */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                                <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid #f59e0b' }}>
-                                    <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
-                                        Placing Tile
-                                    </div>
-                                    <div style={{ color: '#fff', fontSize: '16px', textAlign: 'center', marginBottom: '4px' }}>
-                                        <strong>{pendingBuild.type}</strong>
-                                    </div>
-                                    <div style={{ color: '#888', fontSize: '11px', textAlign: 'center' }}>
-                                        Orientation: {pendingBuild.orientation}
-                                    </div>
-                                </div>
+                                {gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' && gameState.setupPhase.pendingPlacement && (() => {
+                                    const { packageId, tilesRemaining } = gameState.setupPhase.pendingPlacement;
+                                    const pkg = [...getAvailablePackages(gameState.players.length, []), ...getAvailablePackages(gameState.players.length, gameState.setupPhase.takenPackageIds)]
+                                        .find(p => p.id === packageId);
+                                    const totalTiles = pkg?.tiles.length || 0;
+                                    const tilesPlaced = totalTiles - tilesRemaining.length;
+                                    const allTilesPlaced = tilesRemaining.length === 0;
+                                    return (
+                                        <div style={{ background: '#222', padding: '8px', borderRadius: '4px', marginBottom: '10px', border: '2px solid #fbbf24' }}>
+                                            <div style={{ color: '#fbbf24', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
+                                                {allTilesPlaced
+                                                    ? 'All tiles placed!'
+                                                    : `Click on map to place ${tilesRemaining[0]} tile`
+                                                }
+                                            </div>
+                                            <div style={{ color: '#888', fontSize: '11px' }}>
+                                                {tilesPlaced}/{totalTiles} placed
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
 
-                                <button
-                                    onClick={handleRotatePending}
-                                    style={{
-                                        padding: '10px',
-                                        background: '#f59e0b',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    ↻ Rotate
-                                </button>
-
-                                <button
-                                    onClick={handleConfirmBuild}
-                                    style={{
-                                        padding: '12px',
-                                        background: '#059669',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        marginTop: 'auto'
-                                    }}
-                                >
-                                    ✓ Confirm Placement
-                                </button>
-
-                                <button
-                                    onClick={handleCancelBuild}
-                                    style={{
-                                        padding: '10px',
-                                        background: '#6b7280',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    ✕ Cancel
-                                </button>
-                            </div>
-                        ) : isMoving && selectedTool === 'Move' ? (
-                            /* Move Operation UI */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                                {pendingMoveTarget ? (
-                                    /* Pending Move Confirmation */
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {interactionMode === 'placing' && pendingBuild ? (
+                                    /* Tile Placement Confirmation */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
                                         <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid #f59e0b' }}>
                                             <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
-                                                Confirm Move
+                                                Placing Tile
                                             </div>
-                                            <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center' }}>
-                                                Partial dots don't match
+                                            <div style={{ color: '#fff', fontSize: '16px', textAlign: 'center', marginBottom: '4px' }}>
+                                                <strong>{pendingBuild.type}</strong>
+                                            </div>
+                                            <div style={{ color: '#888', fontSize: '11px', textAlign: 'center' }}>
+                                                Orientation: {pendingBuild.orientation}
                                             </div>
                                         </div>
 
                                         <button
-                                            onClick={() => {
-                                                const movedTile = gameState.board[pendingMoveTarget.from]?.occupant?.tile;
-                                                if (!movedTile) return;
-
-                                                const currentOrientation = movedTile.orientation;
-                                                const newOrientation = (currentOrientation + 1) % 6;
-
-                                                // Update the tile orientation in the board
-                                                const cell = gameState.board[pendingMoveTarget.from];
-                                                if (cell.occupant?.type === 'Industry' && cell.occupant.tile) {
-                                                    const updatedTile = { ...cell.occupant.tile, orientation: newOrientation };
-                                                    const updatedCell = {
-                                                        ...cell,
-                                                        occupant: {
-                                                            ...cell.occupant,
-                                                            tile: updatedTile
-                                                        }
-                                                    };
-                                                    handleAction('sandboxPlaceTile', { id: pendingMoveTarget.from, cell: updatedCell });
-                                                }
-
-                                                setPendingMoveTarget({ ...pendingMoveTarget, orientation: newOrientation });
-                                            }}
+                                            onClick={handleRotatePending}
                                             style={{
                                                 padding: '10px',
-                                                background: '#3b82f6',
+                                                background: '#f59e0b',
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: '4px',
@@ -1317,80 +1259,25 @@ export const Game: React.FC = () => {
                                             ↻ Rotate
                                         </button>
 
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#222', borderRadius: '4px', cursor: 'pointer' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={moveForceMode}
-                                                onChange={(e) => setMoveForceMode(e.target.checked)}
-                                            />
-                                            <span style={{ color: '#ccc', fontSize: '12px' }}>Force move (costs 1 Capital)</span>
-                                        </label>
-
                                         <button
-                                            onClick={() => {
-                                                if (!moveForceMode) return;
-
-                                                // Deduct extra capital for forcing
-                                                if (player.resources.Capital < 1) return;
-
-                                                // Execute the move
-                                                handleAction('moveIndustry', { fromId: pendingMoveTarget.from, toId: pendingMoveTarget.to, extraTurns: true });
-
-                                                // Deduct capital for force
-                                                const updatedPlayer = {
-                                                    ...player,
-                                                    resources: {
-                                                        ...player.resources,
-                                                        Capital: player.resources.Capital - 1
-                                                    }
-                                                };
-                                                handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
-
-                                                // Track the move
-                                                setMoveHistory(prev => [...prev, { from: pendingMoveTarget.from, to: pendingMoveTarget.to }]);
-                                                setMovesCompleted(prev => prev + 1);
-                                                setPendingMoveTarget(null);
-                                                setMoveSourceId(null);
-                                                setMoveForceMode(false);
-
-                                                // If 3 moves completed, end move mode and deduct capital
-                                                if (movesCompleted + 1 >= 3) {
-                                                    const finalPlayer = {
-                                                        ...updatedPlayer,
-                                                        resources: {
-                                                            ...updatedPlayer.resources,
-                                                            Capital: updatedPlayer.resources.Capital - 1
-                                                        }
-                                                    };
-                                                    handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? finalPlayer : p) });
-
-                                                    setIsMoving(false);
-                                                    setMoveHistory([]);
-                                                    setMovesCompleted(0);
-                                                    handleAction('pass');
-                                                }
-                                            }}
-                                            disabled={!moveForceMode}
+                                            onClick={handleConfirmBuild}
                                             style={{
                                                 padding: '12px',
-                                                background: moveForceMode ? '#059669' : '#333',
+                                                background: '#059669',
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: '4px',
                                                 fontSize: '14px',
                                                 fontWeight: 'bold',
-                                                cursor: moveForceMode ? 'pointer' : 'not-allowed'
+                                                cursor: 'pointer',
+                                                marginTop: 'auto'
                                             }}
                                         >
-                                            ✓ Confirm Force Move
+                                            ✓ Confirm Placement
                                         </button>
 
                                         <button
-                                            onClick={() => {
-                                                setPendingMoveTarget(null);
-                                                setMoveSourceId(null);
-                                                setMoveForceMode(false);
-                                            }}
+                                            onClick={handleCancelBuild}
                                             style={{
                                                 padding: '10px',
                                                 background: '#6b7280',
@@ -1405,681 +1292,831 @@ export const Game: React.FC = () => {
                                             ✕ Cancel
                                         </button>
                                     </div>
-                                ) : (
-                                    /* Normal Move UI */
-                                    <>
-                                        <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid cyan' }}>
-                                            <div style={{ color: 'cyan', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
-                                                Move Operation
-                                            </div>
-                                            <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center', marginBottom: '8px' }}>
-                                                {moveSourceId ? 'Select destination' : 'Select tile to move'}
-                                            </div>
-                                            <div style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', color: 'white' }}>
-                                                {movesCompleted} / 3
-                                            </div>
-                                            <div style={{ fontSize: '11px', color: '#888', textAlign: 'center', marginTop: '4px' }}>
-                                                moves completed
-                                            </div>
-                                        </div>
+                                ) : isMoving && selectedTool === 'Move' ? (
+                                    /* Move Operation UI */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                                        {pendingMoveTarget ? (
+                                            /* Pending Move Confirmation */
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                                <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid #f59e0b' }}>
+                                                    <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
+                                                        Confirm Move
+                                                    </div>
+                                                    <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center' }}>
+                                                        Partial dots don't match
+                                                    </div>
+                                                </div>
 
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#222', borderRadius: '4px', cursor: 'pointer' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={moveForceMode}
-                                                onChange={(e) => setMoveForceMode(e.target.checked)}
-                                            />
-                                            <span style={{ color: '#ccc', fontSize: '12px' }}>Allow mismatched dots (+1 Capital each)</span>
-                                        </label>
+                                                <button
+                                                    onClick={() => {
+                                                        const movedTile = gameState.board[pendingMoveTarget.from]?.occupant?.tile;
+                                                        if (!movedTile) return;
 
+                                                        const currentOrientation = movedTile.orientation;
+                                                        const newOrientation = (currentOrientation + 1) % 6;
+
+                                                        // Update the tile orientation in the board
+                                                        const cell = gameState.board[pendingMoveTarget.from];
+                                                        if (cell.occupant?.type === 'Industry' && cell.occupant.tile) {
+                                                            const updatedTile = { ...cell.occupant.tile, orientation: newOrientation };
+                                                            const updatedCell = {
+                                                                ...cell,
+                                                                occupant: {
+                                                                    ...cell.occupant,
+                                                                    tile: updatedTile
+                                                                }
+                                                            };
+                                                            handleAction('sandboxPlaceTile', { id: pendingMoveTarget.from, cell: updatedCell });
+                                                        }
+
+                                                        setPendingMoveTarget({ ...pendingMoveTarget, orientation: newOrientation });
+                                                    }}
+                                                    style={{
+                                                        padding: '10px',
+                                                        background: '#3b82f6',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    ↻ Rotate
+                                                </button>
+
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#222', borderRadius: '4px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={moveForceMode}
+                                                        onChange={(e) => setMoveForceMode(e.target.checked)}
+                                                    />
+                                                    <span style={{ color: '#ccc', fontSize: '12px' }}>Force move (costs 1 Capital)</span>
+                                                </label>
+
+                                                <button
+                                                    onClick={() => {
+                                                        if (!moveForceMode) return;
+
+                                                        // Deduct extra capital for forcing
+                                                        if (player.resources.Capital < 1) return;
+
+                                                        // Execute the move
+                                                        handleAction('moveIndustry', { fromId: pendingMoveTarget.from, toId: pendingMoveTarget.to, extraTurns: true });
+
+                                                        // Deduct capital for force
+                                                        const updatedPlayer = {
+                                                            ...player,
+                                                            resources: {
+                                                                ...player.resources,
+                                                                Capital: player.resources.Capital - 1
+                                                            }
+                                                        };
+                                                        handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
+
+                                                        // Track the move
+                                                        setMoveHistory(prev => [...prev, { from: pendingMoveTarget.from, to: pendingMoveTarget.to }]);
+                                                        setMovesCompleted(prev => prev + 1);
+                                                        setPendingMoveTarget(null);
+                                                        setMoveSourceId(null);
+                                                        setMoveForceMode(false);
+
+                                                        // If 3 moves completed, end move mode and deduct capital
+                                                        if (movesCompleted + 1 >= 3) {
+                                                            const finalPlayer = {
+                                                                ...updatedPlayer,
+                                                                resources: {
+                                                                    ...updatedPlayer.resources,
+                                                                    Capital: updatedPlayer.resources.Capital - 1
+                                                                }
+                                                            };
+                                                            handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? finalPlayer : p) });
+
+                                                            setIsMoving(false);
+                                                            setMoveHistory([]);
+                                                            setMovesCompleted(0);
+                                                            handleAction('pass');
+                                                        }
+                                                    }}
+                                                    disabled={!moveForceMode}
+                                                    style={{
+                                                        padding: '12px',
+                                                        background: moveForceMode ? '#059669' : '#333',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        cursor: moveForceMode ? 'pointer' : 'not-allowed'
+                                                    }}
+                                                >
+                                                    ✓ Confirm Force Move
+                                                </button>
+
+                                                <button
+                                                    onClick={() => {
+                                                        setPendingMoveTarget(null);
+                                                        setMoveSourceId(null);
+                                                        setMoveForceMode(false);
+                                                    }}
+                                                    style={{
+                                                        padding: '10px',
+                                                        background: '#6b7280',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    ✕ Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* Normal Move UI */
+                                            <>
+                                                <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid cyan' }}>
+                                                    <div style={{ color: 'cyan', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
+                                                        Move Operation
+                                                    </div>
+                                                    <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center', marginBottom: '8px' }}>
+                                                        {moveSourceId ? 'Select destination' : 'Select tile to move'}
+                                                    </div>
+                                                    <div style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', color: 'white' }}>
+                                                        {movesCompleted} / 3
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: '#888', textAlign: 'center', marginTop: '4px' }}>
+                                                        moves completed
+                                                    </div>
+                                                </div>
+
+                                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', background: '#222', borderRadius: '4px', cursor: 'pointer' }}>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={moveForceMode}
+                                                        onChange={(e) => setMoveForceMode(e.target.checked)}
+                                                    />
+                                                    <span style={{ color: '#ccc', fontSize: '12px' }}>Allow mismatched dots (+1 Capital each)</span>
+                                                </label>
+
+                                                <button
+                                                    onClick={() => {
+                                                        if (moveHistory.length > 0) {
+                                                            const lastMove = moveHistory[moveHistory.length - 1];
+                                                            // Undo the last move
+                                                            handleAction('moveIndustry', { fromId: lastMove.to, toId: lastMove.from, extraTurns: true });
+                                                            setMoveHistory(prev => prev.slice(0, -1));
+                                                            setMovesCompleted(prev => prev - 1);
+                                                            setMoveSourceId(null);
+                                                        } else if (moveSourceId) {
+                                                            // Just deselect if no moves made
+                                                            setMoveSourceId(null);
+                                                        }
+                                                    }}
+                                                    disabled={moveHistory.length === 0 && !moveSourceId}
+                                                    style={{
+                                                        padding: '10px',
+                                                        background: (moveHistory.length > 0 || moveSourceId) ? '#dc2626' : '#333',
+                                                        color: (moveHistory.length > 0 || moveSourceId) ? 'white' : '#666',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        cursor: (moveHistory.length > 0 || moveSourceId) ? 'pointer' : 'not-allowed'
+                                                    }}
+                                                >
+                                                    ⟲ Undo {moveSourceId && !moveHistory.length ? 'Selection' : 'Last Move'}
+                                                </button>
+
+                                                {moveHistory.length === 0 && (
+                                                    <button
+                                                        onClick={() => {
+                                                            // Cancel move mode without deducting capital
+                                                            setIsMoving(false);
+                                                            setMoveSourceId(null);
+                                                            setMoveHistory([]);
+                                                            setMovesCompleted(0);
+                                                            setMoveForceMode(false);
+                                                        }}
+                                                        style={{
+                                                            padding: '10px',
+                                                            background: '#6b7280',
+                                                            color: 'white',
+                                                            border: 'none',
+                                                            borderRadius: '4px',
+                                                            fontSize: '14px',
+                                                            fontWeight: 'bold',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        ✕ Cancel
+                                                    </button>
+                                                )}
+
+                                                <button
+                                                    onClick={() => {
+                                                        // End move mode early and deduct capital
+                                                        const updatedPlayer = {
+                                                            ...player,
+                                                            resources: {
+                                                                ...player.resources,
+                                                                Capital: player.resources.Capital - 1
+                                                            }
+                                                        };
+                                                        handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
+
+                                                        // Reset move state and advance turn
+                                                        setIsMoving(false);
+                                                        setMoveSourceId(null);
+                                                        setMoveHistory([]);
+                                                        setMovesCompleted(0);
+                                                        setMoveForceMode(false);
+                                                        handleAction('pass');
+                                                    }}
+                                                    style={{
+                                                        padding: '12px',
+                                                        background: '#059669',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        fontSize: '14px',
+                                                        fontWeight: 'bold',
+                                                        cursor: 'pointer',
+                                                        marginTop: 'auto'
+                                                    }}
+                                                >
+                                                    ✓ Done Moving
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                                         <button
-                                            onClick={() => {
-                                                if (moveHistory.length > 0) {
-                                                    const lastMove = moveHistory[moveHistory.length - 1];
-                                                    // Undo the last move
-                                                    handleAction('moveIndustry', { fromId: lastMove.to, toId: lastMove.from, extraTurns: true });
-                                                    setMoveHistory(prev => prev.slice(0, -1));
-                                                    setMovesCompleted(prev => prev - 1);
-                                                    setMoveSourceId(null);
-                                                } else if (moveSourceId) {
-                                                    // Just deselect if no moves made
-                                                    setMoveSourceId(null);
-                                                }
-                                            }}
-                                            disabled={moveHistory.length === 0 && !moveSourceId}
+                                            onClick={() => handleAction('undoSetupPlacement')}
+                                            disabled={!gameState.setupPhase.pendingPlacement?.placementHistory?.length}
                                             style={{
                                                 padding: '10px',
-                                                background: (moveHistory.length > 0 || moveSourceId) ? '#dc2626' : '#333',
-                                                color: (moveHistory.length > 0 || moveSourceId) ? 'white' : '#666',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                fontSize: '14px',
-                                                fontWeight: 'bold',
-                                                cursor: (moveHistory.length > 0 || moveSourceId) ? 'pointer' : 'not-allowed'
-                                            }}
-                                        >
-                                            ⟲ Undo {moveSourceId && !moveHistory.length ? 'Selection' : 'Last Move'}
-                                        </button>
-
-                                        {moveHistory.length === 0 && (
-                                            <button
-                                                onClick={() => {
-                                                    // Cancel move mode without deducting capital
-                                                    setIsMoving(false);
-                                                    setMoveSourceId(null);
-                                                    setMoveHistory([]);
-                                                    setMovesCompleted(0);
-                                                    setMoveForceMode(false);
-                                                }}
-                                                style={{
-                                                    padding: '10px',
-                                                    background: '#6b7280',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    fontSize: '14px',
-                                                    fontWeight: 'bold',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                ✕ Cancel
-                                            </button>
-                                        )}
-
-                                        <button
-                                            onClick={() => {
-                                                // End move mode early and deduct capital
-                                                const updatedPlayer = {
-                                                    ...player,
-                                                    resources: {
-                                                        ...player.resources,
-                                                        Capital: player.resources.Capital - 1
-                                                    }
-                                                };
-                                                handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
-
-                                                // Reset move state and advance turn
-                                                setIsMoving(false);
-                                                setMoveSourceId(null);
-                                                setMoveHistory([]);
-                                                setMovesCompleted(0);
-                                                setMoveForceMode(false);
-                                                handleAction('pass');
-                                            }}
-                                            style={{
-                                                padding: '12px',
-                                                background: '#059669',
+                                                background: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? '#ef4444' : '#444',
                                                 color: 'white',
                                                 border: 'none',
                                                 borderRadius: '4px',
+                                                cursor: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? 'pointer' : 'not-allowed',
                                                 fontSize: '14px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer',
-                                                marginTop: 'auto'
+                                                fontWeight: 'bold'
                                             }}
                                         >
-                                            ✓ Done Moving
+                                            ↶ Undo Last Tile
                                         </button>
-                                    </>
-                                )}
-                            </div>
-                        ) : gameState.phase === 'Setup' && gameState.setupPhase?.step === 'placeTile' ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <button
-                                    onClick={() => handleAction('undoSetupPlacement')}
-                                    disabled={!gameState.setupPhase.pendingPlacement?.placementHistory?.length}
-                                    style={{
-                                        padding: '10px',
-                                        background: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? '#ef4444' : '#444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? 'pointer' : 'not-allowed',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    ↶ Undo Last Tile
-                                </button>
-                                <button
-                                    onClick={() => handleAction('rotateSetupTile')}
-                                    disabled={!gameState.setupPhase.pendingPlacement?.placementHistory?.length}
-                                    style={{
-                                        padding: '10px',
-                                        background: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? '#3b82f6' : '#444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? 'pointer' : 'not-allowed',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    ⟳ Rotate Last Tile
-                                </button>
-                                <button
-                                    data-testid="setup-pass-button"
-                                    onClick={() => handleAction('pass')}
-                                    disabled={gameState.setupPhase.pendingPlacement?.tilesRemaining?.length !== 0}
-                                    style={{
-                                        padding: '10px',
-                                        background: gameState.setupPhase.pendingPlacement?.tilesRemaining?.length === 0 ? '#10b981' : '#444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: gameState.setupPhase.pendingPlacement?.tilesRemaining?.length === 0 ? 'pointer' : 'not-allowed',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold'
-                                    }}
-                                >
-                                    ✓ Pass (Continue)
-                                </button>
-                            </div>
-                        ) : gameState.phase === 'Setup' ? (
-                            /* During other setup steps, show placeholder */
-                            <div style={{ color: '#666', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>
-                                Follow the setup instructions above
-                            </div>
-                        ) : gameState.phase === 'Produce' ? (
-                            player.hasProduced ? (
-                                <div style={{
-                                    flex: 1,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '16px',
-                                    color: '#ccc'
-                                }}>
-                                    <div style={{ fontSize: '48px' }}>⏳</div>
-                                    <h3 style={{ margin: 0 }}>Production Complete</h3>
-                                    <p style={{ margin: 0, opacity: 0.7 }}>Waiting for other players to finish...</p>
-                                </div>
-                            ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'auto' }}>
-                                    {/* Net Production at Top */}
-                                    <div style={{ background: '#222', padding: '10px', borderRadius: '4px', borderTop: '2px solid #facc15' }}>
-                                        <h4 style={{ margin: '0 0 6px 0', color: '#fff', fontSize: '13px' }}>Net Production</h4>
-                                        <div style={{ fontSize: '11px' }}>
-                                            <div style={{ color: '#f87171', marginBottom: '2px' }}>
-                                                Consuming:
-                                                {productionTotals.totalFoodCost > 0 && ` ${productionTotals.totalFoodCost} Food`}
-                                                {productionTotals.totalFoodCost > 0 && productionTotals.totalEnergyCost > 0 && ','}
-                                                {productionTotals.totalEnergyCost > 0 && ` ${productionTotals.totalEnergyCost} Energy`}
-                                                {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
-                                                {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' 0'}
-                                            </div>
-                                            <div style={{ color: '#4ade80' }}>
-                                                Producing: {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || '0'}
-                                            </div>
-                                            <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #444', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                                <span style={{ marginRight: '2px' }}>Net Gain:</span>
-                                                {(() => {
-                                                    // Calculate net for all commodities (both produced and consumed)
-                                                    const netGains: Record<string, number> = {
-                                                        Food: (productionTotals.outputs['Food'] || 0) - productionTotals.totalFoodCost,
-                                                        Energy: (productionTotals.outputs['Energy'] || 0) - productionTotals.totalEnergyCost,
-                                                        Labor: (productionTotals.outputs['Labor'] || 0),
-                                                        Ore: (productionTotals.outputs['Ore'] || 0) - productionTotals.totalOreCost,
-                                                        Capital: (productionTotals.outputs['Capital'] || 0),
-                                                        Money: (productionTotals.outputs['Money'] || 0)
-                                                    };
-
-                                                    const hasAnyChange = Object.values(netGains).some(v => v !== 0);
-                                                    if (!hasAnyChange) {
-                                                        return <span style={{ color: '#888' }}>±0</span>;
-                                                    }
-
-                                                    return Object.entries(netGains).map(([commodity, netAmount]) => {
-                                                        if (netAmount === 0) return null;
-                                                        const sign = netAmount > 0 ? '+' : '';
-                                                        const color = netAmount > 0 ? '#4ade80' : '#f87171';
-                                                        return (
-                                                            <span key={commodity} style={{ display: 'flex', alignItems: 'center', gap: '2px', color }}>
-                                                                {sign}{netAmount}
-                                                                <ResourceIcon type={commodity as CommodityType} size={12} />
-                                                            </span>
-                                                        );
-                                                    }).filter(Boolean);
-                                                })()}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Blocs List */}
-                                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        {playerBlocs.length === 0 && <div style={{ color: '#666', fontStyle: 'italic' }}>No Industries</div>}
-                                        {playerBlocs.map((bloc, blocIndex) => {
-                                            const config = blocConfigs.get(blocIndex);
-                                            const totals = calculateBlocTotals(bloc.tiles, config);
-                                            const hasAutomation = bloc.tiles.some(t => t.occupant?.tile?.automated);
-
-                                            return (
-                                                <div
-                                                    key={blocIndex}
-                                                    style={{
-                                                        background: '#333',
-                                                        padding: '8px',
-                                                        borderRadius: '4px',
-                                                        border: hoveredBlocIndex === blocIndex ? '2px solid #facc15' : '2px solid transparent'
-                                                    }}
-                                                    onMouseEnter={() => setHoveredBlocIndex(blocIndex)}
-                                                    onMouseLeave={() => setHoveredBlocIndex(null)}
-                                                >
-                                                    {/* Bloc Header with Power Checkbox */}
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', flex: 1 }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={config?.powered || false}
-                                                                onChange={(e) => toggleBlocPower(blocIndex, e.target.checked)}
-                                                            />
-                                                            <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#ddd' }}>
-                                                                {bloc.type} Bloc
-                                                            </span>
-                                                        </label>
-                                                    </div>
-
-                                                    {/* Automation Checkbox (if applicable) */}
-                                                    {hasAutomation && config?.powered && (
-                                                        <div style={{ marginLeft: '24px', marginBottom: '6px' }}>
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={config?.automated || false}
-                                                                    onChange={(e) => toggleBlocAutomation(blocIndex, e.target.checked)}
-                                                                />
-                                                                <span style={{ color: '#c084fc' }}>Run Automation</span>
-                                                            </label>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Tiles to Feed */}
-                                                    {config?.powered && bloc.type !== 'Farm' && (
-                                                        <div style={{ marginLeft: '24px', marginTop: '6px' }}>
-                                                            <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Tiles to Feed:</div>
-                                                            {bloc.tiles.map((tile) => {
-                                                                const tileId = coordsToString(tile.q, tile.r);
-                                                                const isFed = config?.fedTiles.has(tileId) || false;
-
-                                                                return (
-                                                                    <div
-                                                                        key={tileId}
-                                                                        style={{
-                                                                            marginLeft: '8px',
-                                                                            marginBottom: '2px',
-                                                                            background: hoveredTileId === tileId ? '#444' : 'transparent',
-                                                                            padding: '2px 4px',
-                                                                            borderRadius: '2px'
-                                                                        }}
-                                                                        onMouseEnter={() => setHoveredTileId(tileId)}
-                                                                        onMouseLeave={() => setHoveredTileId(null)}
-                                                                    >
-                                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: config?.automated ? 'not-allowed' : 'pointer', fontSize: '11px', opacity: config?.automated ? 0.6 : 1 }}>
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={isFed}
-                                                                                disabled={config?.automated}
-                                                                                onChange={(e) => toggleTileFed(blocIndex, tileId, e.target.checked)}
-                                                                            />
-                                                                            <span style={{ color: '#bbb' }}>Tile {bloc.tiles.findIndex(t => coordsToString(t.q, t.r) === tileId) + 1}</span>
-                                                                        </label>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Bloc Consumption/Production Summary */}
-                                                    <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #444', fontSize: '11px' }}>
-                                                        <div style={{ color: '#aaa' }}>
-                                                            Consuming: {totals.costs.Food > 0 && `${totals.costs.Food} Food`}
-                                                            {totals.costs.Food > 0 && totals.costs.Energy > 0 && ', '}
-                                                            {totals.costs.Energy > 0 && `${totals.costs.Energy} Energy`}
-                                                            {totals.costs.Ore > 0 && `, ${totals.costs.Ore} Ore`}
-                                                            {!totals.costs.Food && !totals.costs.Energy && !totals.costs.Ore && '0'}
-                                                        </div>
-                                                        <div style={{ color: '#4ade80' }}>
-                                                            Producing: {totals.production ? `${totals.production.amount} ${totals.production.commodity}` : '0'}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Run Production Button */}
-                                    <button
-                                        data-testid="run-production-button"
-                                        onClick={() => setShowProductionConfirmation(true)}
-                                        disabled={player.resources.Food < productionTotals.totalFoodCost || player.resources.Energy < productionTotals.totalEnergyCost}
-                                        style={{
-                                            padding: '12px',
-                                            background: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? '#1c3320' : '#322',
-                                            borderColor: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? '#22c55e' : '#522',
-                                            color: '#fff',
-                                            cursor: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? 'pointer' : 'not-allowed',
-                                            fontWeight: 'bold',
-                                            marginTop: 'auto'
-                                        }}
-                                    >
-                                        Run Production
-                                    </button>
-
-                                    {showProductionConfirmation && (
-                                        <ConfirmationModal
-                                            isOpen={showProductionConfirmation}
-                                            title="Run Production"
-                                            message={
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                                    <div>Are you sure you want to run production?</div>
-                                                    <div style={{ background: '#111', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>
-                                                        <div style={{ color: '#f87171', marginBottom: '4px' }}>
-                                                            <strong>Consuming:</strong>
-                                                            {productionTotals.totalFoodCost > 0 && ` ${productionTotals.totalFoodCost} Food`}
-                                                            {productionTotals.totalFoodCost > 0 && productionTotals.totalEnergyCost > 0 && ','}
-                                                            {productionTotals.totalEnergyCost > 0 && ` ${productionTotals.totalEnergyCost} Energy`}
-                                                            {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
-                                                            {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' Nothing'}
-                                                        </div>
-                                                        <div style={{ color: '#4ade80' }}>
-                                                            <strong>Producing:</strong> {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || 'Nothing'}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            }
-                                            onConfirm={() => {
-                                                handleRunProduction();
-                                                setShowProductionConfirmation(false);
+                                        <button
+                                            onClick={() => handleAction('rotateSetupTile')}
+                                            disabled={!gameState.setupPhase.pendingPlacement?.placementHistory?.length}
+                                            style={{
+                                                padding: '10px',
+                                                background: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? '#3b82f6' : '#444',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: gameState.setupPhase.pendingPlacement?.placementHistory?.length ? 'pointer' : 'not-allowed',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold'
                                             }}
-                                            onCancel={() => setShowProductionConfirmation(false)}
-                                            confirmText="Confirm"
-                                            cancelText="Back"
-                                        />
-                                    )}
-                                </div>
-                            )
-                        ) : gameState.phase === 'Trade' ? (
-                            /* Trade Phase Actions */
-                            <TradeActionPanel
-                                gameState={gameState}
-                                player={player}
-                                mode={mode}
-                                onAction={handleAction}
-                                onOpenTradeWithPlayer={handleOpenTradeWithPlayer}
-                                onSelectedPlayerChange={setSelectedCostsPlayerId}
-                            />
-                        ) : (
-                            /* Existing Build Menu */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
-                                {/* Standard Tools */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                                    <button
-                                        onClick={() => {
-                                            setSelectedTool('Move');
-                                            setIsMoving(true);
-                                            setMoveSourceId(null);
-                                            setMoveHistory([]);
-                                            setMovesCompleted(0);
-                                        }}
-                                        disabled={!Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) || player.resources.Capital < 1}
-                                        style={{
+                                        >
+                                            ⟳ Rotate Last Tile
+                                        </button>
+                                        <button
+                                            data-testid="setup-pass-button"
+                                            onClick={() => handleAction('pass')}
+                                            disabled={gameState.setupPhase.pendingPlacement?.tilesRemaining?.length !== 0}
+                                            style={{
+                                                padding: '10px',
+                                                background: gameState.setupPhase.pendingPlacement?.tilesRemaining?.length === 0 ? '#10b981' : '#444',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: gameState.setupPhase.pendingPlacement?.tilesRemaining?.length === 0 ? 'pointer' : 'not-allowed',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold'
+                                            }}
+                                        >
+                                            ✓ Pass (Continue)
+                                        </button>
+                                    </div>
+                                ) : gameState.phase === 'Setup' ? (
+                                    /* During other setup steps, show placeholder */
+                                    <div style={{ color: '#666', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>
+                                        Follow the setup instructions above
+                                    </div>
+                                ) : gameState.phase === 'Produce' ? (
+                                    player.hasProduced ? (
+                                        <div style={{
+                                            flex: 1,
                                             display: 'flex',
                                             flexDirection: 'column',
                                             alignItems: 'center',
-                                            padding: '8px',
-                                            borderColor: selectedTool === 'Move' ? 'cyan' : '#444',
-                                            background: selectedTool === 'Move' ? '#1c3332' : '#222',
-                                            color: selectedTool === 'Move' ? 'cyan' : 'white',
-                                            opacity: (!Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) || player.resources.Capital < 1) ? 0.4 : 1,
-                                            cursor: (Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) && player.resources.Capital >= 1) ? 'pointer' : 'not-allowed'
-                                        }}
-                                    >
-                                        <span style={{ fontWeight: 'bold' }}>Move</span>
-                                        <div style={{ display: 'flex', gap: '2px', marginTop: '4px', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
-                                            <ResourceIcon type="Capital" size={10} />
+                                            justifyContent: 'center',
+                                            gap: '16px',
+                                            color: '#ccc'
+                                        }}>
+                                            <div style={{ fontSize: '48px' }}>⏳</div>
+                                            <h3 style={{ margin: 0 }}>Production Complete</h3>
+                                            <p style={{ margin: 0, opacity: 0.7 }}>Waiting for other players to finish...</p>
                                         </div>
-                                        <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>3 moves</div>
-                                    </button>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'auto' }}>
+                                            {/* Net Production at Top */}
+                                            <div style={{ background: '#222', padding: '10px', borderRadius: '4px', borderTop: '2px solid #facc15' }}>
+                                                <h4 style={{ margin: '0 0 6px 0', color: '#fff', fontSize: '13px' }}>Net Production</h4>
+                                                <div style={{ fontSize: '11px' }}>
+                                                    <div style={{ color: '#f87171', marginBottom: '2px' }}>
+                                                        Consuming:
+                                                        {productionTotals.totalFoodCost > 0 && ` ${productionTotals.totalFoodCost} Food`}
+                                                        {productionTotals.totalFoodCost > 0 && productionTotals.totalEnergyCost > 0 && ','}
+                                                        {productionTotals.totalEnergyCost > 0 && ` ${productionTotals.totalEnergyCost} Energy`}
+                                                        {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
+                                                        {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' 0'}
+                                                    </div>
+                                                    <div style={{ color: '#4ade80' }}>
+                                                        Producing: {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || '0'}
+                                                    </div>
+                                                    <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #444', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                        <span style={{ marginRight: '2px' }}>Net Gain:</span>
+                                                        {(() => {
+                                                            // Calculate net for all commodities (both produced and consumed)
+                                                            const netGains: Record<string, number> = {
+                                                                Food: (productionTotals.outputs['Food'] || 0) - productionTotals.totalFoodCost,
+                                                                Energy: (productionTotals.outputs['Energy'] || 0) - productionTotals.totalEnergyCost,
+                                                                Labor: (productionTotals.outputs['Labor'] || 0),
+                                                                Ore: (productionTotals.outputs['Ore'] || 0) - productionTotals.totalOreCost,
+                                                                Capital: (productionTotals.outputs['Capital'] || 0),
+                                                                Money: (productionTotals.outputs['Money'] || 0)
+                                                            };
 
-                                    <button
-                                        onClick={() => setSelectedTool('Flag')}
-                                        disabled={player.resources.Labor < 1 || player.flags <= 0}
-                                        style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            padding: '8px',
-                                            borderColor: selectedTool === 'Flag' ? 'yellow' : '#444',
-                                            background: selectedTool === 'Flag' ? '#33321c' : '#222',
-                                            color: selectedTool === 'Flag' ? 'yellow' : 'white',
-                                            opacity: (player.resources.Labor < 1 || player.flags <= 0) ? 0.4 : 1,
-                                            cursor: (player.resources.Labor >= 1 && player.flags > 0) ? 'pointer' : 'not-allowed'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <svg width="24" height="12" viewBox="0 0 24 12">
-                                                <image
-                                                    href={`/flags/${player.flag || (player.id === 'p1' ? 'anglica.svg' : 'bolshevica.svg')}`}
-                                                    x="0" y="0" width="24" height="12"
-                                                />
-                                            </svg>
-                                            <span style={{ fontWeight: 'bold' }}>Flag</span>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '2px', marginTop: '4px', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
-                                            <ResourceIcon type="Labor" size={10} />
-                                        </div>
-                                    </button>
+                                                            const hasAnyChange = Object.values(netGains).some(v => v !== 0);
+                                                            if (!hasAnyChange) {
+                                                                return <span style={{ color: '#888' }}>±0</span>;
+                                                            }
 
-                                    <button
-                                        onClick={() => setSelectedTool('Automate')}
-                                        disabled={player.resources.Energy < 1 || player.resources.Capital < 2 || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)}
-                                        style={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            padding: '8px',
-                                            borderColor: selectedTool === 'Automate' ? 'magenta' : '#444',
-                                            background: selectedTool === 'Automate' ? '#331c33' : '#222',
-                                            color: selectedTool === 'Automate' ? 'magenta' : 'white',
-                                            opacity: (player.resources.Energy < 1 || player.resources.Capital < 2 || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)) ? 0.4 : 1,
-                                            cursor: (player.resources.Energy >= 1 && player.resources.Capital >= 2 && Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)) ? 'pointer' : 'not-allowed'
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <svg width="16" height="16" viewBox="-22 -22 44 44">
-                                                <path
-                                                    d="M0,-21 L18.18,-10.5 18.18,10.5 0,21 -18.18,10.5 -18.18,-10.5 Z M0,-9 A9,9 0 1,1 -0.001,-9 Z"
-                                                    fill="#999"
-                                                    stroke="white"
-                                                    strokeWidth="1.5"
-                                                    fillRule="evenodd"
-                                                />
-                                            </svg>
-                                            <span style={{ fontWeight: 'bold' }}>Auto</span>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                                                <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
-                                                <ResourceIcon type="Energy" size={10} />
+                                                            return Object.entries(netGains).map(([commodity, netAmount]) => {
+                                                                if (netAmount === 0) return null;
+                                                                const sign = netAmount > 0 ? '+' : '';
+                                                                const color = netAmount > 0 ? '#4ade80' : '#f87171';
+                                                                return (
+                                                                    <span key={commodity} style={{ display: 'flex', alignItems: 'center', gap: '2px', color }}>
+                                                                        {sign}{netAmount}
+                                                                        <ResourceIcon type={commodity as CommodityType} size={12} />
+                                                                    </span>
+                                                                );
+                                                            }).filter(Boolean);
+                                                        })()}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                                                <span style={{ fontSize: '10px', color: '#aaa' }}>2</span>
-                                                <ResourceIcon type="Capital" size={10} />
+
+                                            {/* Blocs List */}
+                                            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {playerBlocs.length === 0 && <div style={{ color: '#666', fontStyle: 'italic' }}>No Industries</div>}
+                                                {playerBlocs.map((bloc, blocIndex) => {
+                                                    const config = blocConfigs.get(blocIndex);
+                                                    const totals = calculateBlocTotals(bloc.tiles, config);
+                                                    const hasAutomation = bloc.tiles.some(t => t.occupant?.tile?.automated);
+
+                                                    return (
+                                                        <div
+                                                            key={blocIndex}
+                                                            style={{
+                                                                background: '#333',
+                                                                padding: '8px',
+                                                                borderRadius: '4px',
+                                                                border: hoveredBlocIndex === blocIndex ? '2px solid #facc15' : '2px solid transparent'
+                                                            }}
+                                                            onMouseEnter={() => setHoveredBlocIndex(blocIndex)}
+                                                            onMouseLeave={() => setHoveredBlocIndex(null)}
+                                                        >
+                                                            {/* Bloc Header with Power Checkbox */}
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', flex: 1 }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={config?.powered || false}
+                                                                        onChange={(e) => toggleBlocPower(blocIndex, e.target.checked)}
+                                                                    />
+                                                                    <span style={{ fontWeight: 'bold', fontSize: '14px', color: '#ddd' }}>
+                                                                        {bloc.type} Bloc
+                                                                    </span>
+                                                                </label>
+                                                            </div>
+
+                                                            {/* Automation Checkbox (if applicable) */}
+                                                            {hasAutomation && config?.powered && (
+                                                                <div style={{ marginLeft: '24px', marginBottom: '6px' }}>
+                                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px' }}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={config?.automated || false}
+                                                                            onChange={(e) => toggleBlocAutomation(blocIndex, e.target.checked)}
+                                                                        />
+                                                                        <span style={{ color: '#c084fc' }}>Run Automation</span>
+                                                                    </label>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Tiles to Feed */}
+                                                            {config?.powered && bloc.type !== 'Farm' && (
+                                                                <div style={{ marginLeft: '24px', marginTop: '6px' }}>
+                                                                    <div style={{ fontSize: '11px', color: '#888', marginBottom: '4px' }}>Tiles to Feed:</div>
+                                                                    {bloc.tiles.map((tile) => {
+                                                                        const tileId = coordsToString(tile.q, tile.r);
+                                                                        const isFed = config?.fedTiles.has(tileId) || false;
+
+                                                                        return (
+                                                                            <div
+                                                                                key={tileId}
+                                                                                style={{
+                                                                                    marginLeft: '8px',
+                                                                                    marginBottom: '2px',
+                                                                                    background: hoveredTileId === tileId ? '#444' : 'transparent',
+                                                                                    padding: '2px 4px',
+                                                                                    borderRadius: '2px'
+                                                                                }}
+                                                                                onMouseEnter={() => setHoveredTileId(tileId)}
+                                                                                onMouseLeave={() => setHoveredTileId(null)}
+                                                                            >
+                                                                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: config?.automated ? 'not-allowed' : 'pointer', fontSize: '11px', opacity: config?.automated ? 0.6 : 1 }}>
+                                                                                    <input
+                                                                                        type="checkbox"
+                                                                                        checked={isFed}
+                                                                                        disabled={config?.automated}
+                                                                                        onChange={(e) => toggleTileFed(blocIndex, tileId, e.target.checked)}
+                                                                                    />
+                                                                                    <span style={{ color: '#bbb' }}>Tile {bloc.tiles.findIndex(t => coordsToString(t.q, t.r) === tileId) + 1}</span>
+                                                                                </label>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Bloc Consumption/Production Summary */}
+                                                            <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #444', fontSize: '11px' }}>
+                                                                <div style={{ color: '#aaa' }}>
+                                                                    Consuming: {totals.costs.Food > 0 && `${totals.costs.Food} Food`}
+                                                                    {totals.costs.Food > 0 && totals.costs.Energy > 0 && ', '}
+                                                                    {totals.costs.Energy > 0 && `${totals.costs.Energy} Energy`}
+                                                                    {totals.costs.Ore > 0 && `, ${totals.costs.Ore} Ore`}
+                                                                    {!totals.costs.Food && !totals.costs.Energy && !totals.costs.Ore && '0'}
+                                                                </div>
+                                                                <div style={{ color: '#4ade80' }}>
+                                                                    Producing: {totals.production ? `${totals.production.amount} ${totals.production.commodity}` : '0'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
-                                        </div>
-                                    </button>
-                                </div>
 
-                                <div style={{ height: '1px', background: '#333', margin: '5px 0' }} />
-
-                                {/* Build List */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                    <span style={{ color: '#fff', fontSize: '14px' }}>Build Industry</span>
-                                    <label style={{ fontSize: '12px', color: forceMode ? 'magenta' : '#888', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                        <input type="checkbox" checked={forceMode} onChange={(e) => setForceMode(e.target.checked)} />
-                                        Force (<ResourceIcon type="Capital" size={12} />+1)
-                                    </label>
-                                </div>
-
-                                {/* Build List */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                                    {Object.keys(TILE_DEFINITIONS).map(typeKey => {
-                                        const type = typeKey as IndustryType;
-                                        const def = TILE_DEFINITIONS[type];
-                                        const isSelected = selectedTool === type;
-                                        // Count costs using structured data
-                                        const costComponents = Object.entries(def.costStruct || {}).map(([type, amount]) => ({ amount, type }));
-
-                                        const affordable = canAfford(type, forceMode);
-
-                                        return (
+                                            {/* Run Production Button */}
                                             <button
-                                                key={type}
-                                                onClick={() => affordable && setSelectedTool(type)}
-                                                disabled={!affordable}
+                                                data-testid="run-production-button"
+                                                onClick={() => setShowProductionConfirmation(true)}
+                                                disabled={player.resources.Food < productionTotals.totalFoodCost || player.resources.Energy < productionTotals.totalEnergyCost}
                                                 style={{
-                                                    display: 'flex', flexDirection: 'column', alignItems: 'center',
-                                                    padding: '8px',
-                                                    borderColor: isSelected ? 'green' : '#444',
-                                                    background: isSelected ? '#1c3320' : '#222',
-                                                    opacity: affordable ? 1 : 0.4,
-                                                    cursor: affordable ? 'pointer' : 'not-allowed'
+                                                    padding: '12px',
+                                                    background: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? '#1c3320' : '#322',
+                                                    borderColor: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? '#22c55e' : '#522',
+                                                    color: '#fff',
+                                                    cursor: (player.resources.Food >= productionTotals.totalFoodCost && player.resources.Energy >= productionTotals.totalEnergyCost) ? 'pointer' : 'not-allowed',
+                                                    fontWeight: 'bold',
+                                                    marginTop: 'auto'
                                                 }}
                                             >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <TileIcon type={type} size={20} />
-                                                    <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{type}</span>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
-                                                    {costComponents.map((c, i) => (
-                                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-                                                            <span style={{ fontSize: '10px', color: '#aaa' }}>{c.amount}</span>
-                                                            <ResourceIcon type={c.type as any} size={10} />
+                                                Run Production
+                                            </button>
+
+                                            {showProductionConfirmation && (
+                                                <ConfirmationModal
+                                                    isOpen={showProductionConfirmation}
+                                                    title="Run Production"
+                                                    message={
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                            <div>Are you sure you want to run production?</div>
+                                                            <div style={{ background: '#111', padding: '10px', borderRadius: '4px', fontSize: '14px' }}>
+                                                                <div style={{ color: '#f87171', marginBottom: '4px' }}>
+                                                                    <strong>Consuming:</strong>
+                                                                    {productionTotals.totalFoodCost > 0 && ` ${productionTotals.totalFoodCost} Food`}
+                                                                    {productionTotals.totalFoodCost > 0 && productionTotals.totalEnergyCost > 0 && ','}
+                                                                    {productionTotals.totalEnergyCost > 0 && ` ${productionTotals.totalEnergyCost} Energy`}
+                                                                    {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
+                                                                    {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' Nothing'}
+                                                                </div>
+                                                                <div style={{ color: '#4ade80' }}>
+                                                                    <strong>Producing:</strong> {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || 'Nothing'}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    ))}
+                                                    }
+                                                    onConfirm={() => {
+                                                        handleRunProduction();
+                                                        setShowProductionConfirmation(false);
+                                                    }}
+                                                    onCancel={() => setShowProductionConfirmation(false)}
+                                                    confirmText="Confirm"
+                                                    cancelText="Back"
+                                                />
+                                            )}
+                                        </div>
+                                    )
+                                ) : gameState.phase === 'Trade' ? (
+                                    /* Trade Phase Actions */
+                                    <TradeActionPanel
+                                        gameState={gameState}
+                                        player={player}
+                                        mode={mode}
+                                        onAction={handleAction}
+                                        onOpenTradeWithPlayer={handleOpenTradeWithPlayer}
+                                        onSelectedPlayerChange={setSelectedCostsPlayerId}
+                                        canAct={canAct}
+                                    />
+                                ) : (
+                                    /* Existing Build Menu */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                                        {/* Standard Tools */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedTool('Move');
+                                                    setIsMoving(true);
+                                                    setMoveSourceId(null);
+                                                    setMoveHistory([]);
+                                                    setMovesCompleted(0);
+                                                }}
+                                                disabled={interactionLocked || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) || player.resources.Capital < 1}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    padding: '8px',
+                                                    borderColor: selectedTool === 'Move' ? 'cyan' : '#444',
+                                                    background: selectedTool === 'Move' ? '#1c3332' : '#222',
+                                                    color: selectedTool === 'Move' ? 'cyan' : 'white',
+                                                    opacity: (interactionLocked || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) || player.resources.Capital < 1) ? 0.4 : 1,
+                                                    cursor: (!interactionLocked && Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) && player.resources.Capital >= 1) ? 'pointer' : 'not-allowed',
+                                                    filter: interactionLocked ? 'grayscale(0.8)' : 'none'
+                                                }}
+                                            >
+                                                <span style={{ fontWeight: 'bold' }}>Move</span>
+                                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
+                                                    <ResourceIcon type="Capital" size={10} />
+                                                </div>
+                                                <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>3 moves</div>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setSelectedTool('Flag')}
+                                                disabled={interactionLocked || player.resources.Labor < 1 || player.flags <= 0}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    padding: '8px',
+                                                    borderColor: selectedTool === 'Flag' ? 'yellow' : '#444',
+                                                    background: selectedTool === 'Flag' ? '#33321c' : '#222',
+                                                    color: selectedTool === 'Flag' ? 'yellow' : 'white',
+                                                    opacity: (interactionLocked || player.resources.Labor < 1 || player.flags <= 0) ? 0.4 : 1,
+                                                    cursor: (!interactionLocked && player.resources.Labor >= 1 && player.flags > 0) ? 'pointer' : 'not-allowed',
+                                                    filter: interactionLocked ? 'grayscale(0.8)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <svg width="24" height="12" viewBox="0 0 24 12">
+                                                        <image
+                                                            href={`/flags/${player.flag || (player.id === 'p1' ? 'anglica.svg' : 'bolshevica.svg')}`}
+                                                            x="0" y="0" width="24" height="12"
+                                                        />
+                                                    </svg>
+                                                    <span style={{ fontWeight: 'bold' }}>Flag</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
+                                                    <ResourceIcon type="Labor" size={10} />
                                                 </div>
                                             </button>
-                                        );
-                                    })}
-                                </div>
 
-                                {/* Pass Button for Develop Phase */}
-                                <button
-                                    data-testid="develop-pass-button"
-                                    onClick={() => handleAction('pass')}
-                                    style={{
-                                        padding: '12px',
-                                        background: '#059669',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        fontSize: '14px',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer',
-                                        marginTop: 'auto'
-                                    }}
-                                >
-                                    ✓ Pass
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                                            <button
+                                                onClick={() => setSelectedTool('Automate')}
+                                                disabled={interactionLocked || player.resources.Energy < 1 || player.resources.Capital < 2 || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)}
+                                                style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    padding: '8px',
+                                                    borderColor: selectedTool === 'Automate' ? 'magenta' : '#444',
+                                                    background: selectedTool === 'Automate' ? '#331c33' : '#222',
+                                                    color: selectedTool === 'Automate' ? 'magenta' : 'white',
+                                                    opacity: (interactionLocked || player.resources.Energy < 1 || player.resources.Capital < 2 || !Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)) ? 0.4 : 1,
+                                                    cursor: (!interactionLocked && player.resources.Energy >= 1 && player.resources.Capital >= 2 && Object.values(gameState.board).some(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id && cell.occupant.tile && !cell.occupant.tile.automated)) ? 'pointer' : 'not-allowed',
+                                                    filter: interactionLocked ? 'grayscale(0.8)' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <svg width="16" height="16" viewBox="-22 -22 44 44">
+                                                        <path
+                                                            d="M0,-21 L18.18,-10.5 18.18,10.5 0,21 -18.18,10.5 -18.18,-10.5 Z M0,-9 A9,9 0 1,1 -0.001,-9 Z"
+                                                            fill="#999"
+                                                            stroke="white"
+                                                            strokeWidth="1.5"
+                                                            fillRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                    <span style={{ fontWeight: 'bold' }}>Auto</span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                                                        <span style={{ fontSize: '10px', color: '#aaa' }}>1</span>
+                                                        <ResourceIcon type="Energy" size={10} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                                                        <span style={{ fontSize: '10px', color: '#aaa' }}>2</span>
+                                                        <ResourceIcon type="Capital" size={10} />
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </div>
 
-                    {/* Global Output Stats/Trade Needs (Bottom of Action Col) */}
-                    {gameState.phase === 'Develop' && (
-                        <div style={{
-                            background: '#222',
-                            padding: '10px',
-                            borderRadius: '5px',
-                            marginTop: 'auto'
-                        }}>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Potential Output</h4>
-                            <StatLine label="Food" value={globalStats.Food} projected={projectedStats?.Food} color="#facc15" />
-                            <StatLine label="Energy" value={globalStats.Energy} projected={projectedStats?.Energy} color="#3b82f6" />
-                            <StatLine label="Labor" value={globalStats.Labor} projected={projectedStats?.Labor} color="#ef4444" />
-                            <StatLine label="Ore" value={globalStats.Ore} projected={projectedStats?.Ore} color="#9ca3af" />
-                            <StatLine label="Capital" value={globalStats.Capital} projected={projectedStats?.Capital} color="#fff" />
-                        </div>
-                    )}
+                                        <div style={{ height: '1px', background: '#333', margin: '5px 0' }} />
 
-                    {gameState.phase === 'Trade' && (() => {
-                        // Use selected player from dropdown in local mode, otherwise current turn player
-                        const costsPlayer = mode === 'local' && selectedCostsPlayerId
-                            ? gameState.players.find(p => p.id === selectedCostsPlayerId) || player
-                            : player;
+                                        {/* Build List */}
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                            <span style={{ color: '#fff', fontSize: '14px' }}>Build Industry</span>
+                                            <label style={{ fontSize: '12px', color: forceMode ? 'magenta' : '#888', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={forceMode} onChange={(e) => setForceMode(e.target.checked)} />
+                                                Force (<ResourceIcon type="Capital" size={12} />+1)
+                                            </label>
+                                        </div>
 
-                        return (
-                            <div style={{
-                                background: '#222',
-                                padding: '10px',
-                                borderRadius: '5px',
-                                marginTop: 'auto'
-                            }}>
-                                <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Operating Costs</h4>
-                                <div style={{ fontSize: '12px', color: '#aaa' }}>
-                                    To run {mode === 'local' && selectedCostsPlayerId ? `${costsPlayer.name}'s` : 'all your'} tiles (Stock / Required):
-                                </div>
-                                <div style={{ display: 'flex', gap: '12px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
-                                    {Object.values(gameState.board).filter(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id).length > 0 ? (
-                                        <>
-                                            {(() => {
-                                                // Calculate what would be needed to run all tiles
-                                                const visited = new Set<string>();
-                                                let foodNeeded = 0;
-                                                let energyNeeded = 0;
-                                                let oreNeeded = 0;
+                                        {/* Build List */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                            {Object.keys(TILE_DEFINITIONS).map(typeKey => {
+                                                const type = typeKey as IndustryType;
+                                                const def = TILE_DEFINITIONS[type];
+                                                const isSelected = selectedTool === type;
+                                                // Count costs using structured data
+                                                const costComponents = Object.entries(def.costStruct || {}).map(([type, amount]) => ({ amount, type }));
 
-                                                Object.values(gameState.board).forEach(cell => {
-                                                    if (cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id) {
-                                                        const id = coordsToString(cell.q, cell.r);
-                                                        if (visited.has(id)) return;
-
-                                                        const bloc = identifyBloc(gameState.board, cell);
-                                                        bloc.forEach(b => visited.add(coordsToString(b.q, b.r)));
-
-                                                        // Check if this bloc has automation
-                                                        const hasAutomation = bloc.some(t => t.occupant?.tile?.automated);
-                                                        const costs = calculateBlocCosts(bloc, hasAutomation);
-                                                        foodNeeded += costs.Food;
-                                                        energyNeeded += costs.Energy;
-                                                        oreNeeded += costs.Ore;
-                                                    }
-                                                });
+                                                const affordable = canAfford(type, forceMode);
 
                                                 return (
-                                                    <>
-                                                        {foodNeeded > 0 && (
-                                                            <span style={{ color: costsPlayer.resources.Food >= foodNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <ResourceIcon type="Food" size={12} />: {costsPlayer.resources.Food} / {foodNeeded}
-                                                            </span>
-                                                        )}
-                                                        {energyNeeded > 0 && (
-                                                            <span style={{ color: costsPlayer.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <ResourceIcon type="Energy" size={12} />: {costsPlayer.resources.Energy} / {energyNeeded}
-                                                            </span>
-                                                        )}
-                                                        {oreNeeded > 0 && (
-                                                            <span style={{ color: costsPlayer.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <ResourceIcon type="Ore" size={12} />: {costsPlayer.resources.Ore} / {oreNeeded}
-                                                            </span>
-                                                        )}
-                                                        {foodNeeded === 0 && energyNeeded === 0 && oreNeeded === 0 && (
-                                                            <span style={{ color: '#4ade80' }}>No costs!</span>
-                                                        )}
-                                                    </>
+                                                    <button
+                                                        key={type}
+                                                        onClick={() => affordable && setSelectedTool(type)}
+                                                        disabled={interactionLocked || !affordable}
+                                                        style={{
+                                                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                                            padding: '8px',
+                                                            borderColor: isSelected ? 'green' : '#444',
+                                                            background: isSelected ? '#1c3320' : '#222',
+                                                            opacity: (interactionLocked || !affordable) ? 0.4 : 1,
+                                                            cursor: (!interactionLocked && affordable) ? 'pointer' : 'not-allowed',
+                                                            filter: interactionLocked ? 'grayscale(0.8)' : 'none'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <TileIcon type={type} size={20} />
+                                                            <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{type}</span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
+                                                            {costComponents.map((c, i) => (
+                                                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                                                                    <span style={{ fontSize: '10px', color: '#aaa' }}>{c.amount}</span>
+                                                                    <ResourceIcon type={c.type as any} size={10} />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </button>
                                                 );
-                                            })()}
-                                        </>
-                                    ) : (
-                                        <span style={{ color: '#666', fontStyle: 'italic' }}>No industries</span>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })()}
+                                            })}
+                                        </div>
+
+                                        {/* Pass Button for Develop Phase */}
+                                        <button
+                                            data-testid="develop-pass-button"
+                                            onClick={() => handleAction('pass')}
+                                            disabled={interactionLocked}
+                                            style={{
+                                                padding: '12px',
+                                                background: !interactionLocked ? '#059669' : '#333',
+                                                color: !interactionLocked ? 'white' : '#666',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                fontSize: '14px',
+                                                fontWeight: 'bold',
+                                                cursor: !interactionLocked ? 'pointer' : 'not-allowed',
+                                                marginTop: 'auto',
+                                                opacity: !interactionLocked ? 1 : 0.5
+                                            }}
+                                        >
+                                            ✓ Pass
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Global Output Stats/Trade Needs (Bottom of Action Col) */}
+                                {gameState.phase === 'Develop' && (
+                                    <div style={{
+                                        background: '#222',
+                                        padding: '10px',
+                                        borderRadius: '5px',
+                                        marginTop: 'auto'
+                                    }}>
+                                        <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Potential Output</h4>
+                                        <StatLine label="Food" value={globalStats.Food} projected={projectedStats?.Food} color="#facc15" />
+                                        <StatLine label="Energy" value={globalStats.Energy} projected={projectedStats?.Energy} color="#3b82f6" />
+                                        <StatLine label="Labor" value={globalStats.Labor} projected={projectedStats?.Labor} color="#ef4444" />
+                                        <StatLine label="Ore" value={globalStats.Ore} projected={projectedStats?.Ore} color="#9ca3af" />
+                                        <StatLine label="Capital" value={globalStats.Capital} projected={projectedStats?.Capital} color="#fff" />
+                                    </div>
+                                )}
+
+                                {gameState.phase === 'Trade' && (() => {
+                                    // Use selected player from dropdown in local mode, otherwise current turn player
+                                    const costsPlayer = mode === 'local' && selectedCostsPlayerId
+                                        ? gameState.players.find(p => p.id === selectedCostsPlayerId) || player
+                                        : player;
+
+                                    return (
+                                        <div style={{
+                                            background: '#222',
+                                            padding: '10px',
+                                            borderRadius: '5px',
+                                            marginTop: 'auto'
+                                        }}>
+                                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Operating Costs</h4>
+                                            <div style={{ fontSize: '12px', color: '#aaa' }}>
+                                                To run {mode === 'local' && selectedCostsPlayerId ? `${costsPlayer.name}'s` : 'all your'} tiles (Stock / Required):
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '12px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
+                                                {Object.values(gameState.board).filter(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id).length > 0 ? (
+                                                    <>
+                                                        {(() => {
+                                                            // Calculate what would be needed to run all tiles
+                                                            const visited = new Set<string>();
+                                                            let foodNeeded = 0;
+                                                            let energyNeeded = 0;
+                                                            let oreNeeded = 0;
+
+                                                            Object.values(gameState.board).forEach(cell => {
+                                                                if (cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id) {
+                                                                    const id = coordsToString(cell.q, cell.r);
+                                                                    if (visited.has(id)) return;
+
+                                                                    const bloc = identifyBloc(gameState.board, cell);
+                                                                    bloc.forEach(b => visited.add(coordsToString(b.q, b.r)));
+
+                                                                    // Check if this bloc has automation
+                                                                    const hasAutomation = bloc.some(t => t.occupant?.tile?.automated);
+                                                                    const costs = calculateBlocCosts(bloc, hasAutomation);
+                                                                    foodNeeded += costs.Food;
+                                                                    energyNeeded += costs.Energy;
+                                                                    oreNeeded += costs.Ore;
+                                                                }
+                                                            });
+
+                                                            return (
+                                                                <>
+                                                                    {foodNeeded > 0 && (
+                                                                        <span style={{ color: costsPlayer.resources.Food >= foodNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                            <ResourceIcon type="Food" size={12} />: {costsPlayer.resources.Food} / {foodNeeded}
+                                                                        </span>
+                                                                    )}
+                                                                    {energyNeeded > 0 && (
+                                                                        <span style={{ color: costsPlayer.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                            <ResourceIcon type="Energy" size={12} />: {costsPlayer.resources.Energy} / {energyNeeded}
+                                                                        </span>
+                                                                    )}
+                                                                    {oreNeeded > 0 && (
+                                                                        <span style={{ color: costsPlayer.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                            <ResourceIcon type="Ore" size={12} />: {costsPlayer.resources.Ore} / {oreNeeded}
+                                                                        </span>
+                                                                    )}
+                                                                    {foodNeeded === 0 && energyNeeded === 0 && oreNeeded === 0 && (
+                                                                        <span style={{ color: '#4ade80' }}>No costs!</span>
+                                                                    )}
+                                                                </>
+                                                            );
+                                                        })()}
+                                                    </>
+                                                ) : (
+                                                    <span style={{ color: '#666', fontStyle: 'italic' }}>No industries</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* Col 3: Map */}
@@ -2164,7 +2201,7 @@ export const Game: React.FC = () => {
                                     onCancel={handleCancelMarketTransaction}
                                 />
                             ) : (
-                                <MarketBoard markets={gameState.markets} onBuy={handleBuy} onSell={handleSell} />
+                                <MarketBoard markets={gameState.markets} onBuy={handleBuy} onSell={handleSell} disabled={interactionLocked || gameState.phase !== 'Trade'} />
                             )}
                         </div>
                         <div style={{ padding: '5px', color: '#666', fontSize: '11px', textAlign: 'center', flexShrink: 0 }}>
@@ -2176,34 +2213,37 @@ export const Game: React.FC = () => {
             </div>
 
             {/* Trade Modals */}
-            {/* Trade Modals */}
-            {showTradeModal && (
-                <TradeModal
-                    currentPlayer={player}
-                    allPlayers={gameState.players}
-                    markets={gameState.markets}
-                    onPropose={handleProposeTrade}
-                    onCancel={() => {
-                        setShowTradeModal(false);
-                        setPrefilledTrade(null);
-                    }}
-                    initialSelectedPlayerId={prefilledTrade?.targetId}
-                    initialGiving={prefilledTrade?.giving}
-                    initialReceiving={prefilledTrade?.receiving}
-                />
-            )}
+            {
+                showTradeModal && (
+                    <TradeModal
+                        currentPlayer={player}
+                        allPlayers={gameState.players}
+                        markets={gameState.markets}
+                        onPropose={handleProposeTrade}
+                        onCancel={() => {
+                            setShowTradeModal(false);
+                            setPrefilledTrade(null);
+                        }}
+                        initialSelectedPlayerId={prefilledTrade?.targetId}
+                        initialGiving={prefilledTrade?.giving}
+                        initialReceiving={prefilledTrade?.receiving}
+                    />
+                )
+            }
 
-            {shouldShowAcceptModal && gameState.pendingTrade && (
-                <AcceptTradeModal
-                    proposingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.proposerId)!}
-                    receivingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)!}
-                    giving={gameState.pendingTrade.giving}
-                    receiving={gameState.pendingTrade.receiving}
-                    markets={gameState.markets}
-                    onAccept={handleAcceptTrade}
-                    onReject={handleRejectTrade}
-                />
-            )}
+            {
+                shouldShowAcceptModal && gameState.pendingTrade && (
+                    <AcceptTradeModal
+                        proposingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.proposerId)!}
+                        receivingPlayer={gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)!}
+                        giving={gameState.pendingTrade.giving}
+                        receiving={gameState.pendingTrade.receiving}
+                        markets={gameState.markets}
+                        onAccept={handleAcceptTrade}
+                        onReject={handleRejectTrade}
+                    />
+                )
+            }
 
             <PlayerAid
                 isOpen={showPlayerAid}
@@ -2214,14 +2254,11 @@ export const Game: React.FC = () => {
                 isOpen={showLeaveConfirmation}
                 message="Are you sure you want to quit the game?"
                 actions={[
-                    // Save and Quit option (available to everyone)
                     ...(!gameState.gameEnded ? [{
                         label: 'Save and Quit',
                         onClick: () => {
                             if (mode === 'local') {
-                                if (saveGame) {
-                                    saveGame();
-                                }
+                                if (saveGame) saveGame();
                                 window.location.reload();
                             } else {
                                 if (saveGame) saveGame();
@@ -2231,7 +2268,6 @@ export const Game: React.FC = () => {
                         },
                         variant: 'primary' as const
                     }] : []),
-                    // Standard Quit option
                     {
                         label: 'Quit',
                         onClick: () => {
@@ -2241,7 +2277,6 @@ export const Game: React.FC = () => {
                         },
                         variant: 'danger' as const
                     },
-                    // Cancel option
                     {
                         label: 'Cancel',
                         onClick: () => setShowLeaveConfirmation(false),

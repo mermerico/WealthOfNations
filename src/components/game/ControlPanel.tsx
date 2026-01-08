@@ -83,7 +83,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
             )}
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {onOpenPlayerAid && (
                     <button
                         onClick={onOpenPlayerAid}
@@ -91,12 +91,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
                         style={{
                             background: '#374151',
                             borderColor: '#4b5563',
-                            fontSize: '14px',
+                            fontSize: '13px',
                             cursor: 'pointer',
                             padding: '6px 12px',
                             borderRadius: '4px',
                             color: '#fbbf24',
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid #4b5563'
                         }}
                         title="Player Aid"
                     >
@@ -110,8 +115,17 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
                         style={{
                             background: '#dc2626',
                             borderColor: '#991b1b',
-                            fontSize: '12px',
-                            cursor: 'pointer'
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid #991b1b'
                         }}
                     >
                         Quit Game
@@ -124,9 +138,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
                         style={{
                             background: '#6366f1',
                             borderColor: '#4f46e5',
-                            fontSize: '12px',
-                            cursor: 'pointer'
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            padding: '6px 12px',
+                            borderRadius: '4px',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            height: '32px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid #4f46e5'
                         }}
+                        title="Save Game"
                     >
                         💾 Save Game
                     </button>

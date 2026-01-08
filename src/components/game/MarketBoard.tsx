@@ -7,6 +7,7 @@ interface MarketBoardProps {
     markets: Record<CommodityType, MarketState>;
     onBuy?: (commodity: CommodityType) => void;
     onSell?: (commodity: CommodityType) => void;
+    disabled?: boolean;
 }
 
 const ORDER: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
@@ -16,9 +17,10 @@ interface MarketTrackProps {
     market: MarketState;
     onBuy?: () => void;
     onSell?: () => void;
+    disabled?: boolean;
 }
 
-const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }) => {
+const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell, disabled }) => {
     const [hoveredLevel, setHoveredLevel] = useState<number | null>(null);
     const steps = MARKET_STEPS[type];
     const color = COMMODITY_COLORS[type];
@@ -85,22 +87,23 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }
                 {/* Sell Button */}
                 <button
                     onClick={onSell}
-                    disabled={!currentSellPrice}
+                    disabled={disabled || !currentSellPrice}
                     style={{
                         width: '100%',
                         padding: '6px 4px',
-                        background: currentSellPrice ? '#16a34a' : '#333',
+                        background: (disabled || !currentSellPrice) ? '#333' : '#16a34a',
                         border: 'none',
                         borderRadius: '4px',
                         color: '#fff',
-                        cursor: currentSellPrice ? 'pointer' : 'not-allowed',
-                        opacity: currentSellPrice ? 1 : 0.5,
+                        cursor: (!disabled && currentSellPrice) ? 'pointer' : 'not-allowed',
+                        opacity: (!disabled && currentSellPrice) ? 1 : 0.5,
                         fontSize: '12px',
                         fontWeight: 'bold',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        filter: disabled ? 'grayscale(0.8)' : 'none'
                     }}
                 >
                     <span>Sell</span>
@@ -117,22 +120,23 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }
                 {/* Buy Button */}
                 <button
                     onClick={onBuy}
-                    disabled={!currentBuyPrice}
+                    disabled={disabled || !currentBuyPrice}
                     style={{
                         width: '100%',
                         padding: '6px 4px',
-                        background: currentBuyPrice ? '#dc2626' : '#333',
+                        background: (disabled || !currentBuyPrice) ? '#333' : '#dc2626',
                         border: 'none',
                         borderRadius: '4px',
                         color: '#fff',
-                        cursor: currentBuyPrice ? 'pointer' : 'not-allowed',
-                        opacity: currentBuyPrice ? 1 : 0.5,
+                        cursor: (!disabled && currentBuyPrice) ? 'pointer' : 'not-allowed',
+                        opacity: (!disabled && currentBuyPrice) ? 1 : 0.5,
                         fontSize: '12px',
                         fontWeight: 'bold',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        filter: disabled ? 'grayscale(0.8)' : 'none'
                     }}
                 >
                     <span>Buy</span>
@@ -305,7 +309,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell }
     );
 };
 
-export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell }) => {
+export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell, disabled }) => {
     return (
         <div style={{
             display: 'flex',
@@ -323,6 +327,7 @@ export const MarketBoard: React.FC<MarketBoardProps> = ({ markets, onBuy, onSell
                     market={markets[type]}
                     onBuy={() => onBuy?.(type)}
                     onSell={() => onSell?.(type)}
+                    disabled={disabled}
                 />
             ))}
         </div>
