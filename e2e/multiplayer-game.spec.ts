@@ -193,12 +193,28 @@ test.describe.serial('3-player game flow', () => {
 
         await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) proposing trade to P${targetIdx + 1} (${targetName})...`);
 
-        // Open trade modal and propose
-        await activePage.getByText('🤝 Propose Trade').click();
-        // Select target by name, not by index (dropdown order isn't deterministic)
-        await activePage.locator('select').selectOption({ label: targetName });
-        // Enter money amount (first number input is "One Give" money)
-        await activePage.locator('input[type="number"]').first().fill('10');
+        // New Flow: Target player must be Ready for Active player to propose trade
+        await step(`P${targetIdx + 1} (${targetName}) marking ready...`);
+        const targetMarkReadyBtn = targetPage.getByTestId('trade-ready-button');
+        await targetMarkReadyBtn.click();
+        await expect(targetPage.getByTestId('trade-ready-button')).toHaveText('Ready');
+
+        // Wait for sync - Active player should see Target player as ready (no longer "Planning...")
+        await step(`Waiting for P${targetIdx + 1} to appear ready on P${activeIdx + 1}'s screen...`);
+        // Let's use the explicit check: no "(Planning...)"
+        await expect(activePage.locator(`text=${targetName}`).filter({ hasText: '(Planning...)' })).toHaveCount(0, { timeout: 10000 });
+
+        // Open trade modal by clicking target player's card
+        await step(`P${activeIdx + 1} clicking P${targetIdx + 1}'s card to propose trade...`);
+        // Find the "Player Offers" section
+        const offersSection = activePage.getByTestId('player-offers-section');
+        await expect(offersSection).toBeVisible();
+
+        // Click the player card inside it (containing target name)
+        await activePage.getByTestId(`player-offer-button-${targetName}`).click();
+
+        // Enter money amount
+        await activePage.getByTestId('trade-money-input-give').fill('10');
         await activePage.getByRole('button', { name: 'Propose Trade', exact: true }).click();
         await activePage.waitForTimeout(100); // Wait for trade proposal to propagate
 
@@ -216,7 +232,7 @@ test.describe.serial('3-player game flow', () => {
             const activeIdx = await findActivePlayer(pages);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Trade phase`);
-            await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
+            await pages[activeIdx].getByTestId('trade-pass-button').click();
             await pages[activeIdx].waitForTimeout(200);
         }
     });
@@ -236,7 +252,7 @@ test.describe.serial('3-player game flow', () => {
             const activeIdx = await findActivePlayer(pages);
             expect(activeIdx).toBeGreaterThanOrEqual(0);
             await step(`P${activeIdx + 1} (${playerNames[activeIdx]}) passing Develop phase`);
-            await pages[activeIdx].getByRole('button', { name: '✓ Pass' }).click({ force: true });
+            await pages[activeIdx].getByTestId('develop-pass-button').click();
             await pages[activeIdx].waitForTimeout(200);
         }
     });
@@ -260,9 +276,8 @@ test.describe.serial('3-player game flow', () => {
             await step(`P${i + 1} (${name}) clicking Run Production...`);
 
             // Wait for button to be available and click
-            const btn = pages[i].getByRole('button', { name: 'Run Production' });
-            await btn.waitFor({ state: 'visible' });
-            await btn.click({ force: true });
+            const btn = pages[i].getByTestId('run-production-button');
+            await btn.click();
 
             // Verify roster reflects status (assuming there's a status indicator)
             // This adds synchronization

@@ -172,6 +172,7 @@ export function createInitialGameState(options: InitialGameStateOptions = {}): G
         gameEnded: false,
         initialFlagsPerPlayer: players[0]?.flags ?? 18,
         initialTiles: { ...tilesRemaining },
+        tradeIntents: {},
         settings: {
             promissoryNoteInterestFees: false,
             ...options.settings

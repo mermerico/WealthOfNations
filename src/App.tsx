@@ -9,6 +9,8 @@ import { LocalSetup } from './pages/LocalSetup';
 
 import { GameEngineProvider, useGameEngineContext } from './hooks/GameEngineProvider';
 
+import { TradeSandbox } from './pages/TradeSandbox';
+
 function AppShell() {
   const {
     clientId,
@@ -34,6 +36,17 @@ function AppShell() {
   const [localSetupActive, setLocalSetupActive] = useState(false);
   const [localGameActive, setLocalGameActive] = useState(false);
 
+  // Sandbox Routing
+  const [showSandbox, setShowSandbox] = useState(window.location.hash === '#trade-sandbox');
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setShowSandbox(window.location.hash === '#trade-sandbox');
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   useEffect(() => {
     if (mode === 'remote') {
       setLocalSetupActive(false);
@@ -55,6 +68,10 @@ function AppShell() {
     leaveLobby();
     setLocalGameActive(false);
   };
+
+  if (showSandbox) {
+    return <TradeSandbox />;
+  }
 
   const showLobby = mode === 'remote' && lobby && lobby.phase === 'forming';
   const showRestoring = mode === 'remote' && lobby && lobby.phase === 'restoring';
@@ -111,8 +128,6 @@ function AppShell() {
       />
     );
   }
-
-
 
   return (
     <Landing

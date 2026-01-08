@@ -9,6 +9,10 @@ interface TradeModalProps {
     markets: Record<CommodityType, { stock: number; priceIndex: number }>;
     onPropose: (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => void;
     onCancel: () => void;
+    // Optional initial values for pre-filling the trade
+    initialSelectedPlayerId?: string;
+    initialGiving?: TradeOffer;
+    initialReceiving?: TradeOffer;
 }
 
 interface AcceptTradeModalProps {
@@ -57,10 +61,10 @@ function calculateOfferValue(
     return value;
 }
 
-export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCancel }: TradeModalProps) {
-    const [giving, setGiving] = useState<TradeOffer>({ commodities: {}, money: 0, loans: 0 });
-    const [receiving, setReceiving] = useState<TradeOffer>({ commodities: {}, money: 0, loans: 0 });
-    const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
+export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCancel, initialSelectedPlayerId, initialGiving, initialReceiving }: TradeModalProps) {
+    const [giving, setGiving] = useState<TradeOffer>(initialGiving ?? { commodities: {}, money: 0, loans: 0 });
+    const [receiving, setReceiving] = useState<TradeOffer>(initialReceiving ?? { commodities: {}, money: 0, loans: 0 });
+    const [selectedPlayerId, setSelectedPlayerId] = useState<string>(initialSelectedPlayerId ?? '');
 
     const commodities: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
 
@@ -238,6 +242,7 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                     <span style={{ color: 'white', fontSize: '14px' }}>$</span>
                                     <input
+                                        data-testid="trade-money-input-give"
                                         type="number"
                                         min={0}
                                         max={currentPlayer.money}
@@ -371,6 +376,7 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <span style={{ color: 'white', fontSize: '14px' }}>$</span>
                                             <input
+                                                data-testid="trade-money-input-receive"
                                                 type="number"
                                                 min={0}
                                                 max={maxMoney}

@@ -65,7 +65,7 @@ export function Lobby({
             <div className="lobby-header">
                 <h1>Lobby</h1>
                 <div className="lobby-code">
-                    <span>{lobby.code}</span>
+                    <span data-testid="lobby-code">{lobby.code}</span>
                     <button onClick={handleCopyCode}>
                         {copyStatus === 'copied' ? 'Copied!' : copyStatus === 'error' ? 'Failed' : 'Copy'}
                     </button>
@@ -79,7 +79,7 @@ export function Lobby({
                 {lobby.players.map(player => {
                     const isSelf = player.clientId === selfPlayer?.clientId;
                     return (
-                        <div key={player.clientId} className={`lobby-player-row${isSelf ? ' self' : ''}`}>
+                        <div key={player.clientId} data-testid={`lobby-player-${player.seatIndex}`} className={`lobby-player-row${isSelf ? ' self' : ''}`}>
                             <div className="player-main">
                                 <span className="player-seat">#{player.seatIndex + 1}</span>
                                 {isSelf ? (
@@ -137,6 +137,7 @@ export function Lobby({
                     <label className="lobby-setting-toggle">
                         <input
                             type="checkbox"
+                            data-testid="setting-promissory-notes"
                             checked={lobby.settings?.promissoryNoteInterestFees ?? false}
                             onChange={(e) => onUpdateSettings({ promissoryNoteInterestFees: e.target.checked })}
                         />
@@ -152,6 +153,7 @@ export function Lobby({
                         className="lobby-button"
                         onClick={() => onReadyToggle(!isReady)}
                         disabled={!selfPlayer}
+                        data-testid="lobby-ready-button"
                     >
                         {isReady ? 'Set Not Ready' : 'Ready Up'}
                     </button>
@@ -159,6 +161,7 @@ export function Lobby({
                         className="lobby-button primary"
                         onClick={onStart}
                         disabled={!isHost || readyCount < lobby.minSeats || !everyoneReady}
+                        data-testid="lobby-start-button"
                     >
                         Start Game ({readyCount}/{lobby.players.length})
                     </button>

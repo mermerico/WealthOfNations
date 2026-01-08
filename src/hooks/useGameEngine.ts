@@ -220,6 +220,7 @@ export function useGameEngine() {
                 }
 
                 case 'state': {
+                    // console.log('Game state update', message.state);
                     setGameState(message.state);
                     setMode('remote');
                     break;

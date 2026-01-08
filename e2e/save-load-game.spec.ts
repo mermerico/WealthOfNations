@@ -39,7 +39,7 @@ test.describe.serial('save and restore game flow', () => {
         savedLobbyCode = await initializeGameToTradePhase(players, step);
 
         // Wait for Trade phase
-        await expect(players[0].page.getByText('TRADE', { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(players[0].page.getByTestId('phase-display').filter({ hasText: 'TRADE' })).toBeVisible({ timeout: 10000 });
         await step('Now in Trade phase - ready to save');
 
         // Save game via UI button (host only)
@@ -139,7 +139,7 @@ test.describe.serial('save and restore game flow', () => {
 
         // After all seats claimed, should transition to game
         await step('Waiting for game to resume...');
-        await expect(players[0].page.getByText('TRADE', { exact: true })).toBeVisible({ timeout: 10000 });
+        await expect(players[0].page.getByTestId('phase-display').filter({ hasText: 'TRADE' })).toBeVisible({ timeout: 10000 });
         await step('Successfully restored to game!');
     });
 });

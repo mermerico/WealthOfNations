@@ -90,7 +90,7 @@ export async function createAndJoinLobby(
     await waitForConnection(host.page);
     await host.page.getByRole('button', { name: 'Create Online Game' }).click();
     await expect(host.page.locator('.lobby-code')).toBeVisible();
-    const lobbyCode = (await host.page.locator('.lobby-code span').first().innerText()).trim();
+    const lobbyCode = (await host.page.getByTestId('lobby-code').innerText()).trim();
     await log(`Lobby Code: ${lobbyCode}`);
     await host.page.locator('.lobby-name-input').fill(host.name);
     await host.page.locator('.lobby-name-input').press('Enter');
@@ -121,12 +121,12 @@ export async function readyUpAndStartGame(
 
     await log('Readying up...');
     for (const player of players) {
-        await player.page.getByRole('button', { name: 'Ready Up' }).click();
+        await player.page.getByTestId('lobby-ready-button').click();
     }
 
     await log('Starting game...');
-    await expect(host.page.getByRole('button', { name: /Start Game/ })).toBeEnabled();
-    await host.page.getByRole('button', { name: /Start Game/ }).click();
+    await expect(host.page.getByTestId('lobby-start-button')).toBeEnabled();
+    await host.page.getByTestId('lobby-start-button').click();
 }
 
 /**
@@ -160,7 +160,7 @@ export async function runSetupPhase(
     while (!tradePhaseReached && noProgressCount < 40) {
         // Check for Trade phase
         for (const page of pages) {
-            if (await page.locator('text=TRADE').count() > 0) {
+            if (await page.getByTestId('phase-display').filter({ hasText: 'TRADE' }).count() > 0) {
                 tradePhaseReached = true;
                 break;
             }
@@ -179,7 +179,7 @@ export async function runSetupPhase(
         let madeProgress = false;
 
         // Try package selection
-        const pkgBtn = page.locator('.package-card:not(.disabled) .select-button:not([disabled])').first();
+        const pkgBtn = page.getByTestId(/package-select-button-.+/).filter({ hasNot: page.locator('[disabled]') }).first();
         if (await pkgBtn.count() > 0) {
             await pkgBtn.click({ timeout: 2000 });
             await page.waitForTimeout(10);
@@ -189,7 +189,7 @@ export async function runSetupPhase(
 
         // Try clicking Pass/Continue button
         if (!madeProgress) {
-            const passBtn = page.getByRole('button', { name: /Pass.*Continue/i }).filter({ hasNot: page.locator('[disabled]') });
+            const passBtn = page.getByTestId('setup-pass-button').filter({ hasNot: page.locator('[disabled]') });
             if (await passBtn.count() > 0 && await passBtn.isEnabled()) {
                 await passBtn.click({ timeout: 2000 });
                 await page.waitForTimeout(10);

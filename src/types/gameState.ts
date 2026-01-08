@@ -43,6 +43,13 @@ export interface PendingTrade {
   receiving: TradeOffer;
 }
 
+// Stores a player's desired inventory for trade planning
+export interface TradeIntent {
+  playerId: string;
+  desiredInventory: Record<CommodityType, number>;
+  ready: boolean;
+}
+
 export interface IndustryTile {
   id: string; // Unique instance ID
   type: IndustryType;
@@ -104,6 +111,7 @@ export interface GameState {
   initialFlagsPerPlayer: number;
   initialTiles: Record<IndustryType, number>;
   settings: GameSettings;
+  tradeIntents?: Record<string, TradeIntent>; // Player ID -> their trade intent for current Trade phase
 }
 
 export const INITIAL_RESOURCES: Record<CommodityType, number> = {

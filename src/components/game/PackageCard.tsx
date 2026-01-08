@@ -96,7 +96,7 @@ export default function PackageCard({ package: pkg, onSelect, disabled = false }
                 </div>
             )}
 
-            <button className="select-button" disabled={disabled}>
+            <button className="select-button" disabled={disabled} data-testid={`package-select-button-${pkg.id}`}>
                 Select Package
             </button>
         </div>

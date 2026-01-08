@@ -968,6 +968,38 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             };
         }
 
+        case 'setTradeIntent': {
+            if (state.phase !== 'Trade') return { success: false, message: 'Can only set trade intent in Trade phase' };
+            if (!payload) return { success: false, message: 'Missing payload' };
+
+            const { playerId, desiredInventory, ready } = payload;
+
+            if (!playerId || !desiredInventory) {
+                return { success: false, message: 'Invalid trade intent' };
+            }
+
+            // Validate player exists
+            const player = state.players.find(p => p.id === playerId);
+            if (!player) return { success: false, message: 'Player not found' };
+
+            const newTradeIntents = {
+                ...state.tradeIntents,
+                [playerId]: {
+                    playerId,
+                    desiredInventory,
+                    ready: ready ?? false
+                }
+            };
+
+            return {
+                success: true,
+                newState: {
+                    ...state,
+                    tradeIntents: newTradeIntents
+                }
+            };
+        }
+
         case 'placeFlag': {
             const { id, extraTurns } = payload || {};
             const cell = state.board[id];

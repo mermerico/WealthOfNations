@@ -32,11 +32,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, canAct = 
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '10px', color: '#888' }}>PHASE</span>
-                    <span style={{ fontWeight: 'bold', color: '#facc15' }}>{gameState.phase.toUpperCase()}</span>
+                    <span data-testid="phase-display" style={{ fontWeight: 'bold', color: '#facc15' }}>{gameState.phase.toUpperCase()}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '10px', color: '#888' }}>ROUND</span>
-                    <span style={{ fontWeight: 'bold' }}>{gameState.round}</span>
+                    <span data-testid="round-indicator" style={{ fontWeight: 'bold' }}>{gameState.round}</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '10px', color: '#888' }}>PLAYER</span>

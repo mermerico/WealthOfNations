@@ -18,6 +18,7 @@ import { MARKET_STEPS } from '../utils/marketDefinitions';
 import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
+import { TradeActionPanel } from '../components/game/TradeActionPanel';
 
 export const Game: React.FC = () => {
     // Game Engine State
@@ -59,6 +60,13 @@ export const Game: React.FC = () => {
 
     // Trade Modal State
     const [showTradeModal, setShowTradeModal] = useState(false);
+    const [prefilledTrade, setPrefilledTrade] = useState<{
+        targetId: string;
+        giving: TradeOffer;
+        receiving: TradeOffer;
+    } | null>(null);
+    // Selected player for operating costs display (local hotseat only)
+    const [selectedCostsPlayerId, setSelectedCostsPlayerId] = useState<string | null>(null);
 
     // Removed local pendingTrade state in favor of gameState.pendingTrade
 
@@ -72,7 +80,7 @@ export const Game: React.FC = () => {
 
     // Helper to get active player (the player whose turn it is, or the local player during simultaneous phases)
     const player = useMemo(() => {
-        if (mode === 'remote' && selfPlayer && (gameState.phase === 'Produce')) {
+        if (mode === 'remote' && selfPlayer && (gameState.phase === 'Produce' || gameState.phase === 'Trade')) {
             return gameState.players.find(p => p.id === selfPlayer.playerId) || gameState.players[gameState.currentTurnPlayerIndex];
         }
         return gameState.players[gameState.currentTurnPlayerIndex];
@@ -153,9 +161,10 @@ export const Game: React.FC = () => {
 
             // Exceptions for actions that can be taken out of turn
             const isTradeResponse = (action === 'acceptTrade' || action === 'rejectTrade');
+            const isSetIntent = action === 'setTradeIntent';
             const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
 
-            if (!canAct && !(isTradeResponse && isTargetOfTrade)) {
+            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent) {
                 console.warn(`Blocked action ${action} because it is not this player's turn.`);
                 return;
             }
@@ -319,6 +328,12 @@ export const Game: React.FC = () => {
             receiving
         });
         setShowTradeModal(false);
+        setPrefilledTrade(null);
+    };
+
+    const handleOpenTradeWithPlayer = (targetId: string, giving: TradeOffer, receiving: TradeOffer) => {
+        setPrefilledTrade({ targetId, giving, receiving });
+        setShowTradeModal(true);
     };
 
     const handleAcceptTrade = () => {
@@ -1494,6 +1509,7 @@ export const Game: React.FC = () => {
                                     ⟳ Rotate Last Tile
                                 </button>
                                 <button
+                                    data-testid="setup-pass-button"
                                     onClick={() => handleAction('pass')}
                                     disabled={gameState.setupPhase.pendingPlacement?.tilesRemaining?.length !== 0}
                                     style={{
@@ -1685,6 +1701,7 @@ export const Game: React.FC = () => {
 
                                     {/* Run Production Button */}
                                     <button
+                                        data-testid="run-production-button"
                                         onClick={handleRunProduction}
                                         disabled={player.resources.Food < productionTotals.totalFoodCost || player.resources.Energy < productionTotals.totalEnergyCost}
                                         style={{
@@ -1703,129 +1720,14 @@ export const Game: React.FC = () => {
                             )
                         ) : gameState.phase === 'Trade' ? (
                             /* Trade Phase Actions */
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                                {gameState.pendingTrade && gameState.pendingTrade.proposerId === player.id ? (
-                                    <div style={{
-                                        padding: '20px',
-                                        background: '#333',
-                                        borderRadius: '8px',
-                                        textAlign: 'center',
-                                        color: '#aaa',
-                                        border: '1px solid #555',
-                                        marginTop: 'auto',
-                                        marginBottom: 'auto'
-                                    }}>
-                                        <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
-                                        <div>Waiting for {gameState.players.find(p => p.id === gameState.pendingTrade!.targetId)?.name || 'target'} to respond...</div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={() => setShowTradeModal(true)}
-                                            style={{
-                                                padding: '12px',
-                                                background: '#3b82f6',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                fontSize: '14px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            🤝 Propose Trade
-                                        </button>
-
-                                        {/* Promissory Notes Section */}
-                                        <div style={{
-                                            background: '#222',
-                                            padding: '10px',
-                                            borderRadius: '4px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '8px'
-                                        }}>
-                                            <div style={{
-                                                color: '#aaa',
-                                                fontSize: '11px',
-                                                textAlign: 'center',
-                                                fontWeight: 'bold',
-                                                marginBottom: '4px'
-                                            }}>
-                                                Promissory Notes
-                                            </div>
-                                            <button
-                                                onClick={() => handleAction('takeLoan')}
-                                                disabled={20 - player.loans <= 0}
-                                                style={{
-                                                    padding: '8px',
-                                                    background: 20 - player.loans > 0 ? '#059669' : '#333',
-                                                    color: 20 - player.loans > 0 ? 'white' : '#666',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    fontSize: '12px',
-                                                    cursor: 20 - player.loans > 0 ? 'pointer' : 'not-allowed'
-                                                }}
-                                            >
-                                                💸 Take Loan (+${20 - player.loans})
-                                            </button>
-                                            <button
-                                                onClick={() => handleAction('repayLoan')}
-                                                disabled={player.loans === 0 || player.money < 25}
-                                                style={{
-                                                    padding: '8px',
-                                                    background: player.loans > 0 && player.money >= 25 ? '#dc2626' : '#333',
-                                                    color: player.loans > 0 && player.money >= 25 ? 'white' : '#666',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    fontSize: '12px',
-                                                    cursor: player.loans > 0 && player.money >= 25 ? 'pointer' : 'not-allowed'
-                                                }}
-                                            >
-                                                💰 Repay Loan (-$25)
-                                            </button>
-                                            {player.loans > 0 && (
-                                                <div style={{
-                                                    color: '#ef4444',
-                                                    fontSize: '10px',
-                                                    textAlign: 'center'
-                                                }}>
-                                                    {player.loans} note{player.loans > 1 ? 's' : ''} outstanding (-{player.loans * 3} VPs)
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div style={{
-                                            background: '#222',
-                                            padding: '10px',
-                                            borderRadius: '4px',
-                                            color: '#aaa',
-                                            fontSize: '12px',
-                                            textAlign: 'center'
-                                        }}>
-                                            Click on the market to buy or sell commodities, or propose a trade with another player.
-                                        </div>
-
-                                        {/* Pass Button */}
-                                        <button
-                                            onClick={() => handleAction('pass')}
-                                            style={{
-                                                padding: '12px',
-                                                background: '#059669',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                fontSize: '14px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer',
-                                                marginTop: 'auto'
-                                            }}
-                                        >
-                                            ✓ Pass
-                                        </button>
-                                    </>
-                                )}
-                            </div>
+                            <TradeActionPanel
+                                gameState={gameState}
+                                player={player}
+                                mode={mode}
+                                onAction={handleAction}
+                                onOpenTradeWithPlayer={handleOpenTradeWithPlayer}
+                                onSelectedPlayerChange={setSelectedCostsPlayerId}
+                            />
                         ) : (
                             /* Existing Build Menu */
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
@@ -1963,6 +1865,7 @@ export const Game: React.FC = () => {
 
                                 {/* Pass Button for Develop Phase */}
                                 <button
+                                    data-testid="develop-pass-button"
                                     onClick={() => handleAction('pass')}
                                     style={{
                                         padding: '12px',
@@ -1999,74 +1902,81 @@ export const Game: React.FC = () => {
                         </div>
                     )}
 
-                    {gameState.phase === 'Trade' && (
-                        <div style={{
-                            background: '#222',
-                            padding: '10px',
-                            borderRadius: '5px',
-                            marginTop: 'auto'
-                        }}>
-                            <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Operating Costs</h4>
-                            <div style={{ fontSize: '12px', color: '#aaa' }}>
-                                To run all your tiles (Stock / Required):
+                    {gameState.phase === 'Trade' && (() => {
+                        // Use selected player from dropdown in local mode, otherwise current turn player
+                        const costsPlayer = mode === 'local' && selectedCostsPlayerId
+                            ? gameState.players.find(p => p.id === selectedCostsPlayerId) || player
+                            : player;
+
+                        return (
+                            <div style={{
+                                background: '#222',
+                                padding: '10px',
+                                borderRadius: '5px',
+                                marginTop: 'auto'
+                            }}>
+                                <h4 style={{ margin: '0 0 5px 0', color: '#fff', borderBottom: '1px solid #555' }}>Operating Costs</h4>
+                                <div style={{ fontSize: '12px', color: '#aaa' }}>
+                                    To run {mode === 'local' && selectedCostsPlayerId ? `${costsPlayer.name}'s` : 'all your'} tiles (Stock / Required):
+                                </div>
+                                <div style={{ display: 'flex', gap: '12px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
+                                    {Object.values(gameState.board).filter(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id).length > 0 ? (
+                                        <>
+                                            {(() => {
+                                                // Calculate what would be needed to run all tiles
+                                                const visited = new Set<string>();
+                                                let foodNeeded = 0;
+                                                let energyNeeded = 0;
+                                                let oreNeeded = 0;
+
+                                                Object.values(gameState.board).forEach(cell => {
+                                                    if (cell.occupant?.type === 'Industry' && cell.occupant.playerId === costsPlayer.id) {
+                                                        const id = coordsToString(cell.q, cell.r);
+                                                        if (visited.has(id)) return;
+
+                                                        const bloc = identifyBloc(gameState.board, cell);
+                                                        bloc.forEach(b => visited.add(coordsToString(b.q, b.r)));
+
+                                                        // Check if this bloc has automation
+                                                        const hasAutomation = bloc.some(t => t.occupant?.tile?.automated);
+                                                        const costs = calculateBlocCosts(bloc, hasAutomation);
+                                                        foodNeeded += costs.Food;
+                                                        energyNeeded += costs.Energy;
+                                                        oreNeeded += costs.Ore;
+                                                    }
+                                                });
+
+                                                return (
+                                                    <>
+                                                        {foodNeeded > 0 && (
+                                                            <span style={{ color: costsPlayer.resources.Food >= foodNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <ResourceIcon type="Food" size={12} />: {costsPlayer.resources.Food} / {foodNeeded}
+                                                            </span>
+                                                        )}
+                                                        {energyNeeded > 0 && (
+                                                            <span style={{ color: costsPlayer.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <ResourceIcon type="Energy" size={12} />: {costsPlayer.resources.Energy} / {energyNeeded}
+                                                            </span>
+                                                        )}
+                                                        {oreNeeded > 0 && (
+                                                            <span style={{ color: costsPlayer.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <ResourceIcon type="Ore" size={12} />: {costsPlayer.resources.Ore} / {oreNeeded}
+                                                            </span>
+                                                        )}
+                                                        {foodNeeded === 0 && energyNeeded === 0 && oreNeeded === 0 && (
+                                                            <span style={{ color: '#4ade80' }}>No costs!</span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
+                                        </>
+                                    ) : (
+                                        <span style={{ color: '#666', fontStyle: 'italic' }}>No industries</span>
+                                    )}
+                                </div>
                             </div>
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '5px', fontSize: '11px', flexWrap: 'wrap' }}>
-                                {Object.values(gameState.board).filter(cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id).length > 0 ? (
-                                    <>
-                                        {(() => {
-                                            // Calculate what would be needed to run all tiles
-                                            const visited = new Set<string>();
-                                            let foodNeeded = 0;
-                                            let energyNeeded = 0;
-                                            let oreNeeded = 0;
-
-                                            Object.values(gameState.board).forEach(cell => {
-                                                if (cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) {
-                                                    const id = coordsToString(cell.q, cell.r);
-                                                    if (visited.has(id)) return;
-
-                                                    const bloc = identifyBloc(gameState.board, cell);
-                                                    bloc.forEach(b => visited.add(coordsToString(b.q, b.r)));
-
-                                                    // Check if this bloc has automation
-                                                    const hasAutomation = bloc.some(t => t.occupant?.tile?.automated);
-                                                    const costs = calculateBlocCosts(bloc, hasAutomation);
-                                                    foodNeeded += costs.Food;
-                                                    energyNeeded += costs.Energy;
-                                                    oreNeeded += costs.Ore;
-                                                }
-                                            });
-
-                                            return (
-                                                <>
-                                                    {foodNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Food >= foodNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <ResourceIcon type="Food" size={12} />: {player.resources.Food} / {foodNeeded}
-                                                        </span>
-                                                    )}
-                                                    {energyNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Energy >= energyNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <ResourceIcon type="Energy" size={12} />: {player.resources.Energy} / {energyNeeded}
-                                                        </span>
-                                                    )}
-                                                    {oreNeeded > 0 && (
-                                                        <span style={{ color: player.resources.Ore >= oreNeeded ? '#4ade80' : '#f87171', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <ResourceIcon type="Ore" size={12} />: {player.resources.Ore} / {oreNeeded}
-                                                        </span>
-                                                    )}
-                                                    {foodNeeded === 0 && energyNeeded === 0 && oreNeeded === 0 && (
-                                                        <span style={{ color: '#4ade80' }}>No costs!</span>
-                                                    )}
-                                                </>
-                                            );
-                                        })()}
-                                    </>
-                                ) : (
-                                    <span style={{ color: '#666', fontStyle: 'italic' }}>No industries</span>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
 
                 {/* Col 3: Map */}
@@ -2170,7 +2080,13 @@ export const Game: React.FC = () => {
                     allPlayers={gameState.players}
                     markets={gameState.markets}
                     onPropose={handleProposeTrade}
-                    onCancel={() => setShowTradeModal(false)}
+                    onCancel={() => {
+                        setShowTradeModal(false);
+                        setPrefilledTrade(null);
+                    }}
+                    initialSelectedPlayerId={prefilledTrade?.targetId}
+                    initialGiving={prefilledTrade?.giving}
+                    initialReceiving={prefilledTrade?.receiving}
                 />
             )}
 

@@ -291,6 +291,14 @@ export class LobbyManager {
         const result = applyGameAction(lobby.state, action, payload);
         if (result.success && result.newState) {
             lobby.state = result.newState;
+            if (action === 'setTradeIntent') {
+                console.log(`[LobbyManager] setTradeIntent success. New intents keys: ${Object.keys(lobby.state.tradeIntents || {}).join(',')}`);
+                const pid = (payload as any).playerId;
+                const intent = lobby.state.tradeIntents?.[pid];
+                console.log(`[LobbyManager] Intent for ${pid}: ready=${intent?.ready}`);
+            }
+        } else if (action === 'setTradeIntent') {
+            console.log(`[LobbyManager] setTradeIntent failed: ${result.message}`);
         }
         return result;
     }
@@ -634,6 +642,21 @@ export class LobbyManager {
         if (action === 'acceptTrade' || action === 'rejectTrade') {
             if (!state.pendingTrade) return false;
             return state.pendingTrade.targetId === seat.playerId;
+        }
+
+        // setTradeIntent can be done by any player during Trade phase
+        if (action === 'setTradeIntent') {
+            if (state.phase !== 'Trade') {
+                console.log(`[LobbyManager] Rejecting setTradeIntent: Wrong phase ${state.phase}`);
+                return false;
+            }
+            if (!payload || typeof payload !== 'object') return false;
+            const playerId = (payload as { playerId?: string }).playerId;
+            const allowed = playerId === seat.playerId;
+            if (!allowed) {
+                console.log(`[LobbyManager] Rejecting setTradeIntent: Payload ID ${playerId} !== Seat ID ${seat.playerId}`);
+            }
+            return allowed;
         }
 
         if (state.phase === 'Produce') {
