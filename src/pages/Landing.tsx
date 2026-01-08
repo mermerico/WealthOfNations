@@ -122,14 +122,12 @@ export function Landing({
                         <span>or</span>
                     </div>
 
-                    <div className="local-game-options">
-                        <button
-                            className="landing-button"
-                            onClick={onStartLocalGame}
-                        >
-                            Local Hotseat Game
-                        </button>
-                    </div>
+                    <button
+                        className="landing-button primary"
+                        onClick={onStartLocalGame}
+                    >
+                        Local Hotseat Game
+                    </button>
                 </div>
 
                 <div className="landing-status">
