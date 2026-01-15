@@ -10,6 +10,7 @@ import { LocalSetup } from './pages/LocalSetup';
 import { GameEngineProvider, useGameEngineContext } from './hooks/GameEngineProvider';
 
 import { TradeSandbox } from './pages/TradeSandbox';
+import { PlayerAid } from './components/game/PlayerAid';
 
 function AppShell() {
   const {
@@ -38,10 +39,12 @@ function AppShell() {
 
   // Sandbox Routing
   const [showSandbox, setShowSandbox] = useState(window.location.hash === '#trade-sandbox');
+  const [showPlayerAid, setShowPlayerAid] = useState(window.location.hash === '#player-aid');
 
   useEffect(() => {
     const handleHashChange = () => {
       setShowSandbox(window.location.hash === '#trade-sandbox');
+      setShowPlayerAid(window.location.hash === '#player-aid');
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
@@ -71,6 +74,10 @@ function AppShell() {
 
   if (showSandbox) {
     return <TradeSandbox />;
+  }
+
+  if (showPlayerAid) {
+    return <PlayerAid isOpen={true} onClose={() => { }} standalone={true} />;
   }
 
   const showLobby = mode === 'remote' && lobby && lobby.phase === 'forming';

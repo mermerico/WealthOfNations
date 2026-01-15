@@ -15,7 +15,7 @@ interface DevelopBuildMenuProps {
     setForceMode: (v: boolean) => void;
     setIsMoving: (v: boolean) => void;
     setMoveSourceId: (v: string | null) => void;
-    setMoveHistory: React.Dispatch<React.SetStateAction<Array<{ from: string; to: string }>>>;
+    setMoveHistory: React.Dispatch<React.SetStateAction<Array<{ from: string; to: string; cost: number }>>>;
     setMovesCompleted: React.Dispatch<React.SetStateAction<number>>;
     handleAction: (action: string, payload?: any) => void;
     canAfford: (type: IndustryType, isForce: boolean) => boolean;
@@ -24,7 +24,7 @@ interface DevelopBuildMenuProps {
 export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
     player,
     gameState,
-    selectedTool,
+
     forceMode,
     interactionLocked,
     setSelectedTool,
@@ -64,9 +64,9 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                         flexDirection: 'column',
                         alignItems: 'center',
                         padding: '8px',
-                        borderColor: selectedTool === 'Move' ? 'cyan' : '#444',
-                        background: selectedTool === 'Move' ? '#1c3332' : '#222',
-                        color: selectedTool === 'Move' ? 'cyan' : 'white',
+                        borderColor: '#444',
+                        background: '#222',
+                        color: 'white',
                         opacity: (interactionLocked || !hasOwnTiles || player.resources.Capital < 1) ? 0.4 : 1,
                         cursor: (!interactionLocked && hasOwnTiles && player.resources.Capital >= 1) ? 'pointer' : 'not-allowed',
                         filter: interactionLocked ? 'grayscale(0.8)' : 'none'
@@ -88,9 +88,9 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                         flexDirection: 'column',
                         alignItems: 'center',
                         padding: '8px',
-                        borderColor: selectedTool === 'Flag' ? 'yellow' : '#444',
-                        background: selectedTool === 'Flag' ? '#33321c' : '#222',
-                        color: selectedTool === 'Flag' ? 'yellow' : 'white',
+                        borderColor: '#444',
+                        background: '#222',
+                        color: 'white',
                         opacity: (interactionLocked || player.resources.Labor < 1 || player.flags <= 0) ? 0.4 : 1,
                         cursor: (!interactionLocked && player.resources.Labor >= 1 && player.flags > 0) ? 'pointer' : 'not-allowed',
                         filter: interactionLocked ? 'grayscale(0.8)' : 'none'
@@ -119,9 +119,9 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                         flexDirection: 'column',
                         alignItems: 'center',
                         padding: '8px',
-                        borderColor: selectedTool === 'Automate' ? 'magenta' : '#444',
-                        background: selectedTool === 'Automate' ? '#331c33' : '#222',
-                        color: selectedTool === 'Automate' ? 'magenta' : 'white',
+                        borderColor: '#444',
+                        background: '#222',
+                        color: 'white',
                         opacity: (interactionLocked || player.resources.Energy < 1 || player.resources.Capital < 2 || !hasNonAutomatedTiles) ? 0.4 : 1,
                         cursor: (!interactionLocked && player.resources.Energy >= 1 && player.resources.Capital >= 2 && hasNonAutomatedTiles) ? 'pointer' : 'not-allowed',
                         filter: interactionLocked ? 'grayscale(0.8)' : 'none'
@@ -168,7 +168,7 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                 {Object.keys(TILE_DEFINITIONS).map(typeKey => {
                     const type = typeKey as IndustryType;
                     const def = TILE_DEFINITIONS[type];
-                    const isSelected = selectedTool === type;
+
                     const costComponents = Object.entries(def.costStruct || {}).map(([costType, amount]) => ({ amount, type: costType }));
                     const affordable = canAfford(type, forceMode);
 
@@ -180,8 +180,8 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                             style={{
                                 display: 'flex', flexDirection: 'column', alignItems: 'center',
                                 padding: '8px',
-                                borderColor: isSelected ? 'green' : '#444',
-                                background: isSelected ? '#1c3320' : '#222',
+                                borderColor: '#444',
+                                background: '#222',
                                 opacity: (interactionLocked || !affordable) ? 0.4 : 1,
                                 cursor: (!interactionLocked && affordable) ? 'pointer' : 'not-allowed',
                                 filter: interactionLocked ? 'grayscale(0.8)' : 'none'

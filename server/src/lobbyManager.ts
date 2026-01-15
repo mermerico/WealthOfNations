@@ -665,10 +665,13 @@ export class LobbyManager {
             }
         }
 
-        if (action === 'loadState' || action === 'debug' || action === 'sandboxPlaceTile') {
-            return false;
+        if (action === 'loadState' || action === 'debug' || action === 'sandboxPlaceTile' || action === 'skipSetup') {
+            return process.env.TEST_MODE === 'true';
         }
 
+        if (activePlayerId !== seat.playerId) {
+            console.log(`[LobbyManager] Action ${action} denied. ActiveID: ${activePlayerId}, SeatID: ${seat.playerId}, SeatIndex: ${seat.seatIndex}, ActiveIndex: ${activePlayerIndex}`);
+        }
         return activePlayerId === seat.playerId;
     }
 }

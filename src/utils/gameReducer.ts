@@ -8,7 +8,7 @@ import { coordsToString, stringToCoords, getNeighbors } from './hexUtils';
 import { calculateGlobalProduction, identifyBloc, calculateBlocCosts, calculateProduction } from './production';
 import { TILE_DEFINITIONS } from './tileDefinitions';
 import { MARKET_STEPS } from './marketDefinitions';
-import { isValidPlacement } from './placementLogic';
+import { isValidPlacement, validateTileDots } from './placementLogic';
 import { getAvailablePackages } from './packageDefinitions';
 import { getDraftOrder, getDraftRoundInfo } from './setupLogic';
 import { isValidSetupPlacement } from './setupPlacementLogic';
@@ -18,6 +18,20 @@ export interface ActionResult {
     success: boolean;
     message?: string;
     newState?: GameState;
+}
+
+function addLog(state: GameState, message: string, type: 'action' | 'phase' | 'system', playerId?: string): GameState {
+    const newLog = {
+        id: Math.random().toString(36).substr(2, 9),
+        timestamp: Date.now(),
+        message,
+        type,
+        playerId
+    };
+    return {
+        ...state,
+        logs: [...(state.logs || []), newLog].slice(-50) // Keep last 50 logs, latest at the end
+    };
 }
 
 /**
@@ -604,10 +618,11 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
                 // Advance phase
                 if (state.phase === 'Trade') {
+                    const phaseState = addLog(state, 'Phase changed to Develop', 'phase');
                     return {
                         success: true,
                         newState: {
-                            ...state,
+                            ...phaseState,
                             players: playersWithoutPass,
                             phase: 'Develop',
                             consecutivePasses: 0,
@@ -617,10 +632,11 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 } else if (state.phase === 'Develop') {
                     // Reset production flag for all players
                     const playersReadyToProduce = playersWithoutPass.map(p => ({ ...p, hasProduced: false }));
+                    const phaseState = addLog(state, 'Phase changed to Produce', 'phase');
                     return {
                         success: true,
                         newState: {
-                            ...state,
+                            ...phaseState,
                             players: playersReadyToProduce,
                             phase: 'Produce',
                             consecutivePasses: 0,
@@ -642,10 +658,11 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         ? applyInterestFees(playersWithoutPass)
                         : playersWithoutPass;
 
+                    const phaseState = addLog(state, `Round ${state.round + 1} started`, 'system');
                     return {
                         success: true,
                         newState: {
-                            ...state,
+                            ...phaseState,
                             players: playersForTrade,
                             phase: 'Trade',
                             round: state.round + 1,
@@ -658,11 +675,13 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             } else {
                 // Next player
                 const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+                const player = state.players[state.currentTurnPlayerIndex];
+                const actionState = addLog(state, `${player.name} passed`, 'action', player.id);
 
                 return {
                     success: true,
                     newState: {
-                        ...state,
+                        ...actionState,
                         players: playersWithPass,
                         consecutivePasses: newConsecutivePasses,
                         currentTurnPlayerIndex: nextPlayerIndex
@@ -790,10 +809,12 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (proposer.money < giving.money) return { success: false, message: 'Insufficient money to give' };
             if (proposer.loans < giving.loans) return { success: false, message: 'Insufficient loans to give' };
 
+            const actionState = addLog(state, `${proposer.name} proposed a trade to ${target.name}`, 'action', proposer.id);
+
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     pendingTrade: {
                         proposerId,
                         targetId,
@@ -809,10 +830,13 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // In a real secure backend we'd check if the actor matches targetId, 
             // but the reducer is pure logic. The caller/server checks permissions.
 
+            const target = state.players.find(p => p.id === state.pendingTrade?.targetId);
+            const actionState = addLog(state, `${target?.name || 'Someone'} rejected a trade`, 'action', target?.id);
+
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     pendingTrade: null
                 }
             };
@@ -900,12 +924,14 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // The active player (proposer) effectively passes the turn by completing a trade.
             // We replicate basic turn advancement here.
 
+            const actionState = addLog(state, `${target.name} accepted a trade from ${proposer.name}`, 'action', target.id);
+
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     players: newPlayers,
                     pendingTrade: null,
                     consecutivePasses: 0,
@@ -1002,7 +1028,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
         }
 
         case 'placeFlag': {
-            const { id, extraTurns } = payload || {};
+            const { id } = payload || {};
             const cell = state.board[id];
 
             if (!cell) {
@@ -1083,19 +1109,19 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             }
 
             // Reset consecutive passes (action taken)
-            // Auto-advance turn unless extraTurns is set
-            const nextPlayerIndex = extraTurns
-                ? state.currentTurnPlayerIndex
-                : (state.currentTurnPlayerIndex + 1) % state.players.length;
+            // Reset consecutive passes (action taken)
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+
+            const actionState = addLog(state, `${currentPlayer.name} placed a flag at (${coordsToString(stringToCoords(id).q, stringToCoords(id).r)})`, 'action', currentPlayer.id);
 
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     board: newBoard,
                     players: newPlayers,
-                    consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex,
+                    consecutivePasses: 0,
                     isLastRound
                 }
             };
@@ -1105,7 +1131,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (state.phase !== 'Develop') return { success: false, message: 'Can only automate in Develop phase' };
             if (!payload) return { success: false, message: 'Missing payload' };
 
-            const { id, extraTurns } = payload;
+            const { id } = payload;
             const cell = state.board[id];
 
             if (!cell || !cell.occupant || cell.occupant.type !== 'Industry' || !cell.occupant.tile) {
@@ -1146,17 +1172,18 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             };
 
-            const nextPlayerIndex = extraTurns
-                ? state.currentTurnPlayerIndex
-                : (state.currentTurnPlayerIndex + 1) % state.players.length;
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+
+            const actionState = addLog(state, `${player.name} automated a ${cell.occupant.tile.type} at (${coordsToString(stringToCoords(id).q, stringToCoords(id).r)})`, 'action', player.id);
 
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     players: newPlayers,
                     currentTurnPlayerIndex: nextPlayerIndex,
-                    board: newBoard
+                    board: newBoard,
+                    consecutivePasses: 0
                 }
             };
         }
@@ -1165,7 +1192,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (state.phase !== 'Develop') return { success: false, message: 'Can only build in Develop phase' };
             if (!payload) return { success: false, message: 'Missing payload' };
 
-            const { id, type, orientation, force, extraTurns } = payload;
+            const { id, type, orientation, force } = payload;
             const industryType = type as IndustryType;
 
             const player = state.players[state.currentTurnPlayerIndex];
@@ -1182,6 +1209,10 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (force && !isNaturallyValid) {
                 if (player.resources['Capital'] < 1) {
                     return { success: false, message: 'Not enough Capital for force placement' };
+                }
+                const hasExistingFlag = state.board[id].occupant?.type === 'Flag' && state.board[id].occupant.playerId === player.id;
+                if (!hasExistingFlag && player.flags < 1) {
+                    return { success: false, message: 'Not enough Flags for placement off-grid' };
                 }
             }
 
@@ -1201,14 +1232,20 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             }
 
-            // Deduct
+            // Deduct resources
             const newRes = { ...player.resources };
             for (const [res, amount] of Object.entries(cost)) {
                 newRes[res as CommodityType] -= amount!;
             }
 
+            // Flag handling: 
+            // If building on own flag: 0 flags consumed (flag on board becomes implicit industry flag)
+            // If building on empty (force): 1 flag consumed from supply
+            const hasExistingFlag = state.board[id].occupant?.type === 'Flag' && state.board[id].occupant.playerId === player.id;
+            const flagsConsumed = hasExistingFlag ? 0 : 1;
+
             const newPlayers = state.players.map((p, i) =>
-                i === state.currentTurnPlayerIndex ? { ...p, resources: newRes } : p
+                i === state.currentTurnPlayerIndex ? { ...p, resources: newRes, flags: p.flags - flagsConsumed } : p
             );
 
             // Place Tile
@@ -1238,9 +1275,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 [industryType]: state.tilesRemaining[industryType] - 1
             };
 
-            const nextPlayerIndex = extraTurns
-                ? state.currentTurnPlayerIndex
-                : (state.currentTurnPlayerIndex + 1) % state.players.length;
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
             // Check for game end conditions
             let isLastRound = state.isLastRound;
@@ -1255,10 +1290,12 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             }
 
+            const actionState = addLog(state, `${player.name} built a ${industryType} at (${coordsToString(stringToCoords(id).q, stringToCoords(id).r)})`, 'action', player.id);
+
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     players: newPlayers,
                     board: newBoard,
                     tilesRemaining: newTilesRemaining,
@@ -1273,7 +1310,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (state.phase !== 'Develop') return { success: false, message: 'Can only move in Develop phase' };
             if (!payload) return { success: false, message: 'Missing payload' };
 
-            const { fromId, toId, extraTurns } = payload;
+            const { fromId, toId, force, skipBaseCost, orientation } = payload;
 
             if (toId === '0,0') {
                 return { success: false, message: 'Cannot move to center tile' };
@@ -1281,9 +1318,16 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
             const player = state.players[state.currentTurnPlayerIndex];
 
-            // Cost: 1 Capital
-            if (player.resources['Capital'] < 1) {
-                return { success: false, message: 'Not enough Capital' };
+            // Base Cost: 1 Capital (unless skipped, e.g., for 2nd/3rd move of the action)
+            const baseCost = skipBaseCost ? 0 : 1;
+
+            // Force Cost: 1 Capital per tile forced
+            const forceCost = force ? 1 : 0;
+
+            const totalCost = baseCost + forceCost;
+
+            if (player.resources['Capital'] < totalCost) {
+                return { success: false, message: `Not enough Capital (Need ${totalCost})` };
             }
 
             const fromCell = state.board[fromId];
@@ -1293,6 +1337,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 return { success: false, message: 'Invalid source' };
             }
 
+            // Destination basic validation (must be empty or own flag)
             let validDest = false;
             let refundFlag = false;
 
@@ -1307,13 +1352,24 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 return { success: false, message: 'Invalid destination' };
             }
 
+            // Dot Adjacency Validation (unless Forced)
+            const movedTile = fromCell.occupant.tile;
+            if (movedTile && !force) {
+                const targetOrientation = orientation !== undefined ? orientation : (movedTile.orientation || 0);
+                const dotValidation = validateTileDots(state.board, toId, movedTile.type, targetOrientation, fromId);
+
+                if (!dotValidation.isValid) {
+                    return { success: false, message: `${dotValidation.reason} (use Force to override)` };
+                }
+            }
+
             const newPlayers = state.players.map((p, i) =>
                 i === state.currentTurnPlayerIndex
                     ? {
                         ...p,
                         resources: {
                             ...p.resources,
-                            Capital: p.resources['Capital'] - 1
+                            Capital: p.resources['Capital'] - totalCost
                         },
                         flags: refundFlag ? p.flags + 1 : p.flags
                     }
@@ -1321,22 +1377,147 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             );
 
             const movedOccupant = { ...fromCell.occupant };
+            if (movedOccupant.tile) {
+                movedOccupant.tile = {
+                    ...movedOccupant.tile,
+                    orientation: orientation !== undefined ? orientation : (movedOccupant.tile.orientation || 0)
+                };
+            }
 
-            const nextPlayerIndex = extraTurns
-                ? state.currentTurnPlayerIndex
-                : (state.currentTurnPlayerIndex + 1) % state.players.length;
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+
+            const actionState = addLog(state, `${player.name} moved a tile from (${fromId}) to (${toId})`, 'action', player.id);
 
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     players: newPlayers,
+                    consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex,
                     board: {
                         ...state.board,
                         [fromId]: { ...fromCell, occupant: null },
                         [toId]: { ...toCell, occupant: movedOccupant }
                     }
+                }
+            };
+        }
+
+        case 'moveIndustrySequence': {
+            if (state.phase !== 'Develop') return { success: false, message: 'Can only move in Develop phase' };
+            if (!payload || !payload.moves || !Array.isArray(payload.moves)) return { success: false, message: 'Missing moves payload' };
+
+            const moves = payload.moves as Array<{ fromId: string; toId: string; orientation?: number; force?: boolean; skipBaseCost?: boolean }>;
+            const player = state.players[state.currentTurnPlayerIndex];
+
+            // Initialize tracking state
+            let currentBoard = { ...state.board };
+            let currentCapital = player.resources.Capital;
+            let currentFlags = player.flags;
+            let totalCost = 0;
+            let logDetails: string[] = [];
+
+            // Process moves
+            // Limit to 3 moves
+            if (moves.length > 3) return { success: false, message: 'Max 3 moves allowed' };
+
+            for (const move of moves) {
+                const { fromId, toId, orientation, force, skipBaseCost } = move;
+
+                if (toId === '0,0') return { success: false, message: 'Cannot move to center tile' };
+
+                const baseCost = skipBaseCost ? 0 : 1;
+                const forceCost = force ? 1 : 0;
+                const moveCost = baseCost + forceCost;
+
+                if (currentCapital < moveCost) return { success: false, message: `Insufficient Capital (Need ${moveCost})` };
+
+                const fromCell = currentBoard[fromId];
+                const toCell = currentBoard[toId];
+
+                // Validate Source
+                if (!fromCell.occupant || fromCell.occupant.type !== 'Industry' || fromCell.occupant.playerId !== player.id) {
+                    return { success: false, message: `Invalid source at ${fromId}` };
+                }
+
+                // Validate Destination
+                let validDest = false;
+                let stepRefundFlag = false;
+
+                if (fromId === toId) {
+                    validDest = true;
+                } else if (!toCell.occupant) {
+                    validDest = true;
+                } else if (toCell.occupant.type === 'Flag' && toCell.occupant.playerId === player.id) {
+                    validDest = true;
+                    stepRefundFlag = true;
+                }
+
+                if (!validDest) return { success: false, message: `Invalid destination at ${toId}` };
+
+                // Validate Dot Adjacency
+                const movedTile = fromCell.occupant.tile;
+                if (movedTile && !force) {
+                    const targetOrientation = orientation !== undefined ? orientation : (movedTile.orientation || 0);
+                    // Use validateTileDots against currentBoard (which mirrors state as we move)
+                    const dotValidation = validateTileDots(currentBoard, toId, movedTile.type, targetOrientation, fromId);
+                    if (!dotValidation.isValid) {
+                        return { success: false, message: `${dotValidation.reason} (use Force to override)` };
+                    }
+                }
+
+                // Apply Move to Temp State
+                currentCapital -= moveCost;
+                totalCost += moveCost;
+                if (stepRefundFlag) {
+                    currentFlags += 1;
+                    // refundFlag tracked elsewhere or unused?
+                    // We increment currentFlags so we are good.
+                }
+
+                const movedOccupant = { ...fromCell.occupant };
+                if (movedOccupant.tile) {
+                    movedOccupant.tile = {
+                        ...movedOccupant.tile,
+                        orientation: orientation !== undefined ? orientation : (movedOccupant.tile.orientation || 0)
+                    };
+                }
+
+                currentBoard = {
+                    ...currentBoard,
+                    [fromId]: { ...fromCell, occupant: null },
+                    [toId]: { ...toCell, occupant: movedOccupant }
+                };
+
+                logDetails.push(`${fromId}→${toId}`);
+            }
+
+            // Apply final state changes
+            const finalPlayers = state.players.map((p, i) =>
+                i === state.currentTurnPlayerIndex
+                    ? {
+                        ...p,
+                        resources: {
+                            ...p.resources,
+                            Capital: currentCapital // Use the final tracking variable directly
+                        },
+                        flags: currentFlags
+                    }
+                    : p
+            );
+
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+            const actionState = addLog(state, `${player.name} moved tiles: ${logDetails.join(', ')}`, 'action', player.id);
+
+            return {
+                success: true,
+                newState: {
+                    ...actionState,
+                    players: finalPlayers,
+                    board: currentBoard,
+                    consecutivePasses: 0,
+                    currentTurnPlayerIndex: nextPlayerIndex
                 }
             };
         }
@@ -1449,10 +1630,12 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             }
 
+            const actionState = addLog(state, `${player.name} completed production`, 'action', player.id);
+
             return {
                 success: true,
                 newState: {
-                    ...state,
+                    ...actionState,
                     players: newPlayers,
                     currentTurnPlayerIndex: nextIndex
                 }
@@ -1551,6 +1734,25 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             return {
                 success: true,
                 newState: { ...state, players: newPlayers }
+            };
+        }
+
+        case 'skipSetup': {
+            // Debug action: Skip the Setup phase entirely, going directly to Trade
+            // Used in integration tests
+            if (state.phase !== 'Setup') {
+                return { success: false, message: 'Not in Setup phase' };
+            }
+            const firstPlayerIndex = state.setupPhase?.firstPlayerIndex ?? 0;
+            return {
+                success: true,
+                newState: {
+                    ...state,
+                    phase: 'Trade',
+                    currentTurnPlayerIndex: firstPlayerIndex,
+                    firstPlayerIndex: firstPlayerIndex,
+                    setupPhase: undefined
+                }
             };
         }
 

@@ -32,6 +32,18 @@
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
+    box-sizing: border-box;
+}
+
+.player-aid-modal.standalone {
+    width: 100%;
+    max-width: none;
+    min-height: 100vh;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    overflow-y: visible;
+    /* Let the window handle scrolling */
 }
 
 .player-aid-close {

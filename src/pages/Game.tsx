@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Board } from '../components/game/Board';
 import type { HexCell, IndustryType, CommodityType, TradeOffer } from '../types/gameState';
 import { TILE_DEFINITIONS } from '../utils/tileDefinitions';
-import { coordsToString, stringToCoords, getNeighbors, getNeighbor } from '../utils/hexUtils';
+import { coordsToString, stringToCoords, getNeighbors } from '../utils/hexUtils';
 import { calculateProduction, calculateGlobalProduction, identifyBloc, calculateBlocCosts } from '../utils/production';
 import { MarketBoard } from '../components/game/MarketBoard';
 import { PlayerRoster } from '../components/game/PlayerRoster';
@@ -11,7 +11,7 @@ import { useGameEngineContext } from '../hooks/GameEngineProvider';
 import { ResourceIcon } from '../components/ui/ResourceIcon';
 import SetupPhase from '../components/game/SetupPhase';
 import { getValidSetupPlacements } from '../utils/setupPlacementLogic';
-import { getValidPlacements } from '../utils/placementLogic';
+import { getValidPlacements, getValidMoveTargets, validateTileDots } from '../utils/placementLogic';
 import { TradeModal, AcceptTradeModal } from '../components/game/TradeModal';
 import MarketTransactionModal from '../components/game/MarketTransactionModal';
 import { MARKET_STEPS } from '../utils/marketDefinitions';
@@ -19,11 +19,11 @@ import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
 import { TradeActionPanel } from '../components/game/TradeActionPanel';
-import { PlayerAid } from '../components/game/PlayerAid';
 import { PlacingTilePanel } from '../components/game/PlacingTilePanel';
 import { MoveOperationPanel } from '../components/game/MoveOperationPanel';
 import { SetupActionsPanel } from '../components/game/SetupActionsPanel';
 import { ProduceActionsPanel } from '../components/game/ProduceActionsPanel';
+import { ActionLog } from '../components/game/ActionLog';
 import { DevelopBuildMenu } from '../components/game/DevelopBuildMenu';
 
 export const Game: React.FC = () => {
@@ -47,10 +47,9 @@ export const Game: React.FC = () => {
     const [forceMode, setForceMode] = useState(false);
     const [moveSourceId, setMoveSourceId] = useState<string | null>(null);
     const [showLeaveConfirmation, setShowLeaveConfirmation] = useState(false);
-    const [showPlayerAid, setShowPlayerAid] = useState(false);
 
     // Move operation state
-    const [moveHistory, setMoveHistory] = useState<Array<{ from: string, to: string }>>([]);
+    const [moveHistory, setMoveHistory] = useState<Array<{ from: string; to: string; cost: number; orientation?: number; force?: boolean; skipBaseCost?: boolean }>>([]);
     const [movesCompleted, setMovesCompleted] = useState(0);
     const [isMoving, setIsMoving] = useState(false);
     const [moveForceMode, setMoveForceMode] = useState(false);
@@ -86,6 +85,12 @@ export const Game: React.FC = () => {
     const [marketErrorMessage, setMarketErrorMessage] = useState<string | null>(null);
     const [tradeAcceptedToast, setTradeAcceptedToast] = useState(false);
     const [showProductionConfirmation, setShowProductionConfirmation] = useState(false);
+    const [showCoordinates] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const params = new URLSearchParams(window.location.search);
+        return navigator.webdriver || params.has('debug') || params.has('coordinates');
+    });
+
     const prevPendingTradeRef = useRef<any>(null);
     const prevTurnIndexRef = useRef<number>(gameState.currentTurnPlayerIndex);
 
@@ -103,6 +108,36 @@ export const Game: React.FC = () => {
     // Auto-determine tile type from pendingPlacement
     const setupTileType = gameState.setupPhase?.pendingPlacement?.tilesRemaining[0] || null;
 
+    // Derived State for Move Preview
+    const previewGameState = useMemo(() => {
+        if (!moveHistory || moveHistory.length === 0) return gameState;
+
+        const newBoard = { ...gameState.board };
+        moveHistory.forEach(move => {
+            const { from, to, orientation } = move;
+            const fromCell = newBoard[from];
+            const toCell = newBoard[to];
+
+            if (fromCell && fromCell.occupant && toCell) {
+                const movedOccupant = { ...fromCell.occupant };
+                if (movedOccupant.tile) {
+                    movedOccupant.tile = {
+                        ...movedOccupant.tile,
+                        orientation: orientation !== undefined ? orientation : (movedOccupant.tile.orientation || 0)
+                    };
+                }
+
+                newBoard[from] = { ...fromCell, occupant: null };
+                newBoard[to] = { ...toCell, occupant: movedOccupant };
+            }
+        });
+
+        return {
+            ...gameState,
+            board: newBoard
+        };
+    }, [gameState, moveHistory]);
+
     const activePlayerId = useMemo(() => {
         if (gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined) {
             const drafter = gameState.players[gameState.setupPhase.currentDrafterIndex];
@@ -118,10 +153,10 @@ export const Game: React.FC = () => {
 
     // Turn Notification Sound
     const turnSound = useMemo(() => new Audio('/sounds/turn-start.wav'), []);
-    const prevTurnKey = React.useRef(`${gameState.phase}-${gameState.currentTurnPlayerIndex}`);
+    const prevTurnKey = React.useRef(`${gameState.phase} -${gameState.currentTurnPlayerIndex} `);
 
     useEffect(() => {
-        const currentKey = `${gameState.phase}-${gameState.currentTurnPlayerIndex}`;
+        const currentKey = `${gameState.phase} -${gameState.currentTurnPlayerIndex} `;
         if (currentKey !== prevTurnKey.current && !gameState.gameEnded) {
             prevTurnKey.current = currentKey;
 
@@ -244,12 +279,14 @@ export const Game: React.FC = () => {
                 });
                 setValidPlacements(valids);
             } else if (selectedTool === 'Move') {
-                // Valid cells are those with player's own industry tiles (if has Capital and not already moving)
+                // Highlight player's own industry tiles when selecting which tile to move
+                // Use previewGameState to show tiles at their new positions after moves
                 const valids: Record<string, number[]> = {};
-                if (player.resources.Capital >= 1 && !isMoving) {
-                    Object.entries(gameState.board).forEach(([id, cell]) => {
+                if (!isMoving || !moveSourceId) {
+                    // Show all player's industry tiles as valid sources
+                    Object.entries(previewGameState.board).forEach(([id, cell]) => {
                         if (cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id) {
-                            valids[id] = [0]; // Orientation doesn't matter for move tool
+                            valids[id] = [0]; // Dummy orientation, not used for highlighting source tiles
                         }
                     });
                 }
@@ -303,7 +340,7 @@ export const Game: React.FC = () => {
         } else {
             setValidPlacements(null);
         }
-    }, [gameState.phase, gameState.board, selectedTool, player.id, player.resources, player.flags, forceMode, isMoving]);
+    }, [gameState.phase, gameState.board, selectedTool, player.id, player.resources, player.flags, forceMode, isMoving, moveSourceId, moveHistory, previewGameState.board]);
 
     // Setup Handlers
     const handleSelectPackage = (packageId: string) => {
@@ -427,9 +464,10 @@ export const Game: React.FC = () => {
             playerBlocs.forEach((bloc, index) => {
                 // Initialize with all tiles unchecked (player must check what they can afford)
                 const allTileIds = new Set(bloc.tiles.map(t => coordsToString(t.q, t.r)));
+                const hasAutomation = bloc.tiles.some(t => t.occupant?.tile?.automated);
                 newConfigs.set(index, {
                     powered: false,
-                    automated: false,
+                    automated: hasAutomation,
                     fedTiles: allTileIds
                 });
             });
@@ -738,9 +776,14 @@ export const Game: React.FC = () => {
                     // Clicking the same tile deselects it
                     setMoveSourceId(null);
                 } else {
+                    // Check if move limit reached (unless we are just editing? No, clicking new dest is new move)
+                    if (movesCompleted >= 3) {
+                        return;
+                    }
+
                     // Validate the destination
-                    const fromCell = gameState.board[moveSourceId];
-                    const toCell = gameState.board[id];
+                    const fromCell = previewGameState.board[moveSourceId];
+                    const toCell = previewGameState.board[id];
 
                     // Basic validation
                     let isValidDest = false;
@@ -756,77 +799,48 @@ export const Game: React.FC = () => {
                         return;
                     }
 
-                    // Check for partial dot mismatches (unless force mode)
+                    // Otherwise, we are selecting a new destination (or updating pending)
+                    // Logic to find valid orientation
                     const movedTile = fromCell.occupant?.tile;
-                    if (movedTile && !moveForceMode) {
-                        const tileDef = TILE_DEFINITIONS[movedTile.type];
-                        const coords = stringToCoords(id);
-                        let hasMismatch = false;
+                    if (!movedTile) {
+                        setMoveSourceId(null);
+                        return;
+                    }
 
-                        // Check each edge for half-dots
-                        for (let i = 0; i < 6; i++) {
-                            const absoluteSide = (i + movedTile.orientation) % 6;
-                            const edgeFeature = tileDef.features.find(f =>
-                                f.type === 'Edge' && f.position === i && f.feature === 'HalfDot'
-                            );
+                    // Logic: If already pending at this location? (Covered by block above).
+                    // So this is a NEW location.
 
-                            if (edgeFeature) {
-                                const neighborCoords = getNeighbor(coords, absoluteSide);
-                                const neighborId = coordsToString(neighborCoords.q, neighborCoords.r);
-                                const neighborCell = gameState.board[neighborId];
+                    let finalOrientation = movedTile.orientation || 0;
 
-                                if (neighborCell?.occupant?.type === 'Industry' && neighborCell.occupant.tile) {
-                                    const neighborTile = neighborCell.occupant.tile;
-                                    const neighborDef = TILE_DEFINITIONS[neighborTile.type];
-                                    const oppositeSide = (absoluteSide + 3) % 6;
-                                    const relativeOpposite = (oppositeSide - neighborTile.orientation + 6) % 6;
-                                    const neighborEdge = neighborDef.features.find(f =>
-                                        f.type === 'Edge' && f.position === relativeOpposite && f.feature === 'HalfDot'
-                                    );
+                    // If we have a pending target (at a DIFF location), maybe use its orientation as valid start?
+                    // No, stick to source or default.
 
-                                    if (neighborEdge && neighborEdge.commodity !== edgeFeature.commodity) {
-                                        hasMismatch = true;
-                                        break;
-                                    }
+                    // Try to find valid orientation if not forcing
+                    if (!moveForceMode) {
+                        const dotValidation = validateTileDots(previewGameState.board, id, movedTile.type, finalOrientation, moveSourceId);
+                        if (!dotValidation.isValid) {
+                            let foundValid = false;
+                            for (let o = 0; o < 6; o++) {
+                                if (o === finalOrientation) continue;
+                                const check = validateTileDots(previewGameState.board, id, movedTile.type, o, moveSourceId);
+                                if (check.isValid) {
+                                    finalOrientation = o;
+                                    foundValid = true;
+                                    break;
                                 }
                             }
-                        }
-
-                        if (hasMismatch) {
-                            // Show pending move target with rotation option
-                            setPendingMoveTarget({ from: moveSourceId, to: id, orientation: movedTile.orientation });
-                            return;
-                        }
-                    }
-
-                    // Execute the move
-                    handleAction('moveIndustry', { fromId: moveSourceId, toId: id });
-
-                    // Track the move
-                    setMoveHistory(prev => [...prev, { from: moveSourceId, to: id }]);
-                    setMovesCompleted(prev => prev + 1);
-                    setMoveSourceId(null);
-
-                    // If 3 moves completed, end move mode and deduct capital
-                    if (movesCompleted + 1 >= 3) {
-                        // Deduct capital
-                        const updatedPlayer = {
-                            ...player,
-                            resources: {
-                                ...player.resources,
-                                Capital: player.resources.Capital - 1
+                            if (!foundValid) {
+                                // If no valid orientation found, trigger Force dialog (via pending target with force implication? Or just set pending and let validation UI show error?)
+                                // The UI displays validation error if pending target is invalid?
+                                // MoveOperationPanel shows "Confirm Force Move" if pendingMoveTarget is set. 
+                                // So setting pendingMoveTarget IS how we trigger strict force dialog.
                             }
-                        };
-                        handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
-
-                        // Reset move state and advance turn
-                        setIsMoving(false);
-                        setMoveSourceId(null);
-                        setMoveHistory([]);
-                        setMovesCompleted(0);
-                        setMoveForceMode(false);
-                        handleAction('pass');
+                        }
                     }
+
+                    // Set as pending target
+                    setPendingMoveTarget({ from: moveSourceId, to: id, orientation: finalOrientation });
+                    return;
                 }
             }
         }
@@ -1012,15 +1026,16 @@ export const Game: React.FC = () => {
                     movesCompleted={movesCompleted}
                     moveSourceId={moveSourceId}
                     moveHistory={moveHistory}
-                    moveForceMode={moveForceMode}
-                    pendingMoveTarget={pendingMoveTarget}
-                    player={player}
-                    gameState={gameState}
-                    setMoveForceMode={setMoveForceMode}
-                    setPendingMoveTarget={setPendingMoveTarget}
-                    setMoveSourceId={setMoveSourceId}
                     setMoveHistory={setMoveHistory}
                     setMovesCompleted={setMovesCompleted}
+                    moveForceMode={moveForceMode}
+                    setMoveForceMode={setMoveForceMode}
+                    pendingMoveTarget={pendingMoveTarget}
+                    setPendingMoveTarget={setPendingMoveTarget}
+                    onPass={() => handleAction('pass')}
+                    player={player}
+                    gameState={gameState}
+                    setMoveSourceId={setMoveSourceId}
                     setIsMoving={setIsMoving}
                     handleAction={handleAction}
                 />
@@ -1121,6 +1136,10 @@ export const Game: React.FC = () => {
         );
     };
 
+    const handleOpenPlayerAid = () => {
+        window.open('/#player-aid', 'PlayerAid', 'width=1050,height=900,menubar=no,toolbar=no,location=no,status=no');
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0', background: '#111' }}>
             {/* Victory Screen Overlay */}
@@ -1166,7 +1185,7 @@ export const Game: React.FC = () => {
                 lobbyCode={mode === 'remote' && lobby ? lobby.code : undefined}
                 onLeave={() => setShowLeaveConfirmation(true)}
                 onSave={mode === 'remote' && lobby?.phase === 'inGame' ? saveGame : undefined}
-                onOpenPlayerAid={() => setShowPlayerAid(true)}
+                onOpenPlayerAid={handleOpenPlayerAid}
             />
 
             {/* Main Layout - 4 Columns */}
@@ -1454,6 +1473,9 @@ export const Game: React.FC = () => {
                     </div>
                 </div>
 
+                {/* Action Log Overlay */}
+                <ActionLog logs={gameState.logs || []} players={gameState.players} />
+
                 {/* Col 3: Map */}
                 <div style={{ flex: 1, position: 'relative', background: '#000' }}>
                     {/* No Valid Placements Warning */}
@@ -1469,24 +1491,44 @@ export const Game: React.FC = () => {
                     )}
                     <div style={{ position: 'absolute', inset: 0 }}>
                         <Board
-                            board={gameState.board}
+                            board={previewGameState.board}
                             players={gameState.players}
                             onCellClick={handleCellClick}
                             selectedCellId={moveSourceId || (gameState.phase === 'Setup' && gameState.setupPhase?.pendingPlacement?.placementHistory && gameState.setupPhase.pendingPlacement.placementHistory.length > 0
                                 ? gameState.setupPhase.pendingPlacement.placementHistory[gameState.setupPhase.pendingPlacement.placementHistory.length - 1]
                                 : undefined)}
-                            ghostTile={gameState.phase === 'Setup' && setupTileType && selectedCellId && setupValidPlacements[selectedCellId] ?
-                                { id: selectedCellId, type: setupTileType, orientation: setupValidPlacements[selectedCellId][0] } :
-                                (interactionMode === 'placing' ? pendingBuild : null)}
+                            ghostTile={
+                                gameState.phase === 'Setup' && setupTileType && selectedCellId && setupValidPlacements[selectedCellId]
+                                    ? { id: selectedCellId, type: setupTileType, orientation: setupValidPlacements[selectedCellId][0] }
+                                    : (interactionMode === 'placing' ? pendingBuild : (
+                                        pendingMoveTarget && pendingMoveTarget.to
+                                            ? {
+                                                id: pendingMoveTarget.to,
+                                                type: previewGameState.board[pendingMoveTarget.from]?.occupant?.tile?.type || 'Farm', // Fallback safest
+                                                orientation: pendingMoveTarget.orientation
+                                            }
+                                            : null
+                                    ))
+                            }
                             highlightedCells={
-                                moveSourceId && selectedTool === 'Move' ?
-                                    // Show valid target cells in green when a tile is selected for moving (excluding center)
-                                    Object.keys(gameState.board).filter(id => id !== '0,0' && (!gameState.board[id].occupant || gameState.board[id].occupant?.playerId === player.id)) :
-                                    (gameState.phase === 'Setup' ?
-                                        Object.keys(setupValidPlacements) :
-                                        (validPlacements ? Object.keys(validPlacements) : undefined))
+                                (interactionMode === 'placing' && pendingBuild) ? [pendingBuild.id] :
+                                    (pendingMoveTarget && pendingMoveTarget.to) ? [pendingMoveTarget.to] :
+                                        (moveSourceId && selectedTool === 'Move' ?
+                                            // Show valid target cells in green when a tile is selected for moving
+                                            (moveForceMode
+                                                ? Object.keys(gameState.board).filter(id =>
+                                                    id !== '0,0' &&
+                                                    id !== moveSourceId &&
+                                                    (!gameState.board[id].occupant ||
+                                                        (gameState.board[id].occupant?.type === 'Flag' &&
+                                                            gameState.board[id].occupant?.playerId === player.id)))
+                                                : getValidMoveTargets(previewGameState.board, moveSourceId, player.id))
+                                            : (previewGameState.phase === 'Setup' ?
+                                                Object.keys(setupValidPlacements) :
+                                                (validPlacements ? Object.keys(validPlacements) : undefined)))
                             }
                             hoverHighlightedCells={hoverHighlightedCells}
+                            showCoordinates={showCoordinates}
                         />
                     </div>
                 </div>
@@ -1580,10 +1622,7 @@ export const Game: React.FC = () => {
                 )
             }
 
-            <PlayerAid
-                isOpen={showPlayerAid}
-                onClose={() => setShowPlayerAid(false)}
-            />
+
 
             <ConfirmationModal
                 isOpen={showLeaveConfirmation}

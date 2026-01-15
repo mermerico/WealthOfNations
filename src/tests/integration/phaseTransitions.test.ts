@@ -65,8 +65,12 @@ function createGameState(phase: 'Trade' | 'Develop' | 'Produce', playerCount: nu
             Mine: 18,
             Factory: 18,
             Bank: 18
-        }
-    };
+        },
+        settings: {
+            promissoryNoteInterestFees: false
+        },
+        logs: []
+    } as any; // Cast as any because createGameState returns GameState and we want to ensure all properties are included
 }
 
 // Helper to execute an action using the real game reducer

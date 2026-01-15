@@ -290,8 +290,7 @@ Players take turns taking **one Develop Action** at a time until all pass in suc
 
 * Moved tiles keep their Flags. If moved to a hex that already had a flag, the extra flag returns to supply.
 
-
-* You may Force Placement during a move (costs 1 Capital total for the action, covering the move and the forced placement).
+* For each tile you move you may spend 1 additional Capital cube to ignore placement rules (mismatched dots) for that tile.
 
 
 

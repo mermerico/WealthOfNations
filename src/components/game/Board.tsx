@@ -12,9 +12,19 @@ interface BoardProps {
     ghostTile?: { id: string, type: IndustryType, orientation: number } | null;
     highlightedCells?: string[];
     hoverHighlightedCells?: string[];
+    showCoordinates?: boolean;
 }
 
-export const Board: React.FC<BoardProps> = ({ board, players, onCellClick, selectedCellId, ghostTile, highlightedCells, hoverHighlightedCells }) => {
+export const Board: React.FC<BoardProps> = ({
+    board,
+    players,
+    onCellClick,
+    selectedCellId,
+    ghostTile,
+    highlightedCells,
+    hoverHighlightedCells,
+    showCoordinates = false
+}) => {
     const cells = Object.values(board);
 
     // Auto-fit logic (simplified)
@@ -50,6 +60,7 @@ export const Board: React.FC<BoardProps> = ({ board, players, onCellClick, selec
                                 isHighlighted={isHighlighted}
                                 isHoverHighlighted={isHoverHighlighted}
                                 renderBorder={false}
+                                showCoordinates={showCoordinates}
                             />
                         );
                     })}
@@ -78,6 +89,7 @@ export const Board: React.FC<BoardProps> = ({ board, players, onCellClick, selec
                                 isHighlighted={false}
                                 isHoverHighlighted={false}
                                 renderBorder={true}
+                                showCoordinates={false} // Coordinates only on the content pass
                             />
                         );
                     })}
@@ -105,6 +117,7 @@ export const Board: React.FC<BoardProps> = ({ board, players, onCellClick, selec
                                 isHighlighted={isHighlighted}
                                 isHoverHighlighted={isHoverHighlighted}
                                 renderBorder={true}
+                                showCoordinates={false}
                             />
                         );
                     })}
@@ -127,6 +140,7 @@ export const Board: React.FC<BoardProps> = ({ board, players, onCellClick, selec
                                 isHighlighted={false}
                                 isHoverHighlighted={false}
                                 renderBorder={true}
+                                showCoordinates={false}
                             />
                         );
                     })}

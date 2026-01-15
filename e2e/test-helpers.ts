@@ -59,15 +59,21 @@ export async function createPlayers(
     const timeout = options?.defaultTimeout ?? 2000;
 
     for (let i = 0; i < playerNames.length; i++) {
-        const context = await browser.newContext();
+        const context = await browser.newContext({
+            viewport: {
+                width: 1920,
+                height: 1080
+            }
+        });
         const page = await context.newPage();
         page.setDefaultTimeout(timeout);
 
         if (options?.logE2ERecords !== false) {
             page.on('console', msg => {
-                if (msg.text().includes('E2E_RECORD')) {
-                    console.log(`[${playerNames[i]}] ${msg.text()}`);
-                }
+                console.log(`[${playerNames[i]}] [${msg.type()}] ${msg.text()}`);
+            });
+            page.on('pageerror', err => {
+                console.error(`[${playerNames[i]}] PAGE ERROR: ${err.message}`);
             });
         }
 
@@ -155,6 +161,15 @@ export async function runSetupPhase(
 
     await log('Running setup phase...');
     await pages[0].waitForTimeout(100);
+
+    // Wait for all players to reach the game page
+    for (let i = 0; i < players.length; i++) {
+        try {
+            await players[i].page.getByTestId('phase-display').waitFor({ state: 'visible', timeout: 10000 });
+        } catch (e) {
+            await log(`P${i + 1} failed to reach game page within 10s`);
+        }
+    }
 
     // Valid tile placements extracted from successful test runs
     const validPlacements = [

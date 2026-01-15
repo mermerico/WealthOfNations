@@ -1,22 +1,24 @@
 import React from 'react';
 import type { GameState, Player } from '../../types/gameState';
+import { validateTileDots } from '../../utils/placementLogic';
+import { calculateNewMoveHistory } from '../../utils/moveActionUtils';
 
 interface MoveOperationPanelProps {
     movesCompleted: number;
     moveSourceId: string | null;
-    moveHistory: Array<{ from: string; to: string }>;
+    moveHistory: Array<{ from: string; to: string; cost: number; orientation?: number; force?: boolean; skipBaseCost?: boolean }>;
     moveForceMode: boolean;
-    pendingMoveTarget: { from: string; to: string; orientation: number } | null;
+    pendingMoveTarget?: { from: string; to: string; orientation: number } | null;
     player: Player;
     gameState: GameState;
-
     setMoveForceMode: (v: boolean) => void;
-    setPendingMoveTarget: (v: { from: string; to: string; orientation: number } | null) => void;
+    setPendingMoveTarget?: (v: { from: string; to: string; orientation: number } | null) => void;
     setMoveSourceId: (v: string | null) => void;
-    setMoveHistory: React.Dispatch<React.SetStateAction<Array<{ from: string; to: string }>>>;
+    setMoveHistory: React.Dispatch<React.SetStateAction<Array<{ from: string; to: string; cost: number; orientation?: number; force?: boolean; skipBaseCost?: boolean }>>>;
     setMovesCompleted: React.Dispatch<React.SetStateAction<number>>;
     setIsMoving: (v: boolean) => void;
     handleAction: (action: string, payload?: any) => void;
+    onPass?: () => void;
 }
 
 export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
@@ -25,7 +27,6 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
     moveHistory,
     moveForceMode,
     pendingMoveTarget,
-    player,
     gameState,
     setMoveForceMode,
     setPendingMoveTarget,
@@ -44,34 +45,27 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
                         <div style={{ color: '#f59e0b', fontWeight: 'bold', marginBottom: '8px', textAlign: 'center' }}>
                             Confirm Move
                         </div>
-                        <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center' }}>
-                            Partial dots don't match
-                        </div>
+                        {(() => {
+                            // Check if current pending orientation is valid
+                            const tile = gameState.board[pendingMoveTarget.from]?.occupant?.tile;
+                            const validation = tile ? validateTileDots(gameState.board, pendingMoveTarget.to, tile.type, pendingMoveTarget.orientation, pendingMoveTarget.from) : { isValid: true };
+
+                            return !validation.isValid && (
+                                <div style={{ color: '#aaa', fontSize: '12px', textAlign: 'center' }}>
+                                    Partial dots don't match
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     <button
                         onClick={() => {
-                            const movedTile = gameState.board[pendingMoveTarget.from]?.occupant?.tile;
-                            if (!movedTile) return;
-
-                            const currentOrientation = movedTile.orientation;
-                            const newOrientation = (currentOrientation + 1) % 6;
-
-                            // Update the tile orientation in the board
-                            const cell = gameState.board[pendingMoveTarget.from];
-                            if (cell.occupant?.type === 'Industry' && cell.occupant.tile) {
-                                const updatedTile = { ...cell.occupant.tile, orientation: newOrientation };
-                                const updatedCell = {
-                                    ...cell,
-                                    occupant: {
-                                        ...cell.occupant,
-                                        tile: updatedTile
-                                    }
-                                };
-                                handleAction('sandboxPlaceTile', { id: pendingMoveTarget.from, cell: updatedCell });
+                            if (setPendingMoveTarget) {
+                                // Simply rotate the orientation in the pending move target
+                                // The ghost tile preview reads from pendingMoveTarget.orientation
+                                const newOrientation = (pendingMoveTarget.orientation + 1) % 6;
+                                setPendingMoveTarget({ ...pendingMoveTarget, orientation: newOrientation });
                             }
-
-                            setPendingMoveTarget({ ...pendingMoveTarget, orientation: newOrientation });
                         }}
                         style={{
                             padding: '10px',
@@ -98,66 +92,40 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
 
                     <button
                         onClick={() => {
-                            if (!moveForceMode) return;
+                            if (!pendingMoveTarget) return;
 
-                            // Deduct extra capital for forcing
-                            if (player.resources.Capital < 1) return;
+                            const result = calculateNewMoveHistory(
+                                moveHistory,
+                                pendingMoveTarget,
+                                movesCompleted,
+                                moveForceMode
+                            );
 
-                            // Execute the move
-                            handleAction('moveIndustry', { fromId: pendingMoveTarget.from, toId: pendingMoveTarget.to, extraTurns: true });
+                            setMoveHistory(result.history);
+                            setMovesCompleted(result.movesCompleted);
 
-                            // Deduct capital for force
-                            const updatedPlayer = {
-                                ...player,
-                                resources: {
-                                    ...player.resources,
-                                    Capital: player.resources.Capital - 1
-                                }
-                            };
-                            handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
-
-                            // Track the move
-                            setMoveHistory(prev => [...prev, { from: pendingMoveTarget.from, to: pendingMoveTarget.to }]);
-                            setMovesCompleted(prev => prev + 1);
-                            setPendingMoveTarget(null);
                             setMoveSourceId(null);
                             setMoveForceMode(false);
-
-                            // If 3 moves completed, end move mode and deduct capital
-                            if (movesCompleted + 1 >= 3) {
-                                const finalPlayer = {
-                                    ...updatedPlayer,
-                                    resources: {
-                                        ...updatedPlayer.resources,
-                                        Capital: updatedPlayer.resources.Capital - 1
-                                    }
-                                };
-                                handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? finalPlayer : p) });
-
-                                setIsMoving(false);
-                                setMoveHistory([]);
-                                setMovesCompleted(0);
-                                handleAction('pass');
-                            }
+                            if (setPendingMoveTarget) setPendingMoveTarget(null);
                         }}
-                        disabled={!moveForceMode}
+                        // disabled={!moveForceMode} // Enable for all pending confirmations
                         style={{
                             padding: '12px',
-                            background: moveForceMode ? '#059669' : '#333',
+                            background: '#059669',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
                             fontSize: '14px',
                             fontWeight: 'bold',
-                            cursor: moveForceMode ? 'pointer' : 'not-allowed'
+                            cursor: 'pointer'
                         }}
                     >
-                        ✓ Confirm Force Move
+                        ✓ Confirm Move
                     </button>
 
                     <button
                         onClick={() => {
-                            setPendingMoveTarget(null);
+                            if (setPendingMoveTarget) setPendingMoveTarget(null);
                             setMoveSourceId(null);
                             setMoveForceMode(false);
                         }}
@@ -180,6 +148,13 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
     }
 
     // Normal Move UI
+    // Reset force checkbox when starting a new move selection
+    React.useEffect(() => {
+        if (!moveSourceId) {
+            setMoveForceMode(false);
+        }
+    }, [moveSourceId, setMoveForceMode]);
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
             <div style={{ background: '#222', padding: '10px', borderRadius: '4px', border: '2px solid cyan' }}>
@@ -201,20 +176,75 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
                 <input
                     type="checkbox"
                     checked={moveForceMode}
+                    disabled={!moveSourceId}
                     onChange={(e) => setMoveForceMode(e.target.checked)}
                 />
-                <span style={{ color: '#ccc', fontSize: '12px' }}>Allow mismatched dots (+1 Capital each)</span>
+                <span style={{ color: '#ccc', fontSize: '12px', opacity: !moveSourceId ? 0.5 : 1 }}>Allow mismatched dots (+1 Capital each)</span>
             </label>
+
+            {/* Rotate button - only shown when a tile is selected */}
+            {moveSourceId && (
+                <button
+                    onClick={() => {
+                        if (pendingMoveTarget && setPendingMoveTarget) {
+                            const target = pendingMoveTarget as { from: string; to: string; orientation: number };
+                            setPendingMoveTarget({
+                                from: target.from,
+                                to: target.to,
+                                orientation: (target.orientation + 1) % 6
+                            });
+                            return;
+                        }
+
+                        // Priority 2: Rotate Selected Source in Place (Enters Pending Mode)
+                        const cell = gameState.board[moveSourceId];
+                        if (cell?.occupant?.type === 'Industry' && cell.occupant.tile) {
+                            const currentOrientation = cell.occupant.tile.orientation || 0;
+
+                            // Initialize pending move at current location
+                            if (setPendingMoveTarget) {
+                                // Check if next rotation is valid
+                                const nextOrientation = (currentOrientation + 1) % 6;
+                                const validation = validateTileDots(gameState.board, moveSourceId, cell.occupant.tile.type, nextOrientation, moveSourceId);
+
+                                // User Request: "If ... such a rotation would not be allowed ... still go to that Pending Move phase but without doing that first rotation"
+                                const targetOrientation = validation.isValid ? nextOrientation : currentOrientation;
+
+                                setPendingMoveTarget({
+                                    from: moveSourceId,
+                                    to: moveSourceId,
+                                    orientation: targetOrientation
+                                });
+                            }
+                        }
+                    }}
+                    style={{
+                        padding: '10px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        cursor: (movesCompleted >= 3 && (!moveHistory.length || moveHistory[moveHistory.length - 1].to !== moveSourceId)) ? 'not-allowed' : 'pointer',
+                        opacity: (movesCompleted >= 3 && (!moveHistory.length || moveHistory[moveHistory.length - 1].to !== moveSourceId)) ? 0.5 : 1
+                    }}
+                >
+                    ↻ Rotate Selected Tile
+                </button>
+            )}
 
             <button
                 onClick={() => {
                     if (moveHistory.length > 0) {
                         const lastMove = moveHistory[moveHistory.length - 1];
-                        // Undo the last move
-                        handleAction('moveIndustry', { fromId: lastMove.to, toId: lastMove.from, extraTurns: true });
+
+                        // Just revert local state
                         setMoveHistory(prev => prev.slice(0, -1));
                         setMovesCompleted(prev => prev - 1);
-                        setMoveSourceId(null);
+                        setMoveSourceId(null); // Or set to lastMove.from to keep selection?
+                        // Let's set it to lastMove.from to be friendly
+                        setMoveSourceId(lastMove.from);
                     } else if (moveSourceId) {
                         // Just deselect if no moves made
                         setMoveSourceId(null);
@@ -235,60 +265,63 @@ export const MoveOperationPanel: React.FC<MoveOperationPanelProps> = ({
                 ⟲ Undo {moveSourceId && !moveHistory.length ? 'Selection' : 'Last Move'}
             </button>
 
-            {moveHistory.length === 0 && (
-                <button
-                    onClick={() => {
-                        // Cancel move mode without deducting capital
-                        setIsMoving(false);
-                        setMoveSourceId(null);
-                        setMoveHistory([]);
-                        setMovesCompleted(0);
-                        setMoveForceMode(false);
-                    }}
-                    style={{
-                        padding: '10px',
-                        background: '#6b7280',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                    }}
-                >
-                    ✕ Cancel
-                </button>
-            )}
-
             <button
                 onClick={() => {
-                    // End move mode early and deduct capital
-                    const updatedPlayer = {
-                        ...player,
-                        resources: {
-                            ...player.resources,
-                            Capital: player.resources.Capital - 1
-                        }
-                    };
-                    handleAction('debug', { players: gameState.players.map(p => p.id === player.id ? updatedPlayer : p) });
-
-                    // Reset move state and advance turn
+                    // Cancel move operation
+                    // Cancel move operation
+                    // Just reset states, no need to dispatch refund as we never dispatched 'move'
+                    // Clean local state
                     setIsMoving(false);
                     setMoveSourceId(null);
                     setMoveHistory([]);
                     setMovesCompleted(0);
                     setMoveForceMode(false);
-                    handleAction('pass');
                 }}
                 style={{
-                    padding: '12px',
-                    background: '#059669',
+                    padding: '10px',
+                    background: '#6b7280',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    cursor: 'pointer',
+                    cursor: 'pointer'
+                }}
+            >
+                ✕ Cancel
+            </button>
+
+            <button
+                onClick={() => {
+                    // Commit the move sequence
+                    if (moveHistory.length > 0) {
+                        handleAction('moveIndustrySequence', {
+                            moves: moveHistory.map(m => ({
+                                fromId: m.from,
+                                toId: m.to,
+                                orientation: m.orientation,
+                                force: m.force,
+                                skipBaseCost: m.skipBaseCost
+                            }))
+                        });
+                    }
+
+                    setIsMoving(false);
+                    setMoveSourceId(null);
+                    setMoveHistory([]);
+                    setMovesCompleted(0);
+                    setMoveForceMode(false);
+                }}
+                disabled={moveHistory.length === 0}
+                style={{
+                    padding: '12px',
+                    background: moveHistory.length === 0 ? '#333' : '#059669',
+                    color: moveHistory.length === 0 ? '#666' : 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: moveHistory.length === 0 ? 'not-allowed' : 'pointer',
                     marginTop: 'auto'
                 }}
             >

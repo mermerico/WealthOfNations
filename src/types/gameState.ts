@@ -43,6 +43,14 @@ export interface PendingTrade {
   receiving: TradeOffer;
 }
 
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  message: string;
+  type: 'action' | 'phase' | 'system';
+  playerId?: string;
+}
+
 // Stores a player's desired inventory for trade planning
 export interface TradeIntent {
   playerId: string;
@@ -112,6 +120,7 @@ export interface GameState {
   initialTiles: Record<IndustryType, number>;
   settings: GameSettings;
   tradeIntents?: Record<string, TradeIntent>; // Player ID -> their trade intent for current Trade phase
+  logs: LogEntry[];
 }
 
 export const INITIAL_RESOURCES: Record<CommodityType, number> = {

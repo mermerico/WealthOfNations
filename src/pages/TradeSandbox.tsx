@@ -135,7 +135,8 @@ export const TradeSandbox: React.FC = () => {
         consecutivePasses: 0,
         initialFlagsPerPlayer: 5,
         initialTiles: { Farm: 10, Generator: 10, Academy: 10, Mine: 10, Factory: 10, Bank: 10 },
-        settings: { promissoryNoteInterestFees: true } // Enable interest for demo
+        settings: { promissoryNoteInterestFees: true }, // Enable interest for demo
+        logs: [] // Initialize with empty log array
     });
 
     // UI State

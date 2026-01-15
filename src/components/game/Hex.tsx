@@ -14,6 +14,7 @@ interface HexProps {
     isHoverHighlighted?: boolean;
     renderBorder?: boolean;
     hideFlag?: boolean;
+    showCoordinates?: boolean;
 }
 
 const HEX_POINTS = calculateHexPoints(HEX_SIZE);
@@ -46,7 +47,19 @@ const EDGE_ANGLES = [270, 330, 30, 90, 150, 210];
 // Angles for Corners (0=Between N and NE -> Top Right Vertex)
 const CORNER_ANGLES = [300, 0, 60, 120, 180, 240];
 
-export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelected, ghostTile, isHighlighted, isHoverHighlighted, renderBorder = false, hideFlag = false }) => {
+export const Hex: React.FC<HexProps> = ({
+    cell,
+    board,
+    players,
+    onClick,
+    isSelected,
+    ghostTile,
+    isHighlighted,
+    isHoverHighlighted,
+    renderBorder = false,
+    hideFlag = false,
+    showCoordinates = false
+}) => {
     const { x, y } = hexToPixel(cell.q, cell.r);
 
     // Central hex is black (forbidden)
@@ -110,36 +123,39 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
                 const key = `feat-${idx}`;
                 let opacity = 1.0;
 
-                const myPlayerId = cell.occupant?.playerId;
+                // Skip opacity logic for ghost tiles - they should show all dots at full opacity
+                if (!ghostTile) {
+                    const myPlayerId = cell.occupant?.playerId;
 
-                if (feat.type === 'Edge' && board && myPlayerId) {
-                    // Check neighbor for shared dot
-                    const absoluteSide = (feat.position + (activeOrientation || 0)) % 6;
-                    const neighborCoords = getNeighbor({ q: cell.q, r: cell.r }, absoluteSide);
-                    const neighborId = coordsToString(neighborCoords.q, neighborCoords.r);
-                    const neighborCell = board[neighborId];
+                    if (feat.type === 'Edge' && board && myPlayerId) {
+                        // Check neighbor for shared dot
+                        const absoluteSide = (feat.position + (activeOrientation || 0)) % 6;
+                        const neighborCoords = getNeighbor({ q: cell.q, r: cell.r }, absoluteSide);
+                        const neighborId = coordsToString(neighborCoords.q, neighborCoords.r);
+                        const neighborCell = board[neighborId];
 
-                    let hasMatchingNeighbor = false;
+                        let hasMatchingNeighbor = false;
 
-                    if (neighborCell && neighborCell.occupant?.type === 'Industry' && neighborCell.occupant.tile) {
-                        const nTile = neighborCell.occupant.tile;
-                        const nDef = TILE_DEFINITIONS[nTile.type];
-                        const sideFacingMe = (absoluteSide + 3) % 6;
-                        const nDefSideIndex = (sideFacingMe - (nTile.orientation || 0) + 6) % 6;
-                        const nFeat = nDef.features.find((f: TileFeature) => f.position === nDefSideIndex && f.type === 'Edge' && f.feature === 'HalfDot');
+                        if (neighborCell && neighborCell.occupant?.type === 'Industry' && neighborCell.occupant.tile) {
+                            const nTile = neighborCell.occupant.tile;
+                            const nDef = TILE_DEFINITIONS[nTile.type];
+                            const sideFacingMe = (absoluteSide + 3) % 6;
+                            const nDefSideIndex = (sideFacingMe - (nTile.orientation || 0) + 6) % 6;
+                            const nFeat = nDef.features.find((f: TileFeature) => f.position === nDefSideIndex && f.type === 'Edge' && f.feature === 'HalfDot');
 
-                        if (nFeat && nFeat.commodity === feat.commodity) {
-                            hasMatchingNeighbor = true;
-                            const nOwnerId = neighborCell.occupant.playerId;
-                            if (nOwnerId !== myPlayerId) {
-                                opacity = 0.3; // Shared dot between different players
+                            if (nFeat && nFeat.commodity === feat.commodity) {
+                                hasMatchingNeighbor = true;
+                                const nOwnerId = neighborCell.occupant.playerId;
+                                if (nOwnerId !== myPlayerId) {
+                                    opacity = 0.3; // Shared dot between different players
+                                }
                             }
                         }
-                    }
 
-                    // If no matching neighbor, make it transparent (incomplete dot)
-                    if (!hasMatchingNeighbor) {
-                        opacity = 0.3;
+                        // If no matching neighbor, make it transparent (incomplete dot)
+                        if (!hasMatchingNeighbor) {
+                            opacity = 0.3;
+                        }
                     }
                 }
 
@@ -153,44 +169,49 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
                         <circle key={key} cx={fx} cy={fy} r={FEATURE_RADIUS} fill={color} stroke="white" strokeWidth="1" opacity={opacity} />
                     );
                 } else if (feat.type === 'Corner') {
-                    // Corner Match Logic for Dimming
-                    const k = (feat.position + (activeOrientation || 0)) % 6;
-                    const neighbors = getNeighbors({ q: cell.q, r: cell.r }, board || {});
-                    const n1 = neighbors[k];
-                    const n2 = neighbors[(k + 1) % 6];
+                    // Skip opacity logic for ghost tiles - they should show all dots at full opacity
+                    if (!ghostTile) {
+                        const myPlayerId = cell.occupant?.playerId;
 
-                    let hasCompleteCorner = false;
+                        // Corner Match Logic for Dimming
+                        const k = (feat.position + (activeOrientation || 0)) % 6;
+                        const neighbors = getNeighbors({ q: cell.q, r: cell.r }, board || {});
+                        const n1 = neighbors[k];
+                        const n2 = neighbors[(k + 1) % 6];
 
-                    if (n1 && n1.occupant?.type === 'Industry' && n1.occupant.tile &&
-                        n2 && n2.occupant?.type === 'Industry' && n2.occupant.tile &&
-                        myPlayerId) {
+                        let hasCompleteCorner = false;
 
-                        const t1 = n1.occupant.tile;
-                        const t2 = n2.occupant.tile;
-                        const def1 = TILE_DEFINITIONS[t1.type as IndustryType];
-                        const def2 = TILE_DEFINITIONS[t2.type as IndustryType];
+                        if (n1 && n1.occupant?.type === 'Industry' && n1.occupant.tile &&
+                            n2 && n2.occupant?.type === 'Industry' && n2.occupant.tile &&
+                            myPlayerId) {
 
-                        // Rule: Match k touches n[k] (Corner (k+2)%6) and n[k+1] (Corner (k+4)%6)
-                        const n1DefIdx = ((k + 2) % 6 - (t1.orientation || 0) + 6) % 6;
-                        const n2DefIdx = ((k + 4) % 6 - (t2.orientation || 0) + 6) % 6;
+                            const t1 = n1.occupant.tile;
+                            const t2 = n2.occupant.tile;
+                            const def1 = TILE_DEFINITIONS[t1.type as IndustryType];
+                            const def2 = TILE_DEFINITIONS[t2.type as IndustryType];
 
-                        const f1 = def1.features.find((f: TileFeature) => f.type === 'Corner' && f.position === n1DefIdx);
-                        const f2 = def2.features.find((f: TileFeature) => f.type === 'Corner' && f.position === n2DefIdx);
+                            // Rule: Match k touches n[k] (Corner (k+2)%6) and n[k+1] (Corner (k+4)%6)
+                            const n1DefIdx = ((k + 2) % 6 - (t1.orientation || 0) + 6) % 6;
+                            const n2DefIdx = ((k + 4) % 6 - (t2.orientation || 0) + 6) % 6;
 
-                        if (f1 && f2 && f1.commodity === feat.commodity && f2.commodity === feat.commodity) {
-                            // Full match - corner is complete
-                            hasCompleteCorner = true;
+                            const f1 = def1.features.find((f: TileFeature) => f.type === 'Corner' && f.position === n1DefIdx);
+                            const f2 = def2.features.find((f: TileFeature) => f.type === 'Corner' && f.position === n2DefIdx);
 
-                            // Check ownership - dim if different player
-                            if (t1.ownerId !== myPlayerId || t2.ownerId !== myPlayerId) {
-                                opacity = 0.3;
+                            if (f1 && f2 && f1.commodity === feat.commodity && f2.commodity === feat.commodity) {
+                                // Full match - corner is complete
+                                hasCompleteCorner = true;
+
+                                // Check ownership - dim if different player
+                                if (t1.ownerId !== myPlayerId || t2.ownerId !== myPlayerId) {
+                                    opacity = 0.3;
+                                }
                             }
                         }
-                    }
 
-                    // If corner is not complete (missing one or both neighbors), make it transparent
-                    if (!hasCompleteCorner) {
-                        opacity = 0.3;
+                        // If corner is not complete (missing one or both neighbors), make it transparent
+                        if (!hasCompleteCorner) {
+                            opacity = 0.3;
+                        }
                     }
 
                     const angleDeg = CORNER_ANGLES[feat.position];
@@ -318,14 +339,21 @@ export const Hex: React.FC<HexProps> = ({ cell, board, players, onClick, isSelec
                     fillRule="evenodd"
                 />
             )}
-            {/* Label stays upright, so output it outside the rotated group if we want it to read normally? 
-                Or inside if we want it to rotate with tile. Usually easier to read if upright. 
-                But features map to N/S/E/W relative to tile orientation? 
-                Yes, if I rotate the tile content, features move. 
-                The `features` positions are defined relative to "North" 0-index. 
-                Applying rotation to the group moves Index 0 to the new position.
-            */}
-            {/* Label removed as requested */}
+
+            {showCoordinates && (
+                <text
+                    x="0"
+                    y="0"
+                    dy="0.35em"
+                    textAnchor="middle"
+                    fill="white"
+                    fontSize="18"
+                    fontWeight="bold"
+                    style={{ pointerEvents: 'none', paintOrder: 'stroke', stroke: 'black', strokeWidth: 3 }}
+                >
+                    {cell.q},{cell.r}
+                </text>
+            )}
         </g>
     );
 };
