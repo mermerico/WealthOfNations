@@ -46,11 +46,10 @@ describe('Production Phase Logic', () => {
 
         const results = calculateGlobalProduction(board);
 
-        // Note: calculateGlobalProduction doesn't auto-detect automation tokens
-        // It calculates costs based on tile properties but user must explicitly enable automation
-        expect(results['p1'].costs.Ore).toBe(0); // Not auto-detected
-        expect(results['p1'].costs.Food).toBe(1); // 1 tile (Mine) without automation override
-        expect(results['p1'].costs.Energy).toBe(1);
+        // Automation is now auto-detected! The fix correctly checks tile.automated
+        expect(results['p1'].costs.Ore).toBe(1); // Automated blocs cost Ore instead of Food
+        expect(results['p1'].costs.Food).toBe(0); // No food cost for automated bloc
+        expect(results['p1'].costs.Energy).toBe(1); // Still need Energy (1 per bloc)
     });
 
     it('respects the shared dot rule (different players)', () => {

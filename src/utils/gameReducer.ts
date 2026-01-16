@@ -1540,6 +1540,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             const visited = new Set<string>();
             let totalFood = 0;
             let totalEnergy = 0;
+            let totalOre = 0;
             const outputs: Record<string, number> = {};
 
             Object.values(state.board).forEach(cell => {
@@ -1552,9 +1553,12 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
                     const activeMembers = bloc.filter(t => activeSet.has(coordsToString(t.q, t.r)));
                     if (activeMembers.length > 0) {
-                        const costs = calculateBlocCosts(activeMembers, false);
+                        // Check if any active member has automation
+                        const hasAutomation = activeMembers.some(t => t.occupant?.tile?.automated);
+                        const costs = calculateBlocCosts(activeMembers, hasAutomation);
                         totalFood += costs.Food;
                         totalEnergy += costs.Energy;
+                        totalOre += costs.Ore;
 
                         const prod = calculateProduction(state.board, activeMembers[0], activeSet);
                         if (prod) {
@@ -1564,13 +1568,14 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             });
 
-            if (player.resources.Food < totalFood || player.resources.Energy < totalEnergy) {
+            if (player.resources.Food < totalFood || player.resources.Energy < totalEnergy || player.resources.Ore < totalOre) {
                 return { success: false, message: 'Not enough resources to produce' };
             }
 
             const updatedRes = { ...player.resources };
             updatedRes.Food -= totalFood;
             updatedRes.Energy -= totalEnergy;
+            updatedRes.Ore -= totalOre;
 
             let addedMoney = 0;
             Object.entries(outputs).forEach(([type, amt]) => {

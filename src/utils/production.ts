@@ -264,8 +264,10 @@ export function calculateGlobalProduction(board: Record<string, HexCell>): Recor
         }
 
         const bloc = identifyBloc(board, cell);
+        // Check if any tile in the bloc is automated
+        const hasAutomation = bloc.some(b => b.occupant?.tile?.automated);
         const prod = calculateProduction(board, cell);
-        const costs = calculateBlocCosts(bloc);
+        const costs = calculateBlocCosts(bloc, hasAutomation);
 
         if (prod) {
             playerResults[ownerId].outputs[prod.commodity] += prod.amount;
