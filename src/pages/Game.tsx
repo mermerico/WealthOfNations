@@ -433,6 +433,7 @@ export const Game: React.FC = () => {
     const [blocConfigs, setBlocConfigs] = useState<Map<number, BlocConfig>>(new Map());
     const [hoveredBlocIndex, setHoveredBlocIndex] = useState<number | null>(null);
     const [hoveredTileId, setHoveredTileId] = useState<string | null>(null);
+    const lastInitializedPlayerId = useRef<string | null>(null);
 
     const playerBlocs = useMemo(() => {
         if (gameState.phase !== 'Produce') return [];
@@ -462,6 +463,11 @@ export const Game: React.FC = () => {
     // Initialize bloc configs when playerBlocs changes
     useEffect(() => {
         if (gameState.phase === 'Produce') {
+            // Only re-initialize if the player has changed or we haven't initialized for this player yet
+            if (lastInitializedPlayerId.current === player.id && blocConfigs.size > 0) {
+                return;
+            }
+
             const newConfigs = new Map<number, BlocConfig>();
             playerBlocs.forEach((bloc, index) => {
                 // Initialize with all tiles unchecked (player must check what they can afford)
@@ -474,8 +480,12 @@ export const Game: React.FC = () => {
                 });
             });
             setBlocConfigs(newConfigs);
+            lastInitializedPlayerId.current = player.id;
+        } else {
+            // Clear initialized player when not in Produce phase
+            lastInitializedPlayerId.current = null;
         }
-    }, [gameState.phase, playerBlocs]);
+    }, [gameState.phase, playerBlocs, player.id]);
 
     // Helper to toggle bloc power
     const toggleBlocPower = (blocIndex: number, powered: boolean) => {

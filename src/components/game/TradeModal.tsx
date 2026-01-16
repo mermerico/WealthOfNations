@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CommodityType, Player } from '../../types/gameState';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { MARKET_STEPS } from '../../utils/marketDefinitions';
+import { calculateCurrentBarterPrice } from '../../utils/marketUtils';
 
 interface TradeModalProps {
     currentPlayer: Player;
@@ -39,14 +40,13 @@ function calculateOfferValue(
     let value = 0;
 
     // Commodity values: use the official barter price at current stock level
-    // Barter uses stock - 1 index (like buy prices), with a minimum of 0
     for (const [commodity, amount] of Object.entries(offer.commodities)) {
         if (!amount) continue;
-        const market = markets[commodity as CommodityType];
-        const priceIndex = Math.max(0, market.stock - 1);
-        const step = MARKET_STEPS[commodity as CommodityType][priceIndex];
-        if (step) {
-            value += step.barter * amount;
+        const comm = commodity as CommodityType;
+        const market = markets[comm];
+        const barterPrice = calculateCurrentBarterPrice(MARKET_STEPS[comm], market.stock);
+        if (barterPrice !== null) {
+            value += barterPrice * amount;
         }
     }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { MarketState, CommodityType } from '../../types/gameState';
 import { MARKET_STEPS } from '../../utils/marketDefinitions';
 import { COMMODITY_COLORS } from '../../utils/tileDefinitions';
+import { calculateCurrentBarterPrice } from '../../utils/marketUtils';
 
 interface MarketBoardProps {
     markets: Record<CommodityType, MarketState>;
@@ -39,9 +40,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell, 
     const textColor = type === 'Ore' || type === 'Capital' ? 'white' : '#111';
 
     // Barter calculation
-    const currentBarterPrice = currentBuyPrice && currentSellPrice
-        ? (currentBuyPrice + currentSellPrice) / 2
-        : null;
+    const currentBarterPrice = calculateCurrentBarterPrice(steps, stock);
 
     const trackIndex = ORDER.indexOf(type);
     const isRightSide = trackIndex >= 3; // Show tooltip on left for last columns
@@ -168,7 +167,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell, 
                     const step = steps[stockLevel] || steps[maxStock - 1];
                     const prevStep = stockLevel > 0 ? steps[stockLevel - 1] : null;
 
-                    const barterPrice = prevStep ? (step.sell + prevStep.buy) / 2 : null;
+                    const barterPrice = calculateCurrentBarterPrice(steps, stockLevel);
 
                     return (
                         <div
@@ -284,7 +283,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell, 
                             Qty: 0
                         </div>
                         <div style={{ color: '#22c55e' }}>Sell: ${steps[0].sell}</div>
-                        <div style={{ color: '#aaa' }}>Barter: ${(steps[0].sell + steps[0].buy) / 2}</div>
+                        <div style={{ color: '#aaa' }}>Barter: ${calculateCurrentBarterPrice(steps, 0)}</div>
                         <div style={{ color: '#ef4444' }}>Buy: ${steps[0].buy}</div>
                     </div>
                 )}
