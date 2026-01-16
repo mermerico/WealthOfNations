@@ -1445,6 +1445,14 @@ export const Game: React.FC = () => {
                                         <StatLine label="Labor" value={globalStats.Labor} projected={projectedStats?.Labor} color="#ef4444" />
                                         <StatLine label="Ore" value={globalStats.Ore} projected={projectedStats?.Ore} color="#9ca3af" />
                                         <StatLine label="Capital" value={globalStats.Capital} projected={projectedStats?.Capital} color="#fff" />
+                                        {((globalStats.Money || 0) > 0 || (projectedStats?.Money || 0) > 0) && (
+                                            <StatLine
+                                                label="Money"
+                                                value={globalStats.Money * 30}
+                                                projected={projectedStats?.Money !== undefined ? projectedStats.Money * 30 : undefined}
+                                                color="#a855f7"
+                                            />
+                                        )}
                                     </div>
                                 )}
 

@@ -76,8 +76,20 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                         {productionTotals.totalOreCost > 0 && `, ${productionTotals.totalOreCost} Ore`}
                         {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' 0'}
                     </div>
-                    <div style={{ color: '#4ade80' }}>
-                        Producing: {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || '0'}
+                    <div style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Producing: {Object.entries(productionTotals.outputs).map(([commodity, amount], idx, arr) => {
+                            const isMoney = commodity === 'Money';
+                            const display = isMoney ? `$${amount * 30}` : `${amount} ${commodity}`;
+                            return (
+                                <React.Fragment key={commodity}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        {isMoney && <ResourceIcon type="Money" size={12} />}
+                                        {display}
+                                    </span>
+                                    {idx < arr.length - 1 ? ', ' : ''}
+                                </React.Fragment>
+                            );
+                        }) || '0'}
                     </div>
                     <div style={{ marginTop: '4px', paddingTop: '4px', borderTop: '1px solid #444', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         <span style={{ marginRight: '2px' }}>Net Gain:</span>
@@ -102,8 +114,9 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                                 const color = netAmount > 0 ? '#4ade80' : '#f87171';
                                 return (
                                     <span key={commodity} style={{ display: 'flex', alignItems: 'center', gap: '2px', color }}>
-                                        {sign}{netAmount}
-                                        <ResourceIcon type={commodity as CommodityType} size={12} />
+                                        {commodity === 'Money' && <ResourceIcon type="Money" size={12} />}
+                                        {sign}{commodity === 'Money' ? '$' : ''}{commodity === 'Money' ? (netAmount * 30) : netAmount}
+                                        {commodity === 'Money' ? null : <ResourceIcon type={commodity as CommodityType} size={12} />}
                                     </span>
                                 );
                             }).filter(Boolean);
@@ -206,8 +219,13 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                                     {totals.costs.Ore > 0 && `, ${totals.costs.Ore} Ore`}
                                     {!totals.costs.Food && !totals.costs.Energy && !totals.costs.Ore && '0'}
                                 </div>
-                                <div style={{ color: '#4ade80' }}>
-                                    Producing: {totals.production ? `${totals.production.amount} ${totals.production.commodity}` : '0'}
+                                <div style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    Producing: {totals.production ? (
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            {totals.production.commodity === 'Money' && <ResourceIcon type="Money" size={12} />}
+                                            {totals.production.commodity === 'Money' ? `$${totals.production.amount * 30}` : `${totals.production.amount} ${totals.production.commodity}`}
+                                        </span>
+                                    ) : '0'}
                                 </div>
                             </div>
                         </div>
@@ -268,7 +286,10 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                                     {!productionTotals.totalFoodCost && !productionTotals.totalEnergyCost && !productionTotals.totalOreCost && ' Nothing'}
                                 </div>
                                 <div style={{ color: '#4ade80' }}>
-                                    <strong>Producing:</strong> {Object.entries(productionTotals.outputs).map(([commodity, amount]) => `${amount} ${commodity}`).join(', ') || 'Nothing'}
+                                    <strong>Producing:</strong> {Object.entries(productionTotals.outputs).map(([commodity, amount]) => {
+                                        if (commodity === 'Money') return `$${amount * 30}`;
+                                        return `${amount} ${commodity}`;
+                                    }).join(', ') || 'Nothing'}
                                 </div>
                             </div>
                         </div>

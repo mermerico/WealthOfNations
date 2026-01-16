@@ -78,7 +78,7 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                         <div style={{ display: 'flex', gap: '10px', fontSize: '12px', color: '#ccc', marginBottom: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <ResourceIcon type="Money" size={12} />
-                                <span>${player.money}</span>
+                                <span data-testid="player-money">${player.money}</span>
                             </div>
                             <div>🚩 {player.flags}</div>
                             <div>📉 {player.loans}</div>
