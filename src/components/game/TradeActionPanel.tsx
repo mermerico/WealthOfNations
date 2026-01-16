@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { GameState, Player, CommodityType, MarketState } from '../../types/gameState';
 import { ResourceIcon } from '../ui/ResourceIcon';
 import { MARKET_PRICE_MAP } from '../../utils/marketPrices';
@@ -133,22 +133,26 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
         }
     };
 
+    // Keep isReady in sync with the selected player's intent
+    useEffect(() => {
+        if (gameState.tradeIntents?.[selectedPlayerId]) {
+            setIsReady(gameState.tradeIntents[selectedPlayerId].ready);
+        } else {
+            setIsReady(false);
+        }
+    }, [selectedPlayerId, gameState.tradeIntents]);
+
     // Track other players' ready state
     const otherPlayersReady = useMemo(() => {
         const ready: Record<string, boolean> = {};
         gameState.players.forEach(p => {
             if (p.id !== player.id) {
-                if (mode === 'remote') {
-                    // In remote mode, use tradeIntents from server
-                    ready[p.id] = gameState.tradeIntents?.[p.id]?.ready ?? false;
-                } else {
-                    // In local mode, all players are implicitly ready
-                    ready[p.id] = true;
-                }
+                // Check tradeIntents from gameState (works for both remote and local)
+                ready[p.id] = gameState.tradeIntents?.[p.id]?.ready ?? false;
             }
         });
         return ready;
-    }, [gameState.players, player.id, mode, gameState.tradeIntents]);
+    }, [gameState.players, player.id, gameState.tradeIntents]);
 
     // Calculate net estimate using barter prices
     const netEstimate = useMemo(() => {
@@ -222,20 +226,21 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
         };
         setAllPlayerNeeds(newNeeds);
 
-        // In remote mode, also send to server
-        if (mode === 'remote') {
-            onAction('setTradeIntent', {
-                playerId: player.id,
-                desiredInventory: newNeeds[player.id],
-                ready: isReady
-            });
-        }
+        // Always sync with engine/server when editing needs
+        onAction('setTradeIntent', {
+            playerId: selectedPlayer.id,
+            desiredInventory: newNeeds[selectedPlayer.id],
+            ready: isReady
+        });
     };
 
     const handlePlayerClick = (targetId: string) => {
         const trade = optimalTrades[targetId];
         if (trade) {
             onOpenTradeWithPlayer(targetId, trade.giving, trade.receiving);
+        } else {
+            // Allow opening manual trade even if no optimal trade is found (e.g. they are not ready)
+            onOpenTradeWithPlayer(targetId, { commodities: {}, money: 0, loans: 0 }, { commodities: {}, money: 0, loans: 0 });
         }
     };
 
@@ -395,50 +400,47 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                     </span>
                 </div>
 
-                {/* Mark Ready button - only show in remote mode */}
-                {mode === 'remote' && (
-                    <button
-                        data-testid="trade-ready-button"
-                        onClick={() => {
-                            const newReady = !isReady;
-                            // Optimistic update RESTORED
-                            setIsReady(newReady);
+                {/* Mark Ready button - show in both modes */}
+                <button
+                    data-testid="trade-ready-button"
+                    onClick={() => {
+                        const newReady = !isReady;
+                        setIsReady(newReady);
 
-                            onAction('setTradeIntent', {
-                                playerId: player.id,
-                                desiredInventory: allPlayerNeeds[player.id] || player.resources,
-                                ready: newReady
-                            });
-                        }}
-                        style={{
-                            marginTop: '8px',
-                            padding: '6px 10px',
-                            background: isReady ? '#22c55e' : '#333',
-                            color: isReady ? 'black' : 'white',
-                            border: isReady ? '1px solid #16a34a' : '1px solid #4b5563',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            fontSize: '11px',
-                            transition: 'all 0.2s',
-                            boxShadow: isReady ? 'none' : '0 2px 4px rgba(0,0,0,0.3)'
-                        }}
-                        onMouseOver={(e) => {
-                            if (!isReady) {
-                                e.currentTarget.style.background = '#444';
-                                e.currentTarget.style.borderColor = '#6b7280';
-                            }
-                        }}
-                        onMouseOut={(e) => {
-                            if (!isReady) {
-                                e.currentTarget.style.background = '#333';
-                                e.currentTarget.style.borderColor = '#4b5563';
-                            }
-                        }}
-                    >
-                        {isReady ? '✓ Ready' : 'Mark Ready'}
-                    </button>
-                )}
+                        onAction('setTradeIntent', {
+                            playerId: selectedPlayer.id,
+                            desiredInventory: allPlayerNeeds[selectedPlayer.id] || selectedPlayer.resources,
+                            ready: newReady
+                        });
+                    }}
+                    style={{
+                        marginTop: '8px',
+                        padding: '6px 10px',
+                        background: isReady ? '#22c55e' : '#333',
+                        color: isReady ? 'black' : 'white',
+                        border: isReady ? '1px solid #16a34a' : '1px solid #4b5563',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '11px',
+                        transition: 'all 0.2s',
+                        boxShadow: isReady ? 'none' : '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                    onMouseOver={(e) => {
+                        if (!isReady) {
+                            e.currentTarget.style.background = '#444';
+                            e.currentTarget.style.borderColor = '#6b7280';
+                        }
+                    }}
+                    onMouseOut={(e) => {
+                        if (!isReady) {
+                            e.currentTarget.style.background = '#333';
+                            e.currentTarget.style.borderColor = '#4b5563';
+                        }
+                    }}
+                >
+                    {isReady ? '✓ Ready' : 'Mark Ready'}
+                </button>
             </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid #333', width: '100%', margin: '0' }} />
@@ -467,9 +469,9 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                                 borderRadius: '8px',
                                 padding: '10px',
                                 border: isBestPartner ? '2px solid #22c55e' : '1px solid #333',
-                                opacity: (pIsReady && canAct) ? 1 : 0.5,
+                                opacity: canAct ? 1 : 0.5,
                                 transition: 'all 0.3s',
-                                cursor: (pIsReady && canAct) ? 'pointer' : 'not-allowed',
+                                cursor: canAct ? 'pointer' : 'not-allowed',
                                 filter: canAct ? 'none' : 'grayscale(0.5)'
                             }}
                         >
@@ -496,17 +498,21 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                                     const delta = theirNeeds - p.resources[c];
                                     // Positive delta = they need to buy, Negative delta = they can sell
                                     return (
-                                        <div key={c} style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: delta === 0 ? 0.3 : 1 }} data-testid={`offer-item-${c}`}>
+                                        <div key={c} style={{ display: 'flex', alignItems: 'center', gap: '2px', opacity: (delta === 0 || !pIsReady) ? 0.3 : 1 }} data-testid={`offer-item-${c}`}>
                                             <ResourceIcon type={c} size={14} />
-                                            {delta !== 0 ? (
-                                                <span style={{
-                                                    color: delta > 0 ? '#ef4444' : '#22c55e',
-                                                    fontWeight: 'bold'
-                                                }}>
-                                                    {Math.abs(delta)}
-                                                </span>
+                                            {pIsReady ? (
+                                                delta !== 0 ? (
+                                                    <span style={{
+                                                        color: delta > 0 ? '#ef4444' : '#22c55e',
+                                                        fontWeight: 'bold'
+                                                    }}>
+                                                        {Math.abs(delta)}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: '#555' }}>0</span>
+                                                )
                                             ) : (
-                                                <span style={{ color: '#555' }}>0</span>
+                                                <span style={{ color: '#555', fontStyle: 'italic' }}>?</span>
                                             )}
                                         </div>
                                     );

@@ -668,7 +668,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                             round: state.round + 1,
                             consecutivePasses: 0,
                             firstPlayerIndex: nextFirstPlayerIndex,
-                            currentTurnPlayerIndex: nextFirstPlayerIndex
+                            currentTurnPlayerIndex: nextFirstPlayerIndex,
+                            tradeIntents: {}
                         }
                     };
                 }
@@ -1630,7 +1631,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         round: state.round + 1,
                         currentTurnPlayerIndex: nextFirstPlayerIndex,
                         firstPlayerIndex: nextFirstPlayerIndex,
-                        consecutivePasses: 0
+                        consecutivePasses: 0,
+                        tradeIntents: {}
                     }
                 };
             }
