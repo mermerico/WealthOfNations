@@ -65,7 +65,7 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'auto' }}>
             {/* Net Production at Top */}
-            <div style={{ background: '#222', padding: '10px', borderRadius: '4px', borderTop: '2px solid #facc15' }}>
+            <div data-testid="net-production-summary" style={{ background: '#222', padding: '10px', borderRadius: '4px', borderTop: '2px solid #facc15' }}>
                 <h4 style={{ margin: '0 0 6px 0', color: '#fff', fontSize: '13px' }}>Net Production</h4>
                 <div style={{ fontSize: '11px' }}>
                     <div style={{ color: '#f87171', marginBottom: '2px' }}>
@@ -123,6 +123,7 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                     return (
                         <div
                             key={blocIndex}
+                            data-testid="bloc-config-item"
                             style={{
                                 background: '#333',
                                 padding: '8px',
@@ -215,22 +216,40 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
             </div>
 
             {/* Run Production Button */}
-            <button
-                data-testid="run-production-button"
-                onClick={() => setShowProductionConfirmation(true)}
-                disabled={!canAffordProduction}
-                style={{
-                    padding: '12px',
-                    background: canAffordProduction ? '#1c3320' : '#322',
-                    borderColor: canAffordProduction ? '#22c55e' : '#522',
-                    color: '#fff',
-                    cursor: canAffordProduction ? 'pointer' : 'not-allowed',
-                    fontWeight: 'bold',
-                    marginTop: 'auto'
-                }}
-            >
-                Run Production
-            </button>
+            {player.hasProduced ? (
+                <div
+                    data-testid="production-confirmed-indicator"
+                    style={{
+                        padding: '12px',
+                        background: '#1c3320',
+                        color: '#4ade80',
+                        fontWeight: 'bold',
+                        textAlign: 'center',
+                        borderRadius: '4px',
+                        marginTop: 'auto',
+                        border: '1px solid #22c55e'
+                    }}
+                >
+                    ✓ Production Confirmed
+                </div>
+            ) : (
+                <button
+                    data-testid="run-production-button"
+                    onClick={() => setShowProductionConfirmation(true)}
+                    disabled={!canAffordProduction}
+                    style={{
+                        padding: '12px',
+                        background: canAffordProduction ? '#1c3320' : '#322',
+                        borderColor: canAffordProduction ? '#22c55e' : '#522',
+                        color: '#fff',
+                        cursor: canAffordProduction ? 'pointer' : 'not-allowed',
+                        fontWeight: 'bold',
+                        marginTop: 'auto'
+                    }}
+                >
+                    Run Production
+                </button>
+            )}
 
             {showProductionConfirmation && (
                 <ConfirmationModal
@@ -261,6 +280,7 @@ export const ProduceActionsPanel: React.FC<ProduceActionsPanelProps> = ({
                     onCancel={() => setShowProductionConfirmation(false)}
                     confirmText="Confirm"
                     cancelText="Back"
+                    data-testid="production-confirmation-modal"
                 />
             )}
         </div>

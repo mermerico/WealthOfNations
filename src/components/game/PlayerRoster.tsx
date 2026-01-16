@@ -67,7 +67,7 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                                     </span>
                                 )}
                                 {player.hasProduced && (
-                                    <span className="player-badge produced-badge">
+                                    <span className="player-badge produced-badge" data-testid={`produced-badge-${player.name}`}>
                                         DONE
                                     </span>
                                 )}
@@ -88,23 +88,23 @@ export const PlayerRoster: React.FC<PlayerRosterProps> = ({ players, currentPlay
                         <div style={{ display: 'flex', gap: '6px', fontSize: '11px', color: '#aaa', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <ResourceIcon type="Food" size={12} />
-                                <span>{player.resources.Food}</span>
+                                <span data-testid="resource-count-Food">{player.resources.Food}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <ResourceIcon type="Energy" size={12} />
-                                <span>{player.resources.Energy}</span>
+                                <span data-testid="resource-count-Energy">{player.resources.Energy}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <ResourceIcon type="Labor" size={12} />
-                                <span>{player.resources.Labor}</span>
+                                <span data-testid="resource-count-Labor">{player.resources.Labor}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <ResourceIcon type="Ore" size={12} />
-                                <span>{player.resources.Ore}</span>
+                                <span data-testid="resource-count-Ore">{player.resources.Ore}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                                 <ResourceIcon type="Capital" size={12} />
-                                <span>{player.resources.Capital}</span>
+                                <span data-testid="resource-count-Capital">{player.resources.Capital}</span>
                             </div>
                         </div>
                     </div>

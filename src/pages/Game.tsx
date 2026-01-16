@@ -38,7 +38,9 @@ export const Game: React.FC = () => {
         lobby,
         leaveLobby,
         saveGame,
-        saveSuccess
+        saveSuccess,
+        lastError,
+        clearLastError
     } = useGameEngineContext();
 
     // UI State
@@ -1065,15 +1067,17 @@ export const Game: React.FC = () => {
         if (gameState.phase === 'Produce') {
             if (player.hasProduced) {
                 return (
-                    <div style={{
-                        flex: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '16px',
-                        color: '#ccc'
-                    }}>
+                    <div
+                        data-testid="production-confirmed-indicator"
+                        style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '16px',
+                            color: '#ccc'
+                        }}>
                         <div style={{ fontSize: '48px' }}>⏳</div>
                         <h3 style={{ margin: 0 }}>Production Complete</h3>
                         <p style={{ margin: 0, opacity: 0.7 }}>Waiting for other players to finish...</p>
@@ -1190,27 +1194,68 @@ export const Game: React.FC = () => {
 
             {/* Main Layout - 4 Columns */}
             <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
-                {saveSuccess && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '20px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: '#10b981',
-                        color: 'white',
-                        padding: '10px 20px',
-                        borderRadius: '8px',
-                        zIndex: 100,
-                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
-                        fontWeight: 'bold',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        pointerEvents: 'none'
-                    }}>
-                        ✅ {saveSuccess}
-                    </div>
-                )}
+                {/* Global Status Messages */}
+                <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    alignItems: 'center',
+                    pointerEvents: 'none',
+                    width: '100%',
+                    maxWidth: '400px'
+                }}>
+                    {lastError && (
+                        <div style={{
+                            background: '#991b1b',
+                            color: 'white',
+                            padding: '12px 24px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            pointerEvents: 'auto',
+                            border: '1px solid #ef4444'
+                        }}>
+                            <span style={{ fontSize: '14px', flex: 1 }}>{lastError}</span>
+                            <button
+                                onClick={clearLastError}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    fontSize: '20px',
+                                    padding: '0 4px',
+                                    lineHeight: 1
+                                }}
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+                    {saveSuccess && (
+                        <div style={{
+                            background: '#10b981',
+                            color: 'white',
+                            padding: '10px 20px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.5)',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            pointerEvents: 'auto'
+                        }}>
+                            ✅ {saveSuccess}
+                        </div>
+                    )}
+                </div>
 
                 {tradeAcceptedToast && (
                     <div style={{

@@ -23,8 +23,8 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, on
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content">
+    <div className="modal-overlay" data-testid="modal-overlay">
+      <div className="modal-content" data-testid="modal-content">
         {title && <h2 style={{ margin: '0 0 16px 0', color: '#fff', fontSize: '20px', borderBottom: '1px solid #444', paddingBottom: '8px' }}>{title}</h2>}
         <div style={{ marginBottom: '20px' }}>{message}</div>
         <div className="modal-actions">
@@ -55,10 +55,10 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, on
             ))
           ) : (
             <>
-              <button onClick={onConfirm} className="modal-confirm" style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', background: '#3b82f6', color: 'white' }}>
+              <button onClick={onConfirm} className="modal-confirm" data-testid="modal-confirm-button" style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', background: '#3b82f6', color: 'white' }}>
                 {confirmText || 'Confirm'}
               </button>
-              <button onClick={onCancel} className="modal-cancel" style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', background: '#4b5563', color: 'white' }}>
+              <button onClick={onCancel} className="modal-cancel" data-testid="modal-cancel-button" style={{ padding: '8px 16px', borderRadius: '4px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', background: '#4b5563', color: 'white' }}>
                 {cancelText || 'Cancel'}
               </button>
             </>

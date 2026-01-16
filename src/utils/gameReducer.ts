@@ -1523,6 +1523,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
         }
 
         case 'confirmProduction': {
+            console.log(`[Reducer:confirmProduction] Starting for player ${payload?.playerId}`);
             if (state.phase !== 'Produce') return { success: false, message: 'Not in Produce phase' };
             if (!payload) return { success: false, message: 'Missing payload' };
 
@@ -1536,6 +1537,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (player.hasProduced) return { success: false, message: 'Already produced' };
 
             const activeSet = new Set<string>(activeTiles);
+            console.log(`[Reducer:confirmProduction] Active tiles: ${Array.from(activeSet).join(', ')}`);
 
             const visited = new Set<string>();
             let totalFood = 0;
@@ -1556,6 +1558,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         // Check if any active member has automation
                         const hasAutomation = activeMembers.some(t => t.occupant?.tile?.automated);
                         const costs = calculateBlocCosts(activeMembers, hasAutomation);
+                        console.log(`[Reducer:confirmProduction] Bloc at ${id} (type: ${cell.occupant.tile?.type}): active=${activeMembers.length}, automated=${hasAutomation}, costs=F:${costs.Food}, E:${costs.Energy}, O:${costs.Ore}`);
+
                         totalFood += costs.Food;
                         totalEnergy += costs.Energy;
                         totalOre += costs.Ore;
@@ -1563,12 +1567,17 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         const prod = calculateProduction(state.board, activeMembers[0], activeSet);
                         if (prod) {
                             outputs[prod.commodity] = (outputs[prod.commodity] || 0) + prod.amount;
+                            console.log(`[Reducer:confirmProduction]   -> Output: ${prod.amount} ${prod.commodity}`);
                         }
                     }
                 }
             });
 
+            console.log(`[Reducer:confirmProduction] Total costs: Food=${totalFood}, Energy=${totalEnergy}, Ore=${totalOre}`);
+            console.log(`[Reducer:confirmProduction] Player resources: Food=${player.resources.Food}, Energy=${player.resources.Energy}, Ore=${player.resources.Ore}`);
+
             if (player.resources.Food < totalFood || player.resources.Energy < totalEnergy || player.resources.Ore < totalOre) {
+                console.log(`[Reducer:confirmProduction] REJECTED: Insufficient resources`);
                 return { success: false, message: 'Not enough resources to produce' };
             }
 
@@ -1603,6 +1612,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             const allProduced = newPlayers.every(p => p.hasProduced);
 
             if (allProduced) {
+                console.log(`[Reducer:confirmProduction] All players produced. Advancing round.`);
                 const nextFirstPlayerIndex = (state.firstPlayerIndex + 1) % state.players.length;
 
                 const resetPlayers = newPlayers.map(p => ({
@@ -1636,6 +1646,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             }
 
             const actionState = addLog(state, `${player.name} completed production`, 'action', player.id);
+            console.log(`[Reducer:confirmProduction] SUCCESS. Next turn: ${nextIndex}`);
 
             return {
                 success: true,

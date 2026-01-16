@@ -294,7 +294,8 @@ export function useGameEngine() {
         };
     }, []);
 
-    const handleAction = useCallback((action: string, payload?: unknown) => {
+    const handleAction = useCallback((action: string, payload?: any) => {
+        console.log(`[useGameEngine:handleAction] action=${action} payload=`, payload);
         if (mode === 'remote' && lobby?.phase === 'inGame') {
             const success = sendMessage({
                 type: 'gameAction',
@@ -502,6 +503,8 @@ export function useGameEngine() {
         });
     }, [lobby, mode, sendMessage]);
 
+    const clearLastError = useCallback(() => setLastError(null), []);
+
     const playerCount = lobby ? lobby.players.length : gameState.players.length;
 
     return {
@@ -525,6 +528,7 @@ export function useGameEngine() {
         updateSettings,
         connectionState,
         lastError,
+        clearLastError,
         saveSuccess,
         disbandedReason,
         playerCount,
