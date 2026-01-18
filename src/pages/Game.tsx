@@ -170,13 +170,26 @@ export const Game: React.FC = () => {
                 return;
             }
 
+            // Skip sound if the active player has auto-pass enabled
+            // We need to find the player who just started their turn.
+            // activePlayerId is derived from currentTurnPlayerIndex, so we can check that.
+            const turnPlayer = gameState.players[gameState.currentTurnPlayerIndex];
+            // Only skip sound if they are actually going to auto-pass (entered with it enabled)
+            // But 'enteredTurnWithAutoPass' state might not be updated yet in this render cycle?
+            // Actually, we can check the player property directly. The sound plays on turn change.
+            // If they have autoPass=true, we skip sound. 
+            // Note: If they uncheck it mid-turn, sound shouldn't play anyway because turn isn't changing.
+            if (turnPlayer?.autoPass) {
+                return;
+            }
+
             turnSound.currentTime = 0;
             turnSound.play().catch(e => {
                 // Ignore autoplay errors (user interaction required first)
                 console.log('Turn notification sound blocked:', e);
             });
         }
-    }, [gameState.phase, gameState.currentTurnPlayerIndex, gameState.gameEnded, turnSound, mode, activePlayerId, selfPlayer?.playerId]);
+    }, [gameState.phase, gameState.currentTurnPlayerIndex, gameState.gameEnded, turnSound, mode, activePlayerId, selfPlayer?.playerId, gameState.players]);
 
 
     const activePlayer = useMemo(() => {
@@ -210,6 +223,7 @@ export const Game: React.FC = () => {
             // Exceptions for actions that can be taken out of turn
             const isTradeResponse = (action === 'acceptTrade' || action === 'rejectTrade');
             const isSetIntent = action === 'setTradeIntent';
+            const isToggleAutoPass = action === 'toggleAutoPass';
             const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
 
             if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent) {
@@ -266,6 +280,43 @@ export const Game: React.FC = () => {
             setSetupValidPlacements({});
         }
     }, [gameState.phase, setupTileType, gameState.board, gameState.setupPhase?.step, gameState.setupPhase?.currentDrafterIndex]);
+
+
+
+    // Track if we entered the turn with autoPass enabled
+    // This prevents immediate passing if the user checks the box *during* their turn.
+    const [enteredTurnWithAutoPass, setEnteredTurnWithAutoPass] = useState(false);
+
+    // Keep a ref to the active player to access current state in the turn-change effect
+    const activePlayerRef = useRef(activePlayer);
+    useEffect(() => { activePlayerRef.current = activePlayer; });
+
+    // Capture autoPass state at start of turn
+    useEffect(() => {
+        const p = activePlayerRef.current;
+        // Check if the current turn belongs to the active player (local or remote self)
+        if (p && gameState.players[gameState.currentTurnPlayerIndex]?.id === p.id) {
+            setEnteredTurnWithAutoPass(p.autoPass || false);
+        } else {
+            setEnteredTurnWithAutoPass(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState.currentTurnPlayerIndex, gameState.phase]); // Only update on turn/phase change, NOT on player updates!
+
+    // Auto-Pass Execution Effect
+    useEffect(() => {
+        // Only run if we can act (it's our turn)
+        if (!canAct || interactionLocked || !activePlayer) return;
+
+        // Check if current player has autoPass enabled AND we entered the turn with it enabled
+        if (activePlayer.autoPass && enteredTurnWithAutoPass && (gameState.phase === 'Trade' || gameState.phase === 'Develop')) {
+            const timer = setTimeout(() => {
+                console.log(`[AutoPass] Triggering pass for ${activePlayer.name}`);
+                handleAction('pass');
+            }, 500); // Small delay for visual clarity
+            return () => clearTimeout(timer);
+        }
+    }, [gameState.phase, activePlayer?.autoPass, enteredTurnWithAutoPass, canAct, interactionLocked, handleAction, activePlayer?.name]);
 
     // Calculate valid placements for Develop phase
     useEffect(() => {

@@ -15,6 +15,7 @@ export interface Player {
   flag?: string; // Reference to SVG filename in public/flags/
   hasPassed?: boolean; // True if player has passed this phase
   hasProduced?: boolean; // True if player has run production this round
+  autoPass?: boolean; // If true, player automatically passes their turn in Trade/Develop phase
 }
 
 export interface Coordinate {

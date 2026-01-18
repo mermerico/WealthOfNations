@@ -10,6 +10,7 @@ interface DevelopBuildMenuProps {
     selectedTool: IndustryType | 'Flag' | 'Eraser' | 'Rotate' | 'Move' | 'Automate' | null;
     forceMode: boolean;
     interactionLocked: boolean;
+    selfPlayer?: { playerId: string } | null;
 
     setSelectedTool: (tool: IndustryType | 'Flag' | 'Move' | 'Automate' | null) => void;
     setForceMode: (v: boolean) => void;
@@ -33,8 +34,10 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
     setMoveSourceId,
     setMoveHistory,
     setMovesCompleted,
+
     handleAction,
-    canAfford
+    canAfford,
+    selfPlayer
 }) => {
     const hasOwnTiles = Object.values(gameState.board).some(
         cell => cell.occupant?.type === 'Industry' && cell.occupant.playerId === player.id
@@ -224,6 +227,17 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
             >
                 ✓ Pass
             </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '4px' }}>
+                <label style={{ fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                        type="checkbox"
+                        checked={player.autoPass || false}
+                        onChange={(e) => handleAction('toggleAutoPass', { playerId: player.id, enabled: e.target.checked })}
+                        disabled={interactionLocked && player.id !== selfPlayer?.playerId}
+                    />
+                    Auto-pass rest of phase
+                </label>
+            </div>
         </div>
     );
 };

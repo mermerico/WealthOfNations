@@ -22,7 +22,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'anglica.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     },
     {
         id: 'p2',
@@ -34,7 +35,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'bolshevica.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     },
     {
         id: 'p3',
@@ -46,7 +48,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'bharat.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     },
     {
         id: 'p4',
@@ -58,7 +61,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'arazzaq.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     },
     {
         id: 'p5',
@@ -70,7 +74,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'federal_provinces.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     },
     {
         id: 'p6',
@@ -82,7 +87,8 @@ const PLAYER_TEMPLATES: readonly Player[] = [
         flags: 18,
         ready: true,
         flag: 'showa.svg',
-        hasPassed: false
+        hasPassed: false,
+        autoPass: false
     }
 ];
 

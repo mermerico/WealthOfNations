@@ -619,11 +619,15 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 // Advance phase
                 if (state.phase === 'Trade') {
                     const phaseState = addLog(state, 'Phase changed to Develop', 'phase');
+
+                    // Clear auto-pass flags when changing phase
+                    const playersReset = playersWithoutPass.map(p => ({ ...p, autoPass: false }));
+
                     return {
                         success: true,
                         newState: {
                             ...phaseState,
-                            players: playersWithoutPass,
+                            players: playersReset,
                             phase: 'Develop',
                             consecutivePasses: 0,
                             currentTurnPlayerIndex: state.firstPlayerIndex
@@ -632,12 +636,17 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 } else if (state.phase === 'Develop') {
                     // Reset production flag for all players
                     const playersReadyToProduce = playersWithoutPass.map(p => ({ ...p, hasProduced: false }));
+
+                    // Clear auto-pass flags when entering Produce phase (though they are irrelevant there)
+                    // But definitely clear them so they don't persist to next Trade phase awkwardly
+                    const playersReset = playersReadyToProduce.map(p => ({ ...p, autoPass: false }));
+
                     const phaseState = addLog(state, 'Phase changed to Produce', 'phase');
                     return {
                         success: true,
                         newState: {
                             ...phaseState,
-                            players: playersReadyToProduce,
+                            players: playersReset,
                             phase: 'Produce',
                             consecutivePasses: 0,
                             currentTurnPlayerIndex: state.firstPlayerIndex
@@ -658,12 +667,15 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                         ? applyInterestFees(playersWithoutPass)
                         : playersWithoutPass;
 
+                    // Also clear auto-pass flags when starting a new round (fresh start)
+                    const playersReset = playersForTrade.map(p => ({ ...p, autoPass: false }));
+
                     const phaseState = addLog(state, `Round ${state.round + 1} started`, 'system');
                     return {
                         success: true,
                         newState: {
                             ...phaseState,
-                            players: playersForTrade,
+                            players: playersReset,
                             phase: 'Trade',
                             round: state.round + 1,
                             consecutivePasses: 0,
@@ -690,6 +702,23 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 };
             }
             break;
+        }
+
+        case 'toggleAutoPass': {
+            const { playerId, enabled } = payload || {};
+            if (!playerId) return { success: false, message: 'Missing playerId' };
+
+            const newPlayers = state.players.map(p =>
+                p.id === playerId ? { ...p, autoPass: enabled } : p
+            );
+
+            return {
+                success: true,
+                newState: {
+                    ...state,
+                    players: newPlayers
+                }
+            };
         }
 
         case 'buy': {

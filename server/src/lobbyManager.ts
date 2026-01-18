@@ -659,6 +659,16 @@ export class LobbyManager {
             return allowed;
         }
 
+        // toggleAutoPass can be done by any player at any time (in Trade/Develop phase)
+        if (action === 'toggleAutoPass') {
+            if (state.phase !== 'Trade' && state.phase !== 'Develop') {
+                return false;
+            }
+            if (!payload || typeof payload !== 'object') return false;
+            const playerId = (payload as { playerId?: string }).playerId;
+            return playerId === seat.playerId;
+        }
+
         if (state.phase === 'Produce') {
             if (action === 'confirmProduction') {
                 return (payload as { playerId?: string })?.playerId === seat.playerId;
