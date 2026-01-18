@@ -189,8 +189,8 @@ export const TradeSandbox: React.FC = () => {
         }
     };
 
-    const handleProposeTrade = (targetPlayerId: string, giving: any, receiving: any) => {
-        handleAction('proposeTrade', { targetId: targetPlayerId, giving, receiving });
+    const handleProposeTrade = (proposerId: string, targetPlayerId: string, giving: any, receiving: any) => {
+        handleAction('proposeTrade', { proposerId, targetId: targetPlayerId, giving, receiving });
         setShowTradeModal(false);
     };
 

@@ -8,12 +8,13 @@ interface TradeModalProps {
     currentPlayer: Player;
     allPlayers: Player[];
     markets: Record<CommodityType, { stock: number; priceIndex: number }>;
-    onPropose: (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => void;
+    onPropose: (proposerId: string, targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => void;
     onCancel: () => void;
     // Optional initial values for pre-filling the trade
     initialSelectedPlayerId?: string;
     initialGiving?: TradeOffer;
     initialReceiving?: TradeOffer;
+    isCounterOffer?: boolean;
 }
 
 interface AcceptTradeModalProps {
@@ -62,7 +63,7 @@ function calculateOfferValue(
     return value;
 }
 
-export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCancel, initialSelectedPlayerId, initialGiving, initialReceiving }: TradeModalProps) {
+export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCancel, initialSelectedPlayerId, initialGiving, initialReceiving, isCounterOffer }: TradeModalProps) {
     const [giving, setGiving] = useState<TradeOffer>(initialGiving ?? { commodities: {}, money: 0, loans: 0 });
     const [receiving, setReceiving] = useState<TradeOffer>(initialReceiving ?? { commodities: {}, money: 0, loans: 0 });
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>(initialSelectedPlayerId ?? '');
@@ -160,33 +161,52 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                 maxHeight: '80vh',
                 overflow: 'auto'
             }}>
-                <h2 style={{ color: 'white', marginTop: 0 }}>Propose Trade</h2>
+                <h2 style={{ color: 'white', marginTop: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {(() => {
+                        const targetPlayer = allPlayers.find(p => p.id === selectedPlayerId);
+                        if (!targetPlayer) return isCounterOffer ? 'Counter Proposal' : 'Propose Trade';
+
+                        return (
+                            <>
+                                {isCounterOffer ? 'Counter Proposal to' : 'Propose Trade with'}{' '}
+                                <img
+                                    src={`/flags/${targetPlayer.flag}`}
+                                    alt={targetPlayer.name}
+                                    style={{ width: '32px', height: '16px', objectFit: 'cover', border: '1px solid #444' }}
+                                />
+                                <span style={{ color: targetPlayer.color }}>{targetPlayer.name}</span>
+                            </>
+                        );
+                    })()}
+                </h2>
 
                 {/* Player Selection */}
-                <div style={{ marginBottom: '20px' }}>
-                    <label style={{ color: '#aaa', display: 'block', marginBottom: '8px' }}>Trade with:</label>
-                    <select
-                        value={selectedPlayerId}
-                        onChange={(e) => {
-                            setSelectedPlayerId(e.target.value);
-                            setReceiving({ commodities: {}, money: 0, loans: 0 });
-                        }}
-                        style={{
-                            width: '100%',
-                            padding: '8px',
-                            background: '#222',
-                            color: 'white',
-                            border: '1px solid #444',
-                            borderRadius: '4px',
-                            fontSize: '14px'
-                        }}
-                    >
-                        <option value="">Select a player...</option>
-                        {otherPlayers.map(player => (
-                            <option key={player.id} value={player.id}>{player.name}</option>
-                        ))}
-                    </select>
-                </div>
+                {!isCounterOffer && (
+                    <div style={{ marginBottom: '20px' }}>
+                        <label style={{ color: '#aaa', display: 'block', marginBottom: '8px' }}>Trade with:</label>
+                        <select
+                            value={selectedPlayerId}
+                            onChange={(e) => {
+                                setSelectedPlayerId(e.target.value);
+                                setReceiving({ commodities: {}, money: 0, loans: 0 });
+                            }}
+                            style={{
+                                width: '100%',
+                                padding: '8px',
+                                background: '#222',
+                                color: 'white',
+                                border: '1px solid #444',
+                                borderRadius: '4px',
+                                fontSize: '14px'
+                            }}
+                        >
+                            <option value="">Select a player...</option>
+                            {otherPlayers.map(player => (
+                                <option key={player.id} value={player.id}>{player.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                     {/* Giving Section */}
@@ -476,7 +496,7 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                             Cancel
                         </button>
                         <button
-                            onClick={() => onPropose(selectedPlayerId, giving, receiving)}
+                            onClick={() => onPropose(currentPlayer.id, selectedPlayerId, giving, receiving)}
                             disabled={!canPropose}
                             style={{
                                 flex: 1,
@@ -497,11 +517,10 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
                 </div>
             </div>
         </div>
-
     );
 }
 
-export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, onAccept, onReject, onCounterProposal }: AcceptTradeModalProps) {
+export function AcceptTradeModal({ proposingPlayer, receivingPlayer, giving, receiving, markets, onAccept, onReject, onCounterProposal }: AcceptTradeModalProps) {
     const commodities: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
 
     return (
@@ -526,55 +545,16 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, 
                 width: '90%'
             }}>
                 <h2 style={{ color: 'white', marginTop: 0 }}>Trade Proposal</h2>
-                <p style={{ color: '#aaa', fontSize: '14px' }}>
-                    <strong style={{ color: proposingPlayer.color }}>{proposingPlayer.name}</strong> wants to trade with you:
-                </p>
+                <div style={{ marginBottom: '15px' }}>
+                    <div style={{ color: '#aaa', fontSize: '14px', marginBottom: '4px' }}>
+                        From: <strong style={{ color: proposingPlayer.color }}>{proposingPlayer.name}</strong>
+                    </div>
+                    <div style={{ color: '#aaa', fontSize: '14px' }}>
+                        To: <strong style={{ color: receivingPlayer.color }}>{receivingPlayer.name}</strong>
+                    </div>
+                </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
-                    {/* They Give (You Receive) */}
-                    <div>
-                        <h3 style={{ color: '#10b981', fontSize: '14px', marginTop: 0 }}>You Receive</h3>
-                        <div style={{ background: '#222', padding: '12px', borderRadius: '4px' }}>
-                            {commodities.map(commodity => {
-                                const amount = giving.commodities[commodity];
-                                if (!amount) return null;
-                                return (
-                                    <div key={commodity} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                        <ResourceIcon type={commodity} size={16} />
-                                        <span style={{ color: 'white', fontSize: '14px' }}>{amount} {commodity}</span>
-                                    </div>
-                                );
-                            })}
-                            {giving.money > 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                    <span style={{ fontSize: '16px' }}>💰</span>
-                                    <span style={{ color: 'white', fontSize: '14px' }}>${giving.money}</span>
-                                </div>
-                            )}
-                            {giving.loans > 0 && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                                    <span style={{ fontSize: '16px' }}>📜</span>
-                                    <span style={{ color: 'white', fontSize: '14px' }}>{giving.loans} Loan{giving.loans > 1 ? 's' : ''}</span>
-                                </div>
-                            )}
-                            {Object.values(giving.commodities).every(v => !v) && !giving.money && !giving.loans && (
-                                <span style={{ color: '#666', fontStyle: 'italic' }}>Nothing</span>
-                            )}
-                        </div>
-                        {/* Estimated Value */}
-                        <div style={{
-                            marginTop: '8px',
-                            paddingTop: '6px',
-                            borderTop: '1px solid #444',
-                            textAlign: 'center'
-                        }}>
-                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
-                            <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '14px' }}>
-                                ${calculateOfferValue(giving, markets).toFixed(1)}
-                            </span>
-                        </div>
-                    </div>
-
                     {/* You Give (They Receive) */}
                     <div>
                         <h3 style={{ color: '#ef4444', fontSize: '14px', marginTop: 0 }}>You Give</h3>
@@ -615,6 +595,50 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, 
                             <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
                             <span style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '14px' }}>
                                 ${calculateOfferValue(receiving, markets).toFixed(1)}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* They Give (You Receive) */}
+                    <div>
+                        <h3 style={{ color: '#10b981', fontSize: '14px', marginTop: 0 }}>You Receive</h3>
+                        <div style={{ background: '#222', padding: '12px', borderRadius: '4px' }}>
+                            {commodities.map(commodity => {
+                                const amount = giving.commodities[commodity];
+                                if (!amount) return null;
+                                return (
+                                    <div key={commodity} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                        <ResourceIcon type={commodity} size={16} />
+                                        <span style={{ color: 'white', fontSize: '14px' }}>{amount} {commodity}</span>
+                                    </div>
+                                );
+                            })}
+                            {giving.money > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '16px' }}>💰</span>
+                                    <span style={{ color: 'white', fontSize: '14px' }}>${giving.money}</span>
+                                </div>
+                            )}
+                            {giving.loans > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                    <span style={{ fontSize: '16px' }}>📜</span>
+                                    <span style={{ color: 'white', fontSize: '14px' }}>{giving.loans} Loan{giving.loans > 1 ? 's' : ''}</span>
+                                </div>
+                            )}
+                            {Object.values(giving.commodities).every(v => !v) && !giving.money && !giving.loans && (
+                                <span style={{ color: '#666', fontStyle: 'italic' }}>Nothing</span>
+                            )}
+                        </div>
+                        {/* Estimated Value */}
+                        <div style={{
+                            marginTop: '8px',
+                            paddingTop: '6px',
+                            borderTop: '1px solid #444',
+                            textAlign: 'center'
+                        }}>
+                            <span style={{ color: '#aaa', fontSize: '11px' }}>Est. Value: </span>
+                            <span style={{ color: '#10b981', fontWeight: 'bold', fontSize: '14px' }}>
+                                ${calculateOfferValue(giving, markets).toFixed(1)}
                             </span>
                         </div>
                     </div>

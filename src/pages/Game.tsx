@@ -72,6 +72,8 @@ export const Game: React.FC = () => {
         targetId: string;
         giving: TradeOffer;
         receiving: TradeOffer;
+        proposerId?: string;
+        isCounter?: boolean;
     } | null>(null);
     // Selected player for operating costs display (local hotseat only)
     const [selectedCostsPlayerId, setSelectedCostsPlayerId] = useState<string | null>(null);
@@ -226,7 +228,11 @@ export const Game: React.FC = () => {
             const isToggleAutoPass = action === 'toggleAutoPass';
             const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
 
-            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent && !isToggleAutoPass) {
+            // proposeTrade/barter: any player can propose as long as they are the proposer in the payload
+            const isTradingAction = action === 'proposeTrade' || action === 'barter';
+            const isProposerInPayload = isTradingAction && payload?.proposerId === selfPlayer.playerId;
+
+            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent && !isToggleAutoPass && !isProposerInPayload) {
                 console.warn(`Blocked action ${action} because it is not this player's turn.`);
                 return;
             }
@@ -438,9 +444,9 @@ export const Game: React.FC = () => {
     };
 
     // Trade Handlers
-    const handleProposeTrade = (targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => {
+    const handleProposeTrade = (proposerId: string, targetPlayerId: string, giving: TradeOffer, receiving: TradeOffer) => {
         handleAction('proposeTrade', {
-            proposerId: player.id,
+            proposerId,
             targetId: targetPlayerId,
             giving,
             receiving
@@ -450,7 +456,7 @@ export const Game: React.FC = () => {
     };
 
     const handleOpenTradeWithPlayer = (targetId: string, giving: TradeOffer, receiving: TradeOffer) => {
-        setPrefilledTrade({ targetId, giving, receiving });
+        setPrefilledTrade({ proposerId: player.id, targetId, giving, receiving });
         setShowTradeModal(true);
     };
 
@@ -465,15 +471,17 @@ export const Game: React.FC = () => {
     const handleCounterTrade = () => {
         if (!gameState.pendingTrade) return;
 
-        const { proposerId, giving, receiving } = gameState.pendingTrade;
+        const { proposerId, targetId, giving, receiving } = gameState.pendingTrade;
 
         // Prep the swap for the modal
-        // Note: when A proposes to B, 'giving' is what A gives. 
+        // Note: when A proposes to B, 'giving' is what A gives.
         // When B counters, B's 'giving' should be what A was 'receiving'.
         setPrefilledTrade({
-            targetId: proposerId,
+            proposerId: targetId, // The person who received it is now countering
+            targetId: proposerId, // The original proposer is now the target
             giving: receiving,
-            receiving: giving
+            receiving: giving,
+            isCounter: true
         });
 
         // Clear the current pending trade so we can propose the new one
@@ -1728,7 +1736,9 @@ export const Game: React.FC = () => {
             {
                 showTradeModal && (
                     <TradeModal
-                        currentPlayer={player}
+                        currentPlayer={prefilledTrade?.proposerId
+                            ? gameState.players.find(p => p.id === prefilledTrade.proposerId)!
+                            : player}
                         allPlayers={gameState.players}
                         markets={gameState.markets}
                         onPropose={handleProposeTrade}
@@ -1739,6 +1749,7 @@ export const Game: React.FC = () => {
                         initialSelectedPlayerId={prefilledTrade?.targetId}
                         initialGiving={prefilledTrade?.giving}
                         initialReceiving={prefilledTrade?.receiving}
+                        isCounterOffer={prefilledTrade?.isCounter ?? false}
                     />
                 )
             }

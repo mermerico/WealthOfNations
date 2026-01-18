@@ -92,7 +92,7 @@ describe('TradeModal', () => {
         const proposeButton = screen.getByRole('button', { name: /Propose Trade/i });
         fireEvent.click(proposeButton);
 
-        expect(defaultProps.onPropose).toHaveBeenCalled();
+        expect(defaultProps.onPropose).toHaveBeenCalledWith('p1', 'p2', expect.any(Object), expect.any(Object));
     });
     it('resets receiving items when target player changes', async () => {
         render(<TradeModal {...defaultProps} />);
@@ -133,6 +133,19 @@ describe('TradeModal', () => {
         // Let's use `within` to be safe, but let's try a simpler assertion first.
         // The text '1' should appear if we added 1.
         expect(screen.queryByText('1')).not.toBeInTheDocument();
+    });
+
+    it('hides player selection in counter-offer mode', () => {
+        render(<TradeModal {...defaultProps} initialSelectedPlayerId="p2" isCounterOffer={true} />);
+
+        // Dropdown should be hidden
+        expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+
+        // Warning should not be visible since player is selected
+        expect(screen.queryByText(/Please select a player to trade with/i)).not.toBeInTheDocument();
+
+        // Title should be "Counter Proposal"
+        expect(screen.getByText(/Counter Proposal/i)).toBeInTheDocument();
     });
 });
 
@@ -182,7 +195,9 @@ describe('AcceptTradeModal', () => {
         render(<AcceptTradeModal {...defaultAcceptProps} />);
 
         expect(screen.getByText('Player 1')).toBeInTheDocument();
-        expect(screen.getByText(/wants to trade with you/i)).toBeInTheDocument();
+        expect(screen.getByText('Player 2')).toBeInTheDocument();
+        expect(screen.getByText(/From:/i)).toBeInTheDocument();
+        expect(screen.getByText(/To:/i)).toBeInTheDocument();
         expect(screen.getByText('1 Food')).toBeInTheDocument();
         expect(screen.getByText('1 Ore')).toBeInTheDocument();
     });
