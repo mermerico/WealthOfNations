@@ -11,6 +11,7 @@ interface TradeActionPanelProps {
     onOpenTradeWithPlayer: (targetId: string, giving: TradeOffer, receiving: TradeOffer) => void;
     onSelectedPlayerChange?: (playerId: string) => void;
     canAct?: boolean;
+    selfPlayer?: { playerId: string } | null;
 }
 
 interface TradeOffer {
@@ -91,7 +92,7 @@ function calculateOptimalTrade(
     };
 }
 
-export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, player, mode, onAction, onOpenTradeWithPlayer, onSelectedPlayerChange, canAct = true }) => {
+export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, player, mode, onAction, onOpenTradeWithPlayer, onSelectedPlayerChange, canAct = true, selfPlayer }) => {
     // For local hotseat, allow selecting which player's needs to set
     const [selectedPlayerId, setSelectedPlayerId] = useState<string>(player.id);
 
@@ -545,6 +546,17 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
             >
                 ✓ Pass
             </button>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '4px' }}>
+                <label style={{ fontSize: '11px', color: '#888', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                        type="checkbox"
+                        checked={selectedPlayer.autoPass || false}
+                        onChange={(e) => onAction('toggleAutoPass', { playerId: selectedPlayer.id, enabled: e.target.checked })}
+                        disabled={mode === 'remote' && selectedPlayer.id !== selfPlayer?.playerId}
+                    />
+                    Auto-pass rest of phase
+                </label>
+            </div>
         </div >
     );
 };

@@ -24,6 +24,7 @@ interface AcceptTradeModalProps {
     markets: Record<CommodityType, { stock: number; priceIndex: number }>;
     onAccept: () => void;
     onReject: () => void;
+    onCounterProposal?: () => void;
 }
 
 export interface TradeOffer {
@@ -500,7 +501,7 @@ export function TradeModal({ currentPlayer, allPlayers, markets, onPropose, onCa
     );
 }
 
-export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, onAccept, onReject }: AcceptTradeModalProps) {
+export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, onAccept, onReject, onCounterProposal }: AcceptTradeModalProps) {
     const commodities: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
 
     return (
@@ -626,7 +627,7 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, 
                         style={{
                             flex: 1,
                             padding: '12px',
-                            background: '#ef4444',
+                            background: '#444',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
@@ -637,6 +638,25 @@ export function AcceptTradeModal({ proposingPlayer, giving, receiving, markets, 
                     >
                         Reject
                     </button>
+                    {onCounterProposal && (
+                        <button
+                            data-testid="counter-trade-button"
+                            onClick={onCounterProposal}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                background: '#3b82f6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Counter
+                        </button>
+                    )}
                     <button
                         onClick={onAccept}
                         style={{

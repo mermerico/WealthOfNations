@@ -226,7 +226,7 @@ export const Game: React.FC = () => {
             const isToggleAutoPass = action === 'toggleAutoPass';
             const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
 
-            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent) {
+            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent && !isToggleAutoPass) {
                 console.warn(`Blocked action ${action} because it is not this player's turn.`);
                 return;
             }
@@ -460,6 +460,25 @@ export const Game: React.FC = () => {
 
     const handleRejectTrade = () => {
         handleAction('rejectTrade');
+    };
+
+    const handleCounterTrade = () => {
+        if (!gameState.pendingTrade) return;
+
+        const { proposerId, giving, receiving } = gameState.pendingTrade;
+
+        // Prep the swap for the modal
+        // Note: when A proposes to B, 'giving' is what A gives. 
+        // When B counters, B's 'giving' should be what A was 'receiving'.
+        setPrefilledTrade({
+            targetId: proposerId,
+            giving: receiving,
+            receiving: giving
+        });
+
+        // Clear the current pending trade so we can propose the new one
+        handleAction('rejectTrade');
+        setShowTradeModal(true);
     };
 
     // Determine if we should show the AcceptTradeModal
@@ -1177,6 +1196,7 @@ export const Game: React.FC = () => {
                     onOpenTradeWithPlayer={handleOpenTradeWithPlayer}
                     onSelectedPlayerChange={setSelectedCostsPlayerId}
                     canAct={canAct}
+                    selfPlayer={selfPlayer}
                 />
             );
         }
@@ -1189,6 +1209,7 @@ export const Game: React.FC = () => {
                 selectedTool={selectedTool}
                 forceMode={forceMode}
                 interactionLocked={interactionLocked}
+                selfPlayer={selfPlayer}
                 setSelectedTool={setSelectedTool}
                 setForceMode={setForceMode}
                 setIsMoving={setIsMoving}
@@ -1732,6 +1753,7 @@ export const Game: React.FC = () => {
                         markets={gameState.markets}
                         onAccept={handleAcceptTrade}
                         onReject={handleRejectTrade}
+                        onCounterProposal={handleCounterTrade}
                     />
                 )
             }

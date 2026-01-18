@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import '@testing-library/jest-dom';
-import { TradeModal } from './TradeModal';
+import { TradeModal, AcceptTradeModal } from './TradeModal';
 import { Player } from '../../types/gameState';
 
 describe('TradeModal', () => {
@@ -133,5 +133,66 @@ describe('TradeModal', () => {
         // Let's use `within` to be safe, but let's try a simpler assertion first.
         // The text '1' should appear if we added 1.
         expect(screen.queryByText('1')).not.toBeInTheDocument();
+    });
+});
+
+describe('AcceptTradeModal', () => {
+    const mockProposer: Player = {
+        id: 'p1',
+        name: 'Player 1',
+        color: 'red',
+        resources: { Food: 1, Energy: 1, Labor: 1, Ore: 1, Capital: 1 },
+        money: 100,
+        loans: 0,
+        flags: 5,
+        ready: false
+    };
+
+    const mockReceiver: Player = {
+        id: 'p2',
+        name: 'Player 2',
+        color: 'blue',
+        resources: { Food: 1, Energy: 1, Labor: 1, Ore: 1, Capital: 1 },
+        money: 100,
+        loans: 0,
+        flags: 5,
+        ready: false
+    };
+
+    const mockMarkets = {
+        Food: { stock: 4, priceIndex: 4 },
+        Energy: { stock: 4, priceIndex: 4 },
+        Labor: { stock: 4, priceIndex: 4 },
+        Ore: { stock: 4, priceIndex: 4 },
+        Capital: { stock: 4, priceIndex: 4 }
+    };
+
+    const defaultAcceptProps = {
+        proposingPlayer: mockProposer,
+        receivingPlayer: mockReceiver,
+        giving: { commodities: { Food: 1 }, money: 0, loans: 0 },
+        receiving: { commodities: { Ore: 1 }, money: 0, loans: 0 },
+        markets: mockMarkets,
+        onAccept: vi.fn(),
+        onReject: vi.fn(),
+        onCounterProposal: vi.fn()
+    };
+
+    it('renders trade details correctly', () => {
+        render(<AcceptTradeModal {...defaultAcceptProps} />);
+
+        expect(screen.getByText('Player 1')).toBeInTheDocument();
+        expect(screen.getByText(/wants to trade with you/i)).toBeInTheDocument();
+        expect(screen.getByText('1 Food')).toBeInTheDocument();
+        expect(screen.getByText('1 Ore')).toBeInTheDocument();
+    });
+
+    it('calls onCounterProposal when Counter button is clicked', () => {
+        render(<AcceptTradeModal {...defaultAcceptProps} />);
+
+        const counterButton = screen.getByTestId('counter-trade-button');
+        fireEvent.click(counterButton);
+
+        expect(defaultAcceptProps.onCounterProposal).toHaveBeenCalled();
     });
 });
