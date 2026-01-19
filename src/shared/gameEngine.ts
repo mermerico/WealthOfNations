@@ -182,6 +182,8 @@ export function createInitialGameState(options: InitialGameStateOptions = {}): G
         logs: [],
         settings: {
             promissoryNoteInterestFees: false,
+            multiBuySell: false,
+            automatedFinalTrade: false,
             ...options.settings
         }
     };

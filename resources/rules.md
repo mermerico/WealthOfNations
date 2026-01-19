@@ -481,3 +481,13 @@ Assuming the tile is oriented with a flat side up, the top flat side will be sid
 6. Bank Tile:
 * No dot in center.
 * Half dots on sides 2 and 3.
+
+
+## 10. Second Edition Rules
+
+The Second Edition ruleset makes the following changes:
+
+1. At the beginning of each trade phase, players must pay the bank $1 for each Promissory Note they hold. If they don't have enough money they must take out more notes to cover the cost.
+2. During the trade phase players can buy 1, 2, or 3 commodities from the market per turn or sell 1, 2, or 3 commodities to the market per turn. 
+3. The final trade phase is automated. The total number of commodities of each type across all players is calculated (it's the total number possessed by all players).
+Then for each commodity type, divide that number by half rounding down. Increment the market stock by that amount for each type of commodity. The sell price for all players is then set to the current market price for each commodity type. All players then sell all of their commodities to the market.

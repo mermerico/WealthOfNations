@@ -1,0 +1,183 @@
+.multi-transaction-modal {
+    background-color: #1e293b;
+    border: 2px solid #475569;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    width: 280px;
+    color: #f1f5f9;
+}
+
+.multi-transaction-modal h2 {
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    font-size: 1.1rem;
+    text-align: center;
+}
+
+.cart-container {
+    background-color: #0f172a;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid #334155;
+}
+
+.cart-header {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.cart-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+    min-height: 40px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #1e293b;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #334155;
+}
+
+.item-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+}
+
+.item-price {
+    color: #94a3b8;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.remove-item {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.2rem;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+    transition: color 0.2s;
+}
+
+.remove-item:hover {
+    color: #ef4444;
+}
+
+.cart-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 10px;
+    border-top: 1px solid #334155;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.total-amount {
+    font-size: 1.25rem;
+}
+
+.add-items-section {
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.commodity-buttons {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.add-button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 4px;
+    background-color: #334155;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-button:hover:not(:disabled) {
+    background-color: #475569;
+    transform: translateY(-1px);
+}
+
+.add-button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.add-plus {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #10b981;
+}
+
+.transaction-error {
+    background-color: #450a0a;
+    border: 1px solid #991b1b;
+    color: #fca5a5;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.transaction-warning {
+    font-size: 0.7rem;
+    color: #64748b;
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.modal-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.modal-actions .cancel-button {
+    background-color: #475569;
+    color: white;
+}
+
+.modal-actions .confirm-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

@@ -13,6 +13,7 @@ import { getAvailablePackages } from './packageDefinitions';
 import { getDraftOrder, getDraftRoundInfo } from './setupLogic';
 import { isValidSetupPlacement } from './setupPlacementLogic';
 import { generateGrid } from './hexUtils';
+import { processAutomatedFinalTrade } from './automatedFinalTrade';
 
 export interface ActionResult {
     success: boolean;
@@ -102,6 +103,74 @@ function resetPlayerPass(players: any[], playerIndex: number, updates: any) {
  * they automatically take loans until they can pay.
  * The interest amount is fixed based on loans at the start (not recalculated after borrowing).
  */
+/**
+ * Internal helper to apply a single market transaction to the state.
+ * Does NOT advance the turn or log anything.
+ * Use this for individual buy/sell or batch operations.
+ */
+function applyMarketTransaction(
+    state: GameState,
+    type: CommodityType,
+    action: 'buy' | 'sell'
+): { success: boolean; message?: string; newState?: GameState } {
+    const stock = state.markets[type].stock;
+    const steps = MARKET_STEPS[type];
+    const player = state.players[state.currentTurnPlayerIndex];
+
+    if (action === 'buy') {
+        const priceIndex = Math.max(0, stock - 1);
+        const price = steps[priceIndex].buy;
+        if (player.money < price) return { success: false, message: `Not enough money for ${type} ($${price})` };
+
+        const newPlayers = resetPlayerPass(state.players, state.currentTurnPlayerIndex, {
+            money: player.money - price,
+            resources: {
+                ...player.resources,
+                [type]: player.resources[type] + 1
+            }
+        });
+
+        const newStock = Math.max(0, stock - 1);
+        return {
+            success: true,
+            newState: {
+                ...state,
+                players: newPlayers,
+                markets: {
+                    ...state.markets,
+                    [type]: { ...state.markets[type], stock: newStock }
+                }
+            }
+        };
+    } else {
+        const maxStock = steps.length;
+        const priceIndex = Math.min(stock, maxStock - 1);
+        const price = steps[priceIndex].sell;
+        if (player.resources[type] <= 0) return { success: false, message: `No ${type} to sell` };
+
+        const newPlayers = resetPlayerPass(state.players, state.currentTurnPlayerIndex, {
+            money: player.money + price,
+            resources: {
+                ...player.resources,
+                [type]: (player.resources[type] || 0) - 1
+            }
+        });
+
+        const newStock = Math.min(maxStock, stock + 1);
+        return {
+            success: true,
+            newState: {
+                ...state,
+                players: newPlayers,
+                markets: {
+                    ...state.markets,
+                    [type]: { ...state.markets[type], stock: newStock }
+                }
+            }
+        };
+    }
+}
+
 function applyInterestFees(players: Player[]): Player[] {
     return players.map(player => {
         const initialLoans = player.loans;
@@ -600,13 +669,22 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
             // Check if game should end (isLastRound + all players pass in Trade phase)
             if (state.isLastRound && state.phase === 'Trade' && newConsecutivePasses >= state.players.length) {
+                let finalState = {
+                    ...state,
+                    players: playersWithPass,
+                    consecutivePasses: 0
+                };
+
+                // Apply Automated Final Trade if enabled
+                if (state.settings?.automatedFinalTrade) {
+                    finalState = processAutomatedFinalTrade(finalState);
+                }
+
                 return {
                     success: true,
                     newState: {
-                        ...state,
-                        players: playersWithPass,
-                        gameEnded: true,
-                        consecutivePasses: 0
+                        ...finalState,
+                        gameEnded: true
                     }
                 };
             }
@@ -723,42 +801,17 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
         case 'buy': {
             if (!payload) return { success: false, message: 'Missing commodity type' };
-
-            // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
-            const stock = state.markets[type].stock;
-            const steps = MARKET_STEPS[type];
 
-            // When market is empty (stock=0), buy from supply at same price as stock=1
-            // Price index: stock=0 uses steps[0], stock=1 uses steps[0], stock=2 uses steps[1], etc.
-            const priceIndex = Math.max(0, stock - 1);
-            const price = steps[priceIndex].buy;
-            const player = state.players[state.currentTurnPlayerIndex];
-
-            if (player.money < price) return { success: false, message: 'Not enough money' };
-
-            const newPlayers = resetPlayerPass(state.players, state.currentTurnPlayerIndex, {
-                money: player.money - price,
-                resources: {
-                    ...player.resources,
-                    [type]: player.resources[type] + 1
-                }
-            });
+            const result = applyMarketTransaction(state, type, 'buy');
+            if (!result.success) return result;
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
-
-            // Stock decreases by 1, but stays at 0 if already 0 (buying from supply)
-            const newStock = Math.max(0, stock - 1);
 
             return {
                 success: true,
                 newState: {
-                    ...state,
-                    players: newPlayers,
-                    markets: {
-                        ...state.markets,
-                        [type]: { ...state.markets[type], stock: newStock }
-                    },
+                    ...result.newState!,
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex
                 }
@@ -767,43 +820,45 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
         case 'sell': {
             if (!payload) return { success: false, message: 'Missing commodity type' };
-
-            // Support both formats: 'Food' or { commodity: 'Food' }
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
-            const stock = state.markets[type].stock;
-            const steps = MARKET_STEPS[type];
-            const maxStock = steps.length;
 
-            // When market is full (stock=maxStock), sell to supply at same price as stock=maxStock-1
-            // Price index: capped at maxStock-1
-            const priceIndex = Math.min(stock, maxStock - 1);
-            const price = steps[priceIndex].sell;
-            const player = state.players[state.currentTurnPlayerIndex];
-
-            if (player.resources[type] <= 0) return { success: false, message: 'No resource to sell' };
-
-            const newPlayers = resetPlayerPass(state.players, state.currentTurnPlayerIndex, {
-                money: player.money + price,
-                resources: {
-                    ...player.resources,
-                    [type]: player.resources[type] - 1
-                }
-            });
+            const result = applyMarketTransaction(state, type, 'sell');
+            if (!result.success) return result;
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
-
-            // Stock increases by 1, but stays at maxStock if already full (selling to supply)
-            const newStock = Math.min(maxStock, stock + 1);
 
             return {
                 success: true,
                 newState: {
-                    ...state,
-                    players: newPlayers,
-                    markets: {
-                        ...state.markets,
-                        [type]: { ...state.markets[type], stock: newStock }
-                    },
+                    ...result.newState!,
+                    consecutivePasses: 0,
+                    currentTurnPlayerIndex: nextPlayerIndex
+                }
+            };
+        }
+
+        case 'executeMarketCart': {
+            if (!state.settings?.multiBuySell) return { success: false, message: 'Multi-Buy/Sell is not enabled' };
+            if (!payload || !payload.items || !Array.isArray(payload.items)) {
+                return { success: false, message: 'Missing cart items' };
+            }
+            const { mode, items } = payload as { mode: 'buy' | 'sell'; items: CommodityType[] };
+            if (items.length === 0) return { success: false, message: 'Cart is empty' };
+            if (items.length > 3) return { success: false, message: 'Maximum 3 items allowed in cart' };
+
+            let currentState = state;
+            for (const type of items) {
+                const result = applyMarketTransaction(currentState, type, mode);
+                if (!result.success) return result;
+                currentState = result.newState!;
+            }
+
+            const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
+
+            return {
+                success: true,
+                newState: {
+                    ...currentState,
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex
                 }

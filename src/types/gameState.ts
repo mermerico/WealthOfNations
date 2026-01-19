@@ -100,6 +100,8 @@ export interface SetupPhaseState {
 
 export interface GameSettings {
   promissoryNoteInterestFees: boolean;
+  multiBuySell: boolean;
+  automatedFinalTrade: boolean;
 }
 
 export interface GameState {

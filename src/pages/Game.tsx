@@ -13,8 +13,9 @@ import SetupPhase from '../components/game/SetupPhase';
 import { getValidSetupPlacements } from '../utils/setupPlacementLogic';
 import { getValidPlacements, getValidMoveTargets, validateTileDots } from '../utils/placementLogic';
 import { TradeModal, AcceptTradeModal } from '../components/game/TradeModal';
-import MarketTransactionModal from '../components/game/MarketTransactionModal';
 import { MARKET_STEPS } from '../utils/marketDefinitions';
+import MarketTransactionModal from '../components/game/MarketTransactionModal';
+import MultiTransactionModal from '../components/game/MultiTransactionModal';
 import { VictoryScreen } from '../components/game/VictoryScreen';
 import { getAvailablePackages } from '../utils/packageDefinitions';
 import { ConfirmationModal } from '../components/ui/ConfirmationModal';
@@ -85,6 +86,10 @@ export const Game: React.FC = () => {
         action: 'buy' | 'sell';
         commodity: CommodityType;
         amount: number;
+    } | null>(null);
+    const [pendingMultiTransaction, setPendingMultiTransaction] = useState<{
+        action: 'buy' | 'sell';
+        initialCommodity: CommodityType;
     } | null>(null);
     const [marketErrorMessage, setMarketErrorMessage] = useState<string | null>(null);
     const [tradeAcceptedToast, setTradeAcceptedToast] = useState(false);
@@ -725,11 +730,18 @@ export const Game: React.FC = () => {
             return;
         }
 
-        setPendingMarketTransaction({
-            action: 'buy',
-            commodity: type,
-            amount: 1
-        });
+        if (gameState.settings?.multiBuySell) {
+            setPendingMultiTransaction({
+                action: 'buy',
+                initialCommodity: type
+            });
+        } else {
+            setPendingMarketTransaction({
+                action: 'buy',
+                commodity: type,
+                amount: 1
+            });
+        }
     };
 
     const handleSell = (type: CommodityType) => {
@@ -743,11 +755,18 @@ export const Game: React.FC = () => {
             return;
         }
 
-        setPendingMarketTransaction({
-            action: 'sell',
-            commodity: type,
-            amount: 1
-        });
+        if (gameState.settings?.multiBuySell) {
+            setPendingMultiTransaction({
+                action: 'sell',
+                initialCommodity: type
+            });
+        } else {
+            setPendingMarketTransaction({
+                action: 'sell',
+                commodity: type,
+                amount: 1
+            });
+        }
     };
 
     const handleConfirmMarketTransaction = () => {
@@ -759,6 +778,20 @@ export const Game: React.FC = () => {
 
     const handleCancelMarketTransaction = () => {
         setPendingMarketTransaction(null);
+    };
+
+    const handleConfirmMultiTransaction = (items: CommodityType[]) => {
+        if (!pendingMultiTransaction) return;
+
+        handleAction('executeMarketCart', {
+            mode: pendingMultiTransaction.action,
+            items
+        });
+        setPendingMultiTransaction(null);
+    };
+
+    const handleCancelMultiTransaction = () => {
+        setPendingMultiTransaction(null);
     };
 
     const handleActionWrapper = (action: string, payload?: any) => {
@@ -1714,11 +1747,19 @@ export const Game: React.FC = () => {
                                     amount={pendingMarketTransaction.amount}
                                     price={
                                         pendingMarketTransaction.action === 'buy'
-                                            ? MARKET_STEPS[pendingMarketTransaction.commodity][gameState.markets[pendingMarketTransaction.commodity].stock - 1].buy
-                                            : MARKET_STEPS[pendingMarketTransaction.commodity][gameState.markets[pendingMarketTransaction.commodity].stock].sell
+                                            ? MARKET_STEPS[pendingMarketTransaction.commodity][Math.max(0, gameState.markets[pendingMarketTransaction.commodity].stock - 1)].buy
+                                            : MARKET_STEPS[pendingMarketTransaction.commodity][Math.min(gameState.markets[pendingMarketTransaction.commodity].stock, MARKET_STEPS[pendingMarketTransaction.commodity].length - 1)].sell
                                     }
                                     onConfirm={handleConfirmMarketTransaction}
                                     onCancel={handleCancelMarketTransaction}
+                                />
+                            ) : pendingMultiTransaction ? (
+                                <MultiTransactionModal
+                                    action={pendingMultiTransaction.action}
+                                    initialCommodity={pendingMultiTransaction.initialCommodity}
+                                    gameState={gameState}
+                                    onConfirm={handleConfirmMultiTransaction}
+                                    onCancel={handleCancelMultiTransaction}
                                 />
                             ) : (
                                 <MarketBoard markets={gameState.markets} onBuy={handleBuy} onSell={handleSell} disabled={interactionLocked || gameState.phase !== 'Trade'} />

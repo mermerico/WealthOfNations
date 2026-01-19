@@ -143,6 +143,24 @@ export function Lobby({
                         />
                         <span>Promissory Note Interest ($1/note at start of each Trade phase)</span>
                     </label>
+                    <label className="lobby-setting-toggle">
+                        <input
+                            type="checkbox"
+                            data-testid="setting-multi-buy-sell"
+                            checked={lobby.settings?.multiBuySell ?? false}
+                            onChange={(e) => onUpdateSettings({ multiBuySell: e.target.checked })}
+                        />
+                        <span>Multi-Buy/Sell (1-3 commodities per turn)</span>
+                    </label>
+                    <label className="lobby-setting-toggle">
+                        <input
+                            type="checkbox"
+                            data-testid="setting-automated-final-trade"
+                            checked={lobby.settings?.automatedFinalTrade ?? false}
+                            onChange={(e) => onUpdateSettings({ automatedFinalTrade: e.target.checked })}
+                        />
+                        <span>Automated Final Trade Phase</span>
+                    </label>
                 </div>
             )}
 

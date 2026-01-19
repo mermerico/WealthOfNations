@@ -98,7 +98,12 @@ export async function closePlayers(players: TestPlayer[]): Promise<void> {
  */
 export async function createAndJoinLobby(
     players: TestPlayer[],
-    step?: StepLogger
+    step?: StepLogger,
+    options?: {
+        multiBuySell?: boolean;
+        automatedFinalTrade?: boolean;
+        promissoryNoteInterestFees?: boolean;
+    }
 ): Promise<string> {
     const log = step ?? (async (msg: string) => console.log(`[Setup] ${msg}`));
     const [host, ...guests] = players;
@@ -113,6 +118,20 @@ export async function createAndJoinLobby(
     await log(`Lobby Code: ${lobbyCode}`);
     await host.page.locator('.lobby-name-input').fill(host.name);
     await host.page.locator('.lobby-name-input').press('Enter');
+
+    // Apply Game Settings (Host Only)
+    if (options?.promissoryNoteInterestFees) {
+        await log('Enabling Promissory Note Interest setting...');
+        await host.page.getByTestId('setting-promissory-notes').check();
+    }
+    if (options?.multiBuySell) {
+        await log('Enabling Multi-Buy/Sell setting...');
+        await host.page.getByTestId('setting-multi-buy-sell').check();
+    }
+    if (options?.automatedFinalTrade) {
+        await log('Enabling Automated Final Trade setting...');
+        await host.page.getByTestId('setting-automated-final-trade').check();
+    }
 
     // Guests join
     for (const guest of guests) {
@@ -301,9 +320,14 @@ async function debugPlayerStates(players: TestPlayer[], log: StepLogger) {
  */
 export async function initializeGameToTradePhase(
     players: TestPlayer[],
-    step?: StepLogger
+    step?: StepLogger,
+    options?: {
+        multiBuySell?: boolean;
+        automatedFinalTrade?: boolean;
+        promissoryNoteInterestFees?: boolean;
+    }
 ): Promise<string> {
-    const lobbyCode = await createAndJoinLobby(players, step);
+    const lobbyCode = await createAndJoinLobby(players, step, options);
     await readyUpAndStartGame(players, step);
     await runSetupPhase(players, step);
     return lobbyCode;

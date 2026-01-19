@@ -57,6 +57,10 @@ test.describe.serial('3-player game flow', () => {
             } else if (msg.includes('Readying')) {
                 await step(msg);
             }
+        }, {
+            multiBuySell: true,
+            automatedFinalTrade: true,
+            promissoryNoteInterestFees: true
         });
         await step(`Lobby Code: ${lobbyCode}`);
         await step('P2 (Bob) joining...');
