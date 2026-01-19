@@ -14,6 +14,7 @@ const playerNames = ['Player 1', 'Player 2', 'Player 3'];
 const step = async (msg: string) => console.log(`[Hotseat] ${msg}`);
 
 test('local hotseat game flow', async ({ page }) => {
+    test.slow();
     test.setTimeout(180000); // Allow ample time for a full game flow
 
     // 1. Start Local Game

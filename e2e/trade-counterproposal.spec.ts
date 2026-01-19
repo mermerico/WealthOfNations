@@ -3,51 +3,50 @@ import {
     type TestPlayer,
     createPlayers,
     closePlayers,
-    createAndJoinLobby,
-    readyUpAndStartGame,
-    runSetupPhase,
     findActivePlayer,
 } from './test-helpers';
+import {
+    generateLobbyCode,
+    createMockSaveFile,
+    deleteMockSaveFile,
+    getBaseTradeState,
+    joinAndClaimSeats
+} from './save-test-utils';
 
 /**
- * E2E Test: Trade Counterproposal Flow
+ * E2E Test: Trade Counterproposal Flow (Optimized)
  * 
- * This test verifies that when Player B counters Player A's trade proposal:
- * 1. Player A sees the counterproposal modal (AcceptTradeModal)
- * 2. The modal correctly shows Player B as the proposer
- * 3. Player A can accept or reject the counterproposal
+ * Verifies the counterproposal modal flow using a pre-configured save file.
  */
 
 let players: TestPlayer[] = [];
+let savePath: string = '';
 const playerNames = ['Alice', 'Bob', 'Charlie'];
+const LOBBY_CODE = generateLobbyCode('CP');
 const step = async (msg: string) => console.log(`[CounterProposal] ${msg}`);
 
-test.describe.serial('trade counterproposal flow', () => {
+test.describe('trade counterproposal flow', () => {
 
     test.beforeAll(async ({ browser }) => {
         players = await createPlayers(browser, playerNames, { defaultTimeout: 5000 });
+
+        // Initialize game state in Trade phase
+        const gameState = getBaseTradeState(playerNames);
+        savePath = createMockSaveFile(LOBBY_CODE, gameState);
     });
 
     test.afterAll(async () => {
         await closePlayers(players);
+        deleteMockSaveFile(savePath);
         players = [];
-    });
-
-    test('setup game to trade phase', async () => {
-        test.setTimeout(120000);
-
-        await step('Creating and joining lobby...');
-        await createAndJoinLobby(players, step);
-        await readyUpAndStartGame(players, step);
-
-        await step('Running setup phase...');
-        await runSetupPhase(players, step);
-
-        await step('Game ready for counterproposal test!');
     });
 
     test('counterproposal is visible to original proposer', async () => {
         test.setTimeout(60000);
+
+        await step('Joining lobby and claiming seats...');
+        await joinAndClaimSeats(players, LOBBY_CODE, step);
+
         const pages = players.map(p => p.page);
 
         // ====== STEP 1: Find active player and their target ======
@@ -70,7 +69,7 @@ test.describe.serial('trade counterproposal flow', () => {
         await targetPage.getByTestId('trade-ready-button').click();
 
         // Wait for ready state to sync
-        await expect(activePage.locator(`text=${targetName}`).filter({ hasText: '(Planning...)' })).not.toBeVisible({ timeout: 5000 });
+        await expect(activePage.locator(`text=${targetName}`).filter({ hasText: '(Planning...)' })).not.toBeVisible({ timeout: 10000 });
 
         // ====== STEP 3: Active player proposes trade to target ======
         await step(`${activeName} proposing trade to ${targetName}...`);

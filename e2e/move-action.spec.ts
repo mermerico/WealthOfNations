@@ -1,47 +1,61 @@
 import { test, expect } from '@playwright/test';
-import { createPlayers, closePlayers, initializeGameToTradePhase, findActivePlayer } from './test-helpers';
+import { createPlayers, closePlayers, findActivePlayer } from './test-helpers';
+import {
+    generateLobbyCode,
+    createMockSaveFile,
+    deleteMockSaveFile,
+    getBaseTradeState,
+    joinAndClaimSeats
+} from './save-test-utils';
 
 test.describe('Move Action and Force Placement', () => {
     let players: Awaited<ReturnType<typeof createPlayers>>;
+    let savePath: string = '';
+    const playerNames = ['Alice', 'Bob', 'Charlie'];
+    const LOBBY_CODE = generateLobbyCode('MV');
 
     test.beforeEach(async ({ browser }) => {
-        players = await createPlayers(browser, ['Alice', 'Bob', 'Charlie']);
+        players = await createPlayers(browser, playerNames, { defaultTimeout: 5000 });
+
+        // Create a custom state in Develop phase with some tiles for Alice
+        const gameState = getBaseTradeState(playerNames);
+        gameState.phase = 'Develop';
+        gameState.board = {
+            "1,1": {
+                q: 1, r: 1,
+                occupant: {
+                    type: "Industry",
+                    playerId: "p1",
+                    tile: { id: "1,1", type: "Factory", ownerId: "p1", orientation: 0, active: true, automated: false }
+                }
+            },
+            "2,1": {
+                q: 2, r: 1,
+                occupant: {
+                    type: "Industry",
+                    playerId: "p1",
+                    tile: { id: "2,1", type: "Farm", ownerId: "p1", orientation: 0, active: true, automated: false }
+                }
+            }
+        };
+        savePath = createMockSaveFile(LOBBY_CODE, gameState);
     });
 
     test.afterEach(async () => {
         await closePlayers(players);
+        deleteMockSaveFile(savePath);
     });
 
     test('should allow 3 moves and charge correct capital (base + force)', async () => {
         test.setTimeout(180000);
 
-        // 1. Setup Game to Trade Phase
-        await initializeGameToTradePhase(players);
-
-        // 2. Pass through Trade Phase to Develop Phase
-        console.log('Passing through Trade Phase...');
-
-        let inDevelop = false;
-        for (let attempts = 0; attempts < 30 && !inDevelop; attempts++) {
-            const activeIdx = await findActivePlayer(players);
-            if (activeIdx !== -1) {
-                const phaseText = await players[activeIdx].page.getByTestId('phase-display').textContent();
-                if (phaseText?.includes('DEVELOP')) {
-                    inDevelop = true;
-                    break;
-                }
-
-                const passBtn = players[activeIdx].page.getByRole('button', { name: 'Pass' });
-                if (await passBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-                    await passBtn.click();
-                }
-            }
-            await players[0].page.waitForTimeout(300);
-        }
+        // 1. Join and Claim Seats
+        console.log('Joining lobby and claiming seats...');
+        await joinAndClaimSeats(players, LOBBY_CODE);
 
         // Verify we reached Develop Phase
         const activeIdx = await findActivePlayer(players);
-        expect(activeIdx).toBeGreaterThanOrEqual(0);
+        expect(activeIdx).toBe(0); // Alice should be active
 
         const activePage = players[activeIdx].page;
         const activePlayerName = players[activeIdx].name;
@@ -49,7 +63,7 @@ test.describe('Move Action and Force Placement', () => {
 
         await expect(activePage.getByTestId('phase-display')).toContainText('DEVELOP');
 
-        // 3. Select Move Tool
+        // 2. Select Move Tool
         await activePage.getByText(/^Move$/).click();
         await activePage.waitForTimeout(300);
 
@@ -76,8 +90,8 @@ test.describe('Move Action and Force Placement', () => {
                 const hex = allHexes.nth(i);
                 const testId = await hex.getAttribute('data-testid') || '';
 
-                // Skip center hex
-                if (testId === 'hex-0,0') continue;
+                // Skip center hex or occupied hexes for now
+                if (testId === 'hex-0,0' || testId === 'hex-1,1' || testId === 'hex-2,1') continue;
 
                 // Check if this hex might work as destination
                 await hex.click();
