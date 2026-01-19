@@ -133,6 +133,13 @@
     cursor: not-allowed;
 }
 
+.next-price {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 2px;
+}
+
 .add-plus {
     font-size: 0.8rem;
     font-weight: bold;

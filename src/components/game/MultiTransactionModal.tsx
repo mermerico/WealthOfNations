@@ -110,8 +110,25 @@ export default function MultiTransactionModal({
                     {COMMODITIES.map(type => {
                         // Check if stock 0 for buy or full for sell
                         const stock = gameState.markets[type].stock;
-                        const atLimit = isBuy ? stock === 0 : stock === MARKET_STEPS[type].length;
+                        const steps = MARKET_STEPS[type];
+                        const atLimit = isBuy ? stock === 0 : stock === steps.length;
                         const disabled = cart.length >= 3 || atLimit;
+
+                        // Calculate projected stock in cart for this type
+                        const countInCart = cart.filter(t => t === type).length;
+                        const projectedStock = isBuy ? stock - countInCart : stock + countInCart;
+
+                        let nextPrice = 0;
+                        if (!atLimit) {
+                            if (isBuy) {
+                                const priceIndex = Math.max(0, projectedStock - 1);
+                                nextPrice = steps[priceIndex].buy;
+                            } else {
+                                const maxStock = steps.length;
+                                const priceIndex = Math.min(projectedStock, maxStock - 1);
+                                nextPrice = steps[priceIndex].sell;
+                            }
+                        }
 
                         return (
                             <button
@@ -120,6 +137,7 @@ export default function MultiTransactionModal({
                                 disabled={disabled}
                                 onClick={() => addToCart(type)}
                             >
+                                {!atLimit && <span className="next-price">${nextPrice}</span>}
                                 <ResourceIcon type={type} size={16} />
                                 <span className="add-plus">+</span>
                             </button>
