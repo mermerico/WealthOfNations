@@ -26,6 +26,7 @@ import { SetupActionsPanel } from '../components/game/SetupActionsPanel';
 import { ProduceActionsPanel } from '../components/game/ProduceActionsPanel';
 import { ActionLog } from '../components/game/ActionLog';
 import { DevelopBuildMenu } from '../components/game/DevelopBuildMenu';
+import { EndGameSequenceModal } from '../components/game/EndGameSequenceModal';
 
 export const Game: React.FC = () => {
     // Game Engine State
@@ -231,13 +232,14 @@ export const Game: React.FC = () => {
             const isTradeResponse = (action === 'acceptTrade' || action === 'rejectTrade');
             const isSetIntent = action === 'setTradeIntent';
             const isToggleAutoPass = action === 'toggleAutoPass';
+            const isNextEndGameStep = action === 'nextEndGameStep';
             const isTargetOfTrade = gameState.pendingTrade?.targetId === selfPlayer.playerId;
 
             // proposeTrade/barter: any player can propose as long as they are the proposer in the payload
             const isTradingAction = action === 'proposeTrade' || action === 'barter';
             const isProposerInPayload = isTradingAction && payload?.proposerId === selfPlayer.playerId;
 
-            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent && !isToggleAutoPass && !isProposerInPayload) {
+            if (!canAct && !(isTradeResponse && isTargetOfTrade) && !isSetIntent && !isToggleAutoPass && !isProposerInPayload && !isNextEndGameStep) {
                 console.warn(`Blocked action ${action} because it is not this player's turn.`);
                 return;
             }
@@ -1269,8 +1271,8 @@ export const Game: React.FC = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '0', background: '#111' }}>
-            {/* Victory Screen Overlay */}
-            {gameState.gameEnded && (
+            {/* Victory Screen Overlay - Hidden during endgame sequence */}
+            {gameState.gameEnded && !gameState.endGameSequence?.isActive && (
                 <VictoryScreen
                     players={gameState.players}
                     board={gameState.board}
@@ -1809,6 +1811,15 @@ export const Game: React.FC = () => {
                     />
                 )
             }
+
+            {/* End Game Sequence Modal */}
+            <EndGameSequenceModal
+                gameState={gameState}
+                playerId={mode === 'local' ? (activePlayer?.id || gameState.players[gameState.firstPlayerIndex].id) : (selfPlayer?.playerId || '')}
+                onNextStep={() => handleAction('nextEndGameStep')}
+                onNewGame={mode === 'remote' ? requestRematch : startNewGame}
+            />
+
 
 
 

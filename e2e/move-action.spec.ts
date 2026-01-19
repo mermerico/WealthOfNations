@@ -140,7 +140,11 @@ test.describe('Move Action and Force Placement', () => {
         // NOW check Force checkbox (enabled because source is selected)
         const forceCheckbox = activePage.getByRole('checkbox', { name: 'Allow mismatched dots' });
         if (await forceCheckbox.isEnabled({ timeout: 500 }).catch(() => false)) {
-            await forceCheckbox.check();
+            // Robust check pattern
+            if (!(await forceCheckbox.isChecked())) {
+                await forceCheckbox.click();
+                await expect(forceCheckbox).toBeChecked({ timeout: 5000 });
+            }
             console.log('Force mode enabled');
         } else {
             console.log('Force checkbox not enabled, proceeding without force');

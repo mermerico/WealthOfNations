@@ -49,23 +49,36 @@ describe('Second Edition Integration Tests', () => {
             const result = gameReducer(state, 'pass');
 
             expect(result.success).toBe(true);
-            const newState = result.newState!;
-            expect(newState.gameEnded).toBe(true);
+            // expect(newState.gameEnded).toBe(true); // V2 flows into End Game Sequence
+            expect(result.newState!.endGameSequence?.isActive).toBe(true);
+
+            // Advance through End Game Sequence
+            let currentState = result.newState!;
+            let steps = 0;
+            const MAX_STEPS = 15;
+            while (!currentState.gameEnded && steps < MAX_STEPS) {
+                const next = gameReducer(currentState, 'nextEndGameStep');
+                expect(next.success).toBe(true);
+                currentState = next.newState!;
+                steps++;
+            }
+            const finalState = currentState;
+            expect(finalState.gameEnded).toBe(true);
 
             // All resources should be liquidated
-            expect(newState.players[0].resources.Food).toBe(0);
-            expect(newState.players[0].resources.Energy).toBe(0);
-            expect(newState.players[1].resources.Food).toBe(0);
+            expect(finalState.players[0].resources.Food).toBe(0);
+            expect(finalState.players[0].resources.Energy).toBe(0);
+            expect(finalState.players[1].resources.Food).toBe(0);
 
             // Players should have more money than before
-            expect(newState.players[0].money).toBeGreaterThan(50);
-            expect(newState.players[1].money).toBeGreaterThan(100);
+            expect(finalState.players[0].money).toBeGreaterThan(50);
+            expect(finalState.players[1].money).toBeGreaterThan(100);
 
             // Markets should have adjusted stock
             // Total Food = 10 + 5 = 15, increment = floor(15/2) = 7
-            expect(newState.markets.Food.stock).toBe(17); // 10 + 7
+            expect(finalState.markets.Food.stock).toBe(17); // 10 + 7
             // Total Energy = 5, increment = floor(5/2) = 2
-            expect(newState.markets.Energy.stock).toBe(12); // 10 + 2
+            expect(finalState.markets.Energy.stock).toBe(12); // 10 + 2
         });
 
         it('should NOT liquidate resources when automated final trade is disabled', () => {
@@ -139,10 +152,20 @@ describe('Second Edition Integration Tests', () => {
             expect(state.settings.multiBuySell).toBe(true);
             expect(state.settings.automatedFinalTrade).toBe(true);
 
-            // Game should still end properly
+            // Game should still end properly (after sequence)
             const result = gameReducer(state, 'pass');
             expect(result.success).toBe(true);
-            expect(result.newState!.gameEnded).toBe(true);
+
+            // Advance sequence
+            let currentState = result.newState!;
+            let steps = 0;
+            const MAX_STEPS = 15;
+            while (!currentState.gameEnded && steps < MAX_STEPS) {
+                const next = gameReducer(currentState, 'nextEndGameStep');
+                currentState = next.newState!;
+                steps++;
+            }
+            expect(currentState.gameEnded).toBe(true);
         });
     });
 });

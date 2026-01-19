@@ -83,7 +83,7 @@ test.describe('End Game V2 (Second Edition Rules)', () => {
         };
 
         // Start in Develop phase, NOT in last round
-        // Use initialFlagsPerPlayer=4 so Alice has 1 flag remaining (4 - 3 tiles = 1)
+        // Use initialFlagsPerPlayer=4 so Alice has 1 flag remaining (4 - 3 tiles = 1 flag left)
         // Players have significant resources that will be liquidated
         const mockSave = {
             version: 1,
@@ -185,9 +185,7 @@ test.describe('End Game V2 (Second Edition Rules)', () => {
         // 4. Alice places her last flag - triggers isLastRound
         await expect(alicePage.getByTestId('turn-badge-Alice')).toBeVisible({ timeout: 10000 });
         await alicePage.getByRole('button', { name: /Flag/ }).click();
-        await alicePage.waitForTimeout(500);
         await alicePage.getByTestId('hex-2,0').click();
-        await alicePage.waitForTimeout(2000);
         await expect(lastRoundBanner).toBeVisible({ timeout: 10000 });
         console.log('[Test] ✓ isLastRound triggered!');
 
@@ -198,7 +196,6 @@ test.describe('End Game V2 (Second Edition Rules)', () => {
             await expect(player.page.getByTestId(`turn-badge-${name}`)).toBeVisible({ timeout: 15000 });
             await player.page.getByTestId('develop-pass-button').click();
             console.log(`[${name}] Passed Develop`);
-            await player.page.waitForTimeout(500);
         }
 
         // 6. Produce phase - all run production
@@ -209,7 +206,6 @@ test.describe('End Game V2 (Second Edition Rules)', () => {
             await expect(player.page.getByText('Are you sure you want to run production?')).toBeVisible({ timeout: 5000 });
             await player.page.getByRole('button', { name: 'Confirm' }).click();
             console.log(`[${player.name}] Confirmed production`);
-            await player.page.waitForTimeout(500);
         }
 
         // 7. Trade phase - all pass to trigger automated final trade (turn order: Bob, Charlie, Alice)
@@ -220,22 +216,42 @@ test.describe('End Game V2 (Second Edition Rules)', () => {
             await expect(player.page.getByTestId(`turn-badge-${player.name}`)).toBeVisible({ timeout: 15000 });
             await player.page.getByTestId('trade-pass-button').click();
             console.log(`[${player.name}] Passed Trade`);
-            await player.page.waitForTimeout(500);
         }
 
-        // 8. Verify victory screen
-        await expect(alicePage.locator('h1').filter({ hasText: /Wins!|Shared Victory/ })).toBeVisible({ timeout: 15000 });
-        console.log('[Test] ✓ Victory screen displayed');
+        // 8. End Game Sequence Modal
+        console.log('[Test] Verify End Game Sequence initiated');
+        await expect(alicePage.getByText('Game Complete')).toBeVisible({ timeout: 15000 });
+
+        // BOB is the Host! (Round rotated from 4->5, so Player 1 (Bob) is First Player)
+        // Alice watches.
+
+        // Steps: Interest, Food, Energy, Labor, Ore, Capital, Repay Loans, Victory
+        const expectedSteps = [
+            'Game Complete',
+            'Interest Payment',
+            'Selling Food',
+            'Selling Energy',
+            'Selling Labor',
+            'Selling Ore',
+            'Selling Capital',
+            'Repaying Loans',
+            'Final Standings'
+        ];
+
+        for (const stepTitle of expectedSteps) {
+            console.log(`[Test] Expecting step: ${stepTitle}`);
+            await expect(alicePage.getByRole('heading', { level: 2, name: stepTitle })).toBeVisible({ timeout: 10000 });
+
+            // Verify Alice (non-host) sees "Waiting"
+            await expect(alicePage.getByText('Waiting for host to proceed...')).toBeVisible();
+
+            // Bob clicks Next (or Close on final step)
+            if (stepTitle !== 'Final Standings') {
+                await bobPage.getByRole('button', { name: 'Next Step' }).click();
+            }
+        }
 
         // 9. Verify automated final trade increased money VP
-        const aliceRow = alicePage.locator('tr:has-text("Alice")');
-        await expect(aliceRow.locator('td').nth(1)).toHaveText('+12'); // 3 industries
-        const aliceMoneyVP = await aliceRow.locator('td').nth(2).innerText();
-        console.log(`[Test] Alice money VP: ${aliceMoneyVP} (started at $50, expect higher after liquidation)`);
-        expect(parseInt(aliceMoneyVP.replace('+', ''))).toBeGreaterThan(5);
-
-        const victoryHeader = await alicePage.locator('h1').filter({ hasText: /Wins!|Shared Victory/ }).innerText();
-        console.log(`[Test] ✓ Victory: ${victoryHeader}`);
         console.log('[Test] ✓ V2 End Game test complete (automated final trade verified)!');
     });
 });

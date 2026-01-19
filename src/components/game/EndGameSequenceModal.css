@@ -1,0 +1,605 @@
+/* End Game Sequence Modal - Premium styling with animations */
+
+/* Overlay with blur */
+.endgame-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: overlayFadeIn 0.4s ease-out;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Main Modal Container */
+.endgame-modal {
+    width: 100%;
+    max-width: 700px;
+    margin: 1rem;
+    padding: 2rem;
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 20px;
+    box-shadow:
+        0 0 60px rgba(139, 92, 246, 0.15),
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    /* Only animate on first appearance, not on step changes */
+    overflow: hidden;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header Section */
+.endgame-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.endgame-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: titlePulse 2s ease-in-out infinite;
+}
+
+@keyframes titlePulse {
+
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+
+    50% {
+        filter: brightness(1.2);
+    }
+}
+
+.endgame-description {
+    margin: 0;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Progress Steps */
+.endgame-progress {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 1.25rem;
+}
+
+.progress-step {
+    width: 32px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-step.active {
+    background: rgba(139, 92, 246, 0.3);
+}
+
+.progress-step.active::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+    animation: progressFill 0.5s ease-out forwards;
+}
+
+.progress-step.completed {
+    background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+}
+
+@keyframes progressFill {
+    from {
+        transform: scaleX(0);
+        transform-origin: left;
+    }
+
+    to {
+        transform: scaleX(1);
+        transform-origin: left;
+    }
+}
+
+/* Players Table Section */
+.endgame-players {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.endgame-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.9rem;
+}
+
+.endgame-table thead th {
+    padding: 0.75rem 0.5rem;
+    text-align: right;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.endgame-table thead th:first-child {
+    text-align: left;
+}
+
+.endgame-table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.endgame-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.endgame-table td {
+    padding: 0.75rem 0.5rem;
+    text-align: right;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.endgame-table td:first-child {
+    text-align: left;
+}
+
+.endgame-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Player Cell Styling */
+.player-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.endgame-player-flag {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.player-name {
+    font-weight: 600;
+    font-family: inherit;
+}
+
+/* Resource Cell styling with animation */
+.resource-cell {
+    position: relative;
+    font-weight: 600;
+}
+
+.resource-cell.liquidating {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+@keyframes liquidateFlash {
+    0% {
+        transform: scale(1);
+    }
+
+    25% {
+        transform: scale(1.15);
+        filter: brightness(1.5);
+    }
+
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+.resource-cell.zeroed {
+    color: rgba(255, 255, 255, 0.3) !important;
+    opacity: 0.5;
+}
+
+/* Money cell with special styling */
+.money-cell {
+    color: #10b981;
+    font-size: 1rem;
+}
+
+.money-cell.increasing {
+    animation: moneyIncrease 0.5s ease-out;
+}
+
+@keyframes moneyIncrease {
+    0% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(1.2);
+        color: #4ade80;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Loans cell */
+.loans-cell {
+    color: #f87171;
+}
+
+/* Commodity Colors */
+.commodity-food {
+    color: #facc15;
+}
+
+.commodity-energy {
+    color: #60a5fa;
+}
+
+.commodity-labor {
+    color: #f87171;
+}
+
+.commodity-ore {
+    color: #94a3b8;
+}
+
+.commodity-capital {
+    color: #e2e8f0;
+}
+
+/* Victory Panel */
+.victory-panel {
+    background: linear-gradient(145deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: victoryReveal 0.8s ease-out;
+}
+
+@keyframes victoryReveal {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.victory-title {
+    text-align: center;
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fbbf24;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+}
+
+.victory-scores {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.victory-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.victory-row.winner {
+    background: linear-gradient(90deg, rgba(250, 204, 21, 0.2), rgba(251, 191, 36, 0.05));
+    border: 1px solid rgba(250, 204, 21, 0.3);
+    animation: winnerGlow 2s ease-in-out infinite;
+}
+
+@keyframes winnerGlow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(250, 204, 21, 0.1);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(250, 204, 21, 0.2);
+    }
+}
+
+.victory-player {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.victory-player .crown {
+    font-size: 1.25rem;
+    animation: crownBounce 1s ease-in-out infinite;
+}
+
+@keyframes crownBounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+.victory-score {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.victory-score.positive {
+    color: #10b981;
+}
+
+.victory-score.negative {
+    color: #f87171;
+}
+
+/* Footer Controls */
+.endgame-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.next-step-button {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+}
+
+.next-step-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+}
+
+.next-step-button:active {
+    transform: translateY(0);
+}
+
+.next-step-button .arrow {
+    transition: transform 0.2s ease;
+}
+
+.next-step-button:hover .arrow {
+    transform: translateX(4px);
+}
+
+.waiting-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+.waiting-indicator .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 50%;
+    animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+/* Step-specific animations */
+.endgame-modal[data-step="interest"] .loans-cell {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+.endgame-modal[data-step="food"] .commodity-food {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+.endgame-modal[data-step="energy"] .commodity-energy {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+.endgame-modal[data-step="labor"] .commodity-labor {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+.endgame-modal[data-step="ore"] .commodity-ore {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+.endgame-modal[data-step="capital"] .commodity-capital {
+    animation: liquidateFlash 0.6s ease-out;
+}
+
+/* Liquidation counter animation overlay */
+.liquidation-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    display: flex;
+    justify-content: center;
+    padding-top: 5rem;
+}
+
+.liquidation-cube {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    animation: cubeFloat 3s ease-in-out infinite;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes cubeFloat {
+
+    0%,
+    100% {
+        transform: translateY(0) rotate(0deg);
+    }
+
+    25% {
+        transform: translateY(-10px) rotate(3deg);
+    }
+
+    75% {
+        transform: translateY(-5px) rotate(-3deg);
+    }
+}
+
+.liquidation-cube.food {
+    background: linear-gradient(135deg, #facc15, #eab308);
+}
+
+.liquidation-cube.energy {
+    background: linear-gradient(135deg, #60a5fa, #3b82f6);
+}
+
+.liquidation-cube.labor {
+    background: linear-gradient(135deg, #f87171, #ef4444);
+}
+
+.liquidation-cube.ore {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+}
+
+.liquidation-cube.capital {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    color: #1f2937;
+}
+
+.liquidation-arrow {
+    font-size: 2rem;
+    color: rgba(255, 255, 255, 0.3);
+    animation: arrowPulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes arrowPulse {
+    from {
+        transform: translateX(0);
+        opacity: 0.3;
+    }
+
+    to {
+        transform: translateX(8px);
+        opacity: 0.8;
+    }
+}
+
+.liquidation-money {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    animation: moneyPop 2s ease-in-out infinite;
+    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+}
+
+@keyframes moneyPop {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}

@@ -13,7 +13,7 @@ import { getAvailablePackages } from './packageDefinitions';
 import { getDraftOrder, getDraftRoundInfo } from './setupLogic';
 import { isValidSetupPlacement } from './setupPlacementLogic';
 import { generateGrid } from './hexUtils';
-import { processAutomatedFinalTrade } from './automatedFinalTrade';
+import { processNextEndGameStep, END_GAME_STEPS } from './automatedFinalTrade';
 
 export interface ActionResult {
     success: boolean;
@@ -677,16 +677,30 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
                 // Apply Automated Final Trade if enabled
                 if (state.settings?.automatedFinalTrade) {
-                    finalState = processAutomatedFinalTrade(finalState);
+                    // V2: Start the End Game Sequence
+                    // We do NOT set gameEnded: true yet. We start the sequence.
+                    return {
+                        success: true,
+                        newState: {
+                            ...finalState,
+                            endGameSequence: {
+                                isActive: true,
+                                currentStep: END_GAME_STEPS.SUMMARY
+                            }
+                        }
+                    };
+                } else {
+                    // V1: Just end the game (or if there was V1 automatic logic, it would go here, but V1 is manual usually?)
+                    // The previous code had processAutomatedFinalTrade here, but assuming that was the implementation of "automatedFinalTrade" pref previously.
+                    // If the setting is OFF, we probably just end the game 'as is' (assuming players manually traded).
+                    return {
+                        success: true,
+                        newState: {
+                            ...finalState,
+                            gameEnded: true
+                        }
+                    };
                 }
-
-                return {
-                    success: true,
-                    newState: {
-                        ...finalState,
-                        gameEnded: true
-                    }
-                };
             }
 
             // Check if all players have passed
@@ -796,6 +810,21 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     ...state,
                     players: newPlayers
                 }
+            };
+        }
+
+        case 'nextEndGameStep': {
+            if (!state.endGameSequence?.isActive) {
+                return { success: false, message: 'End game sequence not active' };
+            }
+
+            // Only the "Host" (first player or specific logic) should trigger this? 
+            // In reducer we just trust the action for now, validation happens in Game.tsx or handleAction.
+
+            const newState = processNextEndGameStep(state);
+            return {
+                success: true,
+                newState
             };
         }
 

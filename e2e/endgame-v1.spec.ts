@@ -183,9 +183,7 @@ test.describe('End Game V1 (Original Rules)', () => {
         // 4. Alice places her last flag - triggers isLastRound
         await expect(alicePage.getByTestId('turn-badge-Alice')).toBeVisible({ timeout: 10000 });
         await alicePage.getByRole('button', { name: /Flag/ }).click();
-        await alicePage.waitForTimeout(500);
         await alicePage.getByTestId('hex-2,0').click();
-        await alicePage.waitForTimeout(2000);
         await expect(lastRoundBanner).toBeVisible({ timeout: 10000 });
         console.log('[Test] ✓ isLastRound triggered!');
 
@@ -197,7 +195,6 @@ test.describe('End Game V1 (Original Rules)', () => {
             await expect(player.page.getByTestId(`turn-badge-${name}`)).toBeVisible({ timeout: 15000 });
             await player.page.getByTestId('develop-pass-button').click();
             console.log(`[${name}] Passed Develop`);
-            await player.page.waitForTimeout(500);
         }
 
         // 6. Produce phase - all run production (with no active blocs)
@@ -208,7 +205,6 @@ test.describe('End Game V1 (Original Rules)', () => {
             await expect(player.page.getByText('Are you sure you want to run production?')).toBeVisible({ timeout: 5000 });
             await player.page.getByRole('button', { name: 'Confirm' }).click();
             console.log(`[${player.name}] Confirmed production`);
-            await player.page.waitForTimeout(500);
         }
 
         // 7. Trade phase - all pass to end game (turn order: Bob, Charlie, Alice - Bob is now first player)
@@ -219,7 +215,6 @@ test.describe('End Game V1 (Original Rules)', () => {
             await expect(player.page.getByTestId(`turn-badge-${player.name}`)).toBeVisible({ timeout: 15000 });
             await player.page.getByTestId('trade-pass-button').click();
             console.log(`[${player.name}] Passed Trade`);
-            await player.page.waitForTimeout(500);
         }
 
         // 8. Verify victory screen

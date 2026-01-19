@@ -406,22 +406,38 @@ describe('isLastRound Triggering Tests', () => {
             const result = gameReducer(state, 'pass');
             expect(result.success).toBe(true);
             const endState = result.newState!;
-            expect(endState.gameEnded).toBe(true);
+            // End Game Sequence should be active
+            expect(result.newState!.endGameSequence?.isActive).toBe(true);
+
+            // Advance through the End Game Sequence steps until game ends
+            let currentState = result.newState!;
+            let steps = 0;
+            const MAX_STEPS = 15; // Safety break
+
+            while (!currentState.gameEnded && steps < MAX_STEPS) {
+                const nextStepResult = gameReducer(currentState, 'nextEndGameStep');
+                expect(nextStepResult.success).toBe(true);
+                currentState = nextStepResult.newState!;
+                steps++;
+            }
+
+            expect(currentState.gameEnded).toBe(true);
+            const finalState = currentState;
 
             // All resources should be 0 after liquidation
-            expect(endState.players[0].resources.Food).toBe(0);
-            expect(endState.players[0].resources.Energy).toBe(0);
-            expect(endState.players[0].resources.Ore).toBe(0);
-            expect(endState.players[0].resources.Capital).toBe(0);
-            expect(endState.players[1].resources.Energy).toBe(0);
-            expect(endState.players[1].resources.Capital).toBe(0);
-            expect(endState.players[2].resources.Food).toBe(0);
-            expect(endState.players[2].resources.Ore).toBe(0);
+            expect(finalState.players[0].resources.Food).toBe(0);
+            expect(finalState.players[0].resources.Energy).toBe(0);
+            expect(finalState.players[0].resources.Ore).toBe(0);
+            expect(finalState.players[0].resources.Capital).toBe(0);
+            expect(finalState.players[1].resources.Energy).toBe(0);
+            expect(finalState.players[1].resources.Capital).toBe(0);
+            expect(finalState.players[2].resources.Food).toBe(0);
+            expect(finalState.players[2].resources.Ore).toBe(0);
 
             // Players should have more money than before
-            expect(endState.players[0].money).toBeGreaterThan(50);
-            expect(endState.players[1].money).toBeGreaterThan(30);
-            expect(endState.players[2].money).toBeGreaterThan(80);
+            expect(finalState.players[0].money).toBeGreaterThan(50);
+            expect(finalState.players[1].money).toBeGreaterThan(30);
+            expect(finalState.players[2].money).toBeGreaterThan(80);
         });
 
         it('should NOT liquidate resources when automatedFinalTrade is disabled', () => {

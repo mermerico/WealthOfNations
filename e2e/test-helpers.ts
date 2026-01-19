@@ -122,15 +122,27 @@ export async function createAndJoinLobby(
     // Apply Game Settings (Host Only)
     if (options?.promissoryNoteInterestFees) {
         await log('Enabling Promissory Note Interest setting...');
-        await host.page.getByTestId('setting-promissory-notes').check();
+        const checkbox = host.page.getByTestId('setting-promissory-notes');
+        if (!(await checkbox.isChecked())) {
+            await checkbox.click();
+            await expect(checkbox).toBeChecked({ timeout: 10000 });
+        }
     }
     if (options?.multiBuySell) {
         await log('Enabling Multi-Buy/Sell setting...');
-        await host.page.getByTestId('setting-multi-buy-sell').check();
+        const checkbox = host.page.getByTestId('setting-multi-buy-sell');
+        if (!(await checkbox.isChecked())) {
+            await checkbox.click();
+            await expect(checkbox).toBeChecked({ timeout: 10000 });
+        }
     }
     if (options?.automatedFinalTrade) {
         await log('Enabling Automated Final Trade setting...');
-        await host.page.getByTestId('setting-automated-final-trade').check();
+        const checkbox = host.page.getByTestId('setting-automated-final-trade');
+        if (!(await checkbox.isChecked())) {
+            await checkbox.click();
+            await expect(checkbox).toBeChecked({ timeout: 10000 });
+        }
     }
 
     // Guests join

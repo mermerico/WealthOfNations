@@ -669,10 +669,21 @@ export class LobbyManager {
             return playerId === seat.playerId;
         }
 
+        if (action === 'claimSeat' || action === 'unclaimSeat' || action === 'updateSettings' || action === 'nextEndGameStep') {
+            console.log(`[LobbyManager] Special action ${action} allowed for client ${seat.clientId}`);
+        }
+
         if (state.phase === 'Produce') {
             if (action === 'confirmProduction') {
                 return (payload as { playerId?: string })?.playerId === seat.playerId;
             }
+        }
+
+        if (action === 'nextEndGameStep') {
+            const firstPlayerIndex = state.firstPlayerIndex;
+            const firstPlayerId = state.players[firstPlayerIndex]?.id;
+            console.log(`[LobbyManager] nextEndGameStep. Host: ${firstPlayerId}, Actor: ${seat.playerId}`);
+            return firstPlayerId === seat.playerId;
         }
 
         if (action === 'loadState' || action === 'debug' || action === 'sandboxPlaceTile' || action === 'skipSetup') {

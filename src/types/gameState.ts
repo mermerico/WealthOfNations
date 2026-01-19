@@ -124,6 +124,20 @@ export interface GameState {
   settings: GameSettings;
   tradeIntents?: Record<string, TradeIntent>; // Player ID -> their trade intent for current Trade phase
   logs: LogEntry[];
+  endGameSequence?: {
+    isActive: boolean;
+    currentStep: number;
+    // Step meaning: 
+    // 0: Summary
+    // 1: Interest
+    // 2: Liquidate Food
+    // 3: Liquidate Energy
+    // 4: Liquidate Labor
+    // 5: Liquidate Ore
+    // 6: Liquidate Capital
+    // 7: Pay off Loans
+    // 8: Victory
+  };
 }
 
 export const INITIAL_RESOURCES: Record<CommodityType, number> = {
