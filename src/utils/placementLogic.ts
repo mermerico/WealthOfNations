@@ -62,7 +62,9 @@ export function validateTileDots(
 
     // 2. Corner Adjacency Check
     for (let cornerPos = 0; cornerPos < 6; cornerPos++) {
-        const myCornerFeatureIdx = (cornerPos - orientation + 6) % 6;
+        // cornerPos 0 corresponds to definition position 5 at orientation 0 (there's a -1 offset)
+        // To find which definition position appears at this corner: (cornerPos - 1 - orientation + 12) % 6
+        const myCornerFeatureIdx = (cornerPos - 1 - orientation + 12) % 6;
         const myCornerFeature = def.features.find((f: TileFeature) => f.type === 'Corner' && f.position === myCornerFeatureIdx);
 
         if (!myCornerFeature || myCornerFeature.feature !== 'ThirdDot') continue;
@@ -86,14 +88,16 @@ export function validateTileDots(
             const neighborDef = TILE_DEFINITIONS[neighborTile.type];
             const neighborOrientation = neighborTile.orientation || 0;
 
+            // Different offsets for the two edges of a corner:
+            // edge1 (incoming) shares one vertex, edge2 (outgoing) shares the other
             let neighborCornerPos;
             if (edgeDir === edge1) {
                 neighborCornerPos = (edgeDir + 3) % 6;
             } else {
-                neighborCornerPos = (edgeDir + 2) % 6;
+                neighborCornerPos = (edgeDir + 4) % 6;
             }
 
-            const neighborCornerFeatureIdx = (neighborCornerPos - neighborOrientation + 6) % 6;
+            const neighborCornerFeatureIdx = (neighborCornerPos - 1 - neighborOrientation + 12) % 6;
             const neighborCornerFeature = neighborDef.features.find((f: TileFeature) => f.type === 'Corner' && f.position === neighborCornerFeatureIdx);
 
             if (neighborCornerFeature && neighborCornerFeature.feature === 'ThirdDot') {

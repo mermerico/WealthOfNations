@@ -10,6 +10,7 @@ import { LocalSetup } from './pages/LocalSetup';
 import { GameEngineProvider, useGameEngineContext } from './hooks/GameEngineProvider';
 
 import { TradeSandbox } from './pages/TradeSandbox';
+import { TileSandbox } from './pages/TileSandbox';
 import { PlayerAid } from './components/game/PlayerAid';
 
 function AppShell() {
@@ -39,11 +40,13 @@ function AppShell() {
 
   // Sandbox Routing
   const [showSandbox, setShowSandbox] = useState(window.location.hash === '#trade-sandbox');
+  const [showTileSandbox, setShowTileSandbox] = useState(window.location.hash === '#tile-sandbox');
   const [showPlayerAid, setShowPlayerAid] = useState(window.location.hash === '#player-aid');
 
   useEffect(() => {
     const handleHashChange = () => {
       setShowSandbox(window.location.hash === '#trade-sandbox');
+      setShowTileSandbox(window.location.hash === '#tile-sandbox');
       setShowPlayerAid(window.location.hash === '#player-aid');
     };
     window.addEventListener('hashchange', handleHashChange);
@@ -74,6 +77,10 @@ function AppShell() {
 
   if (showSandbox) {
     return <TradeSandbox />;
+  }
+
+  if (showTileSandbox) {
+    return <TileSandbox />;
   }
 
   if (showPlayerAid) {
