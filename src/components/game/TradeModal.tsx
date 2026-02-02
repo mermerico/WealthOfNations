@@ -35,7 +35,7 @@ export interface TradeOffer {
 }
 
 // Calculate estimated value of a trade offer
-function calculateOfferValue(
+export function calculateOfferValue(
     offer: TradeOffer,
     markets: Record<CommodityType, { stock: number; priceIndex: number }>
 ): number {

@@ -1,10 +1,31 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { LogEntry, Player } from '../../types/gameState';
+import { ResourceIcon } from '../ui/ResourceIcon';
 
 interface ActionLogProps {
     logs: LogEntry[];
     players: Player[];
 }
+
+const formatLogMessage = (message: string) => {
+    const parts = message.split(/(\[(?:Food|Energy|Labor|Ore|Capital|Money)\])/g);
+    return (
+        <span>
+            {parts.map((part, index) => {
+                const match = part.match(/^\[(Food|Energy|Labor|Ore|Capital|Money)\]$/);
+                if (match) {
+                    const type = match[1] as any;
+                    return (
+                        <span key={index} style={{ display: 'inline-flex', verticalAlign: 'middle', margin: '0 2px' }}>
+                            <ResourceIcon type={type} size={14} />
+                        </span>
+                    );
+                }
+                return part;
+            })}
+        </span>
+    );
+};
 
 export const ActionLog: React.FC<ActionLogProps> = ({ logs, players }) => {
     const [isCollapsed, setIsCollapsed] = useState(true);
@@ -112,7 +133,7 @@ export const ActionLog: React.FC<ActionLogProps> = ({ logs, players }) => {
                                     <span>{formatTime(log.timestamp)}</span>
                                 </div>
                                 <div style={{ color: log.type === 'phase' ? '#4ade80' : log.type === 'system' ? '#60a5fa' : '#eee', lineHeight: '1.4' }}>
-                                    {log.message}
+                                    {formatLogMessage(log.message)}
                                 </div>
                             </div>
                         ))

@@ -167,7 +167,7 @@ const MarketTrack: React.FC<MarketTrackProps> = ({ type, market, onBuy, onSell, 
                     const step = steps[stockLevel] || steps[maxStock - 1];
                     const prevStep = stockLevel > 0 ? steps[stockLevel - 1] : null;
 
-                    const barterPrice = calculateCurrentBarterPrice(steps, stockLevel);
+                    const barterPrice = step.barter;
 
                     return (
                         <div

@@ -15,7 +15,7 @@ export function calculateCurrentBarterPrice(
     if (!steps || steps.length === 0) return null;
 
     // Boundary check: ensure stock index is within range
-    const priceIndex = Math.min(Math.max(0, stock), steps.length - 1);
+    const priceIndex = Math.min(Math.max(0, stock - 1), steps.length - 1);
     const step = steps[priceIndex];
 
     return step?.barter ?? null;

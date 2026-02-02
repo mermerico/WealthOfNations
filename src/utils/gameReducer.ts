@@ -21,6 +21,32 @@ export interface ActionResult {
     newState?: GameState;
 }
 
+import type { TradeOffer } from '../types/gameState';
+
+function formatTradeOffer(offer: TradeOffer): string {
+    const parts: string[] = [];
+
+    // Commodities
+    for (const [key, amount] of Object.entries(offer.commodities)) {
+        if (amount && amount > 0) {
+            parts.push(`${amount} [${key}]`);
+        }
+    }
+
+    // Money
+    if (offer.money > 0) {
+        parts.push(`$${offer.money}`);
+    }
+
+    // Loans
+    if (offer.loans > 0) {
+        parts.push(`${offer.loans} Loan${offer.loans > 1 ? 's' : ''}`);
+    }
+
+    if (parts.length === 0) return 'nothing';
+    return parts.join(', ');
+}
+
 function addLog(state: GameState, message: string, type: 'action' | 'phase' | 'system', playerId?: string): GameState {
     const newLog = {
         id: Math.random().toString(36).substr(2, 9),
@@ -131,10 +157,13 @@ function applyMarketTransaction(
         });
 
         const newStock = Math.max(0, stock - 1);
+
+        const actionState = addLog(state, `${player.name} bought 1 [${type}] for $${price}`, 'action', player.id);
+
         return {
             success: true,
             newState: {
-                ...state,
+                ...actionState,
                 players: newPlayers,
                 markets: {
                     ...state.markets,
@@ -157,10 +186,13 @@ function applyMarketTransaction(
         });
 
         const newStock = Math.min(maxStock, stock + 1);
+
+        const actionState = addLog(state, `${player.name} sold 1 [${type}] for $${price}`, 'action', player.id);
+
         return {
             success: true,
             newState: {
-                ...state,
+                ...actionState,
                 players: newPlayers,
                 markets: {
                     ...state.markets,
@@ -832,6 +864,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (!payload) return { success: false, message: 'Missing commodity type' };
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
 
+
             const result = applyMarketTransaction(state, type, 'buy');
             if (!result.success) return result;
 
@@ -850,6 +883,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
         case 'sell': {
             if (!payload) return { success: false, message: 'Missing commodity type' };
             const type = (typeof payload === 'string' ? payload : payload.commodity) as CommodityType;
+
 
             const result = applyMarketTransaction(state, type, 'sell');
             if (!result.success) return result;
@@ -875,6 +909,7 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (items.length === 0) return { success: false, message: 'Cart is empty' };
             if (items.length > 3) return { success: false, message: 'Maximum 3 items allowed in cart' };
 
+
             let currentState = state;
             for (const type of items) {
                 const result = applyMarketTransaction(currentState, type, mode);
@@ -884,10 +919,13 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
+            const player = state.players[state.currentTurnPlayerIndex];
+            const actionState = addLog(currentState, `${player.name} executed a bulk ${mode} (${items.length} items)`, 'action', player.id);
+
             return {
                 success: true,
                 newState: {
-                    ...currentState,
+                    ...actionState,
                     consecutivePasses: 0,
                     currentTurnPlayerIndex: nextPlayerIndex
                 }
@@ -923,7 +961,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             if (proposer.money < giving.money) return { success: false, message: 'Insufficient money to give' };
             if (proposer.loans < giving.loans) return { success: false, message: 'Insufficient loans to give' };
 
-            const actionState = addLog(state, `${proposer.name} proposed a trade to ${target.name}`, 'action', proposer.id);
+            const givingStr = formatTradeOffer(giving);
+            const receivingStr = formatTradeOffer(receiving);
+            const actionState = addLog(state, `${proposer.name} proposed: Give ${givingStr} ↔ Receive ${receivingStr} from ${target.name}`, 'action', proposer.id);
 
             return {
                 success: true,
@@ -945,7 +985,15 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // but the reducer is pure logic. The caller/server checks permissions.
 
             const target = state.players.find(p => p.id === state.pendingTrade?.targetId);
-            const actionState = addLog(state, `${target?.name || 'Someone'} rejected a trade`, 'action', target?.id);
+
+            let rejectMsg = 'Someone rejected a trade';
+            if (target && state.pendingTrade) {
+                const givingStr = formatTradeOffer(state.pendingTrade.giving);
+                const receivingStr = formatTradeOffer(state.pendingTrade.receiving);
+                rejectMsg = `${target.name} rejected offer: Give ${receivingStr} ↔ Receive ${givingStr}`;
+            }
+
+            const actionState = addLog(state, rejectMsg, 'action', target?.id);
 
             return {
                 success: true,
@@ -1038,7 +1086,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             // The active player (proposer) effectively passes the turn by completing a trade.
             // We replicate basic turn advancement here.
 
-            const actionState = addLog(state, `${target.name} accepted a trade from ${proposer.name}`, 'action', target.id);
+            const givingStr = formatTradeOffer(giving);
+            const receivingStr = formatTradeOffer(receiving);
+            const actionState = addLog(state, `${target.name} accepted: Give ${receivingStr} ↔ Receive ${givingStr} from ${proposer.name}`, 'action', target.id);
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
@@ -1286,6 +1336,8 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             };
 
+
+
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
             const actionState = addLog(state, `${player.name} automated a ${cell.occupant.tile.type} at (${coordsToString(stringToCoords(id).q, stringToCoords(id).r)})`, 'action', player.id);
@@ -1404,6 +1456,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                 }
             }
 
+
+
+
             const actionState = addLog(state, `${player.name} built a ${industryType} at (${coordsToString(stringToCoords(id).q, stringToCoords(id).r)})`, 'action', player.id);
 
             return {
@@ -1497,6 +1552,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     orientation: orientation !== undefined ? orientation : (movedOccupant.tile.orientation || 0)
                 };
             }
+
+
+
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
 
@@ -1620,6 +1678,9 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     }
                     : p
             );
+
+
+
 
             const nextPlayerIndex = (state.currentTurnPlayerIndex + 1) % state.players.length;
             const actionState = addLog(state, `${player.name} moved tiles: ${logDetails.join(', ')}`, 'action', player.id);
@@ -1902,13 +1963,53 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
 }
 
 /**
- * Wrapper that adds consistency checks after state changes
+ * Apply post-action cleanup to ensure state invariants are maintained.
+ * This centralizes logic that should run after any action that might affect these states.
+ */
+function applyPostActionCleanup(prevState: GameState, newState: GameState): GameState {
+    let cleanedState = newState;
+
+    // 1. Reset hasPassed flag for the new current player when turn changes
+    if (newState.currentTurnPlayerIndex !== prevState.currentTurnPlayerIndex) {
+        const nextPlayerIndex = newState.currentTurnPlayerIndex;
+        cleanedState = {
+            ...cleanedState,
+            players: cleanedState.players.map((p, i) =>
+                i === nextPlayerIndex ? { ...p, hasPassed: false } : p
+            )
+        };
+    }
+
+    // 2. Clear pendingTrade when phase changes (stale trade offers shouldn't persist)
+    if (newState.phase !== prevState.phase && cleanedState.pendingTrade) {
+        cleanedState = {
+            ...cleanedState,
+            pendingTrade: null
+        };
+    }
+
+    // 3. Clear tradeIntents when phase changes from Trade
+    if (prevState.phase === 'Trade' && newState.phase !== 'Trade' && cleanedState.tradeIntents) {
+        cleanedState = {
+            ...cleanedState,
+            tradeIntents: {}
+        };
+    }
+
+    return cleanedState;
+}
+
+/**
+ * Wrapper that adds cleanup and consistency checks after state changes
  */
 export function gameReducerWithChecks(state: GameState, action: string, payload?: any): ActionResult {
     const result = gameReducer(state, action, payload);
 
-    // Run consistency checks on successful state changes
+    // Apply post-action cleanup on successful state changes
     if (result.success && result.newState) {
+        result.newState = applyPostActionCleanup(state, result.newState);
+
+        // Run consistency checks
         try {
             assertConsistency(result.newState);
         } catch (error) {

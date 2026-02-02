@@ -106,7 +106,7 @@ export const Game: React.FC = () => {
 
     // Helper to get active player (the player whose turn it is, or the local player during simultaneous phases)
     const player = useMemo(() => {
-        if (mode === 'remote' && selfPlayer && (gameState.phase === 'Produce' || gameState.phase === 'Trade')) {
+        if (mode === 'remote' && selfPlayer && (gameState.phase === 'Produce' || gameState.phase === 'Trade' || gameState.phase === 'Develop')) {
             return gameState.players.find(p => p.id === selfPlayer.playerId) || gameState.players[gameState.currentTurnPlayerIndex];
         }
         return gameState.players[gameState.currentTurnPlayerIndex];

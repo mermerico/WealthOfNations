@@ -29,7 +29,7 @@ interface OptimalTrade {
 const COMMODITIES: CommodityType[] = ['Food', 'Energy', 'Labor', 'Ore', 'Capital'];
 
 // Calculate the optimal fair trade between current player and target player
-function calculateOptimalTrade(
+export function calculateOptimalTrade(
     currentPlayerNeeds: Record<CommodityType, number>,
     currentPlayerResources: Record<CommodityType, number>,
     targetPlayerNeeds: Record<CommodityType, number>,
