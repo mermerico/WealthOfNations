@@ -70,7 +70,7 @@ export class LobbyManager {
             hostClientId: clientId,
             players: seats,
             state: null,
-            settings: { promissoryNoteInterestFees: false }
+            settings: { promissoryNoteInterestFees: false, multiBuySell: false, automatedFinalTrade: false }
         };
 
         this.lobbies.set(code, lobby);
@@ -222,8 +222,9 @@ export class LobbyManager {
         }
 
         lobby.settings = {
-            ...lobby.settings,
             promissoryNoteInterestFees: lobby.settings?.promissoryNoteInterestFees ?? false,
+            multiBuySell: lobby.settings?.multiBuySell ?? false,
+            automatedFinalTrade: lobby.settings?.automatedFinalTrade ?? false,
             ...settings
         };
         return lobby;

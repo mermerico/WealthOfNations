@@ -1,30 +1,20 @@
-import { promises as fs } from 'fs';
-import path from 'path';
+import { Redis } from '@upstash/redis';
 import type { GameState } from '../../src/types/gameState';
 import type { SavedGame, SaveFileInfo } from '../../src/shared/saveTypes';
 import { SAVE_VERSION } from '../../src/shared/saveTypes';
 
-const SAVES_DIR = path.join(process.cwd(), 'saves');
+// Initialize Redis client from environment variables
+// Upstash provides UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN
+const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL || '',
+    token: process.env.UPSTASH_REDIS_REST_TOKEN || ''
+});
 
-/**
- * Ensures the saves directory exists.
- */
-async function ensureSavesDir(): Promise<void> {
-    try {
-        await fs.mkdir(SAVES_DIR, { recursive: true });
-    } catch (error) {
-        // Directory already exists or other error
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-            throw error;
-        }
-    }
-}
+const SAVE_KEY_PREFIX = 'won:save:';
+const SAVE_INDEX_KEY = 'won:saves';
 
-/**
- * Gets the file path for a save file based on lobby code.
- */
-function getSavePath(lobbyCode: string): string {
-    return path.join(SAVES_DIR, `${lobbyCode}.json`);
+function getSaveKey(lobbyCode: string): string {
+    return `${SAVE_KEY_PREFIX}${lobbyCode.toUpperCase()}`;
 }
 
 /**
@@ -42,75 +32,76 @@ function countIndustries(state: GameState): Map<string, number> {
 }
 
 /**
- * Saves the current game state to a file.
+ * Saves the current game state to Redis.
  * Overwrites any existing save for the same lobby code.
  */
 export async function saveGame(lobbyCode: string, state: GameState): Promise<string> {
-    await ensureSavesDir();
+    const normalizedCode = lobbyCode.toUpperCase();
 
     const savedGame: SavedGame = {
         version: SAVE_VERSION,
         savedAt: new Date().toISOString(),
-        lobbyCode,
+        lobbyCode: normalizedCode,
         gameState: state
     };
 
-    const filePath = getSavePath(lobbyCode);
-    await fs.writeFile(filePath, JSON.stringify(savedGame, null, 2), 'utf-8');
+    const key = getSaveKey(normalizedCode);
 
-    console.log(`[SaveManager] Saved game ${lobbyCode} to ${filePath}`);
-    return filePath;
+    // Store the save and add to index
+    await redis.set(key, JSON.stringify(savedGame));
+    await redis.sadd(SAVE_INDEX_KEY, normalizedCode);
+
+    console.log(`[SaveManager] Saved game ${normalizedCode} to Redis`);
+    return normalizedCode;
 }
 
 /**
- * Loads a saved game from file.
- * Returns null if the save file doesn't exist.
+ * Loads a saved game from Redis.
+ * Returns null if the save doesn't exist.
  */
 export async function loadSave(lobbyCode: string): Promise<SavedGame | null> {
-    const filePath = getSavePath(lobbyCode);
+    const key = getSaveKey(lobbyCode);
 
     try {
-        const content = await fs.readFile(filePath, 'utf-8');
-        const savedGame = JSON.parse(content) as SavedGame;
-
-        // Basic validation
-        if (!savedGame.version || !savedGame.gameState || !savedGame.lobbyCode) {
-            console.error(`[SaveManager] Invalid save file format: ${filePath}`);
+        const data = await redis.get<string>(key);
+        if (!data) {
             return null;
         }
 
-        console.log(`[SaveManager] Loaded game ${lobbyCode} from ${filePath}`);
+        // Upstash may return parsed object or string depending on how it was stored
+        const savedGame: SavedGame = typeof data === 'string' ? JSON.parse(data) : data;
+
+        // Basic validation
+        if (!savedGame.version || !savedGame.gameState || !savedGame.lobbyCode) {
+            console.error(`[SaveManager] Invalid save format for ${lobbyCode}`);
+            return null;
+        }
+
+        console.log(`[SaveManager] Loaded game ${lobbyCode} from Redis`);
         return savedGame;
     } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            return null; // File doesn't exist
-        }
-        throw error;
+        console.error(`[SaveManager] Error loading ${lobbyCode}:`, error);
+        return null;
     }
 }
 
 /**
- * Checks if a save file exists for the given lobby code.
+ * Checks if a save exists for the given lobby code.
  */
 export async function hasSave(lobbyCode: string): Promise<boolean> {
-    const filePath = getSavePath(lobbyCode);
-    try {
-        await fs.access(filePath);
-        return true;
-    } catch {
-        return false;
-    }
+    const key = getSaveKey(lobbyCode);
+    const exists = await redis.exists(key);
+    return exists === 1;
 }
 
 /**
- * Gets summary info about a save file without loading the full state.
+ * Gets summary info about a save without loading the full state.
  */
 export async function getSaveInfo(lobbyCode: string): Promise<SaveFileInfo | null> {
     const savedGame = await loadSave(lobbyCode);
     if (!savedGame) return null;
 
     const { gameState } = savedGame;
-    const industryCounts = countIndustries(gameState);
 
     return {
         filename: `${lobbyCode}.json`,
@@ -123,36 +114,35 @@ export async function getSaveInfo(lobbyCode: string): Promise<SaveFileInfo | nul
 }
 
 /**
- * Deletes a save file.
+ * Deletes a save.
  */
 export async function deleteSave(lobbyCode: string): Promise<boolean> {
-    const filePath = getSavePath(lobbyCode);
-    try {
-        await fs.unlink(filePath);
-        console.log(`[SaveManager] Deleted save ${lobbyCode}`);
+    const normalizedCode = lobbyCode.toUpperCase();
+    const key = getSaveKey(normalizedCode);
+
+    const deleted = await redis.del(key);
+    await redis.srem(SAVE_INDEX_KEY, normalizedCode);
+
+    if (deleted > 0) {
+        console.log(`[SaveManager] Deleted save ${normalizedCode}`);
         return true;
-    } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            return false; // File didn't exist
-        }
-        throw error;
     }
+    return false;
 }
 
 /**
- * Lists all available save files.
+ * Lists all available saves.
  */
 export async function listSaves(): Promise<SaveFileInfo[]> {
-    await ensureSavesDir();
-
     try {
-        const files = await fs.readdir(SAVES_DIR);
-        const saveFiles = files.filter(f => f.endsWith('.json'));
+        const codes = await redis.smembers(SAVE_INDEX_KEY);
+        if (!codes || codes.length === 0) {
+            return [];
+        }
 
         const infos: SaveFileInfo[] = [];
-        for (const file of saveFiles) {
-            const lobbyCode = file.replace('.json', '');
-            const info = await getSaveInfo(lobbyCode);
+        for (const code of codes) {
+            const info = await getSaveInfo(code);
             if (info) {
                 infos.push(info);
             }
@@ -161,7 +151,8 @@ export async function listSaves(): Promise<SaveFileInfo[]> {
         // Sort by savedAt descending (newest first)
         infos.sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime());
         return infos;
-    } catch {
+    } catch (error) {
+        console.error('[SaveManager] Error listing saves:', error);
         return [];
     }
 }
