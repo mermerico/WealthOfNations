@@ -128,9 +128,9 @@ export function useGameEngine() {
     useEffect(() => {
         // Track if effect is still mounted to prevent state updates after cleanup
         let isMounted = true;
-
-        setConnectionState('connecting');
-        setLastError(null);
+        let pingInterval: ReturnType<typeof setInterval>;
+        let reconnectTimeout: ReturnType<typeof setTimeout>;
+        let reconnectAttempts = 0;
 
         if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
             setConnectionState('disconnected');
@@ -138,158 +138,185 @@ export function useGameEngine() {
             return () => { isMounted = false; };
         }
 
-        const socket = new WebSocket(DEFAULT_SERVER_URL);
-        socketRef.current = socket;
-
-        console.log('[useGameEngine] Attempting WebSocket connection to', DEFAULT_SERVER_URL);
-
-        socket.onopen = () => {
-            if (!isMounted) {
-                console.log('[useGameEngine] WebSocket opened but effect unmounted, closing');
-                socket.close();
-                return;
-            }
-            console.log('[useGameEngine] WebSocket connected successfully');
-            setConnectionState('connected');
-            setLastError(null);
-
-            const lobbyCode = lastLobbyCodeRef.current;
-            if (lobbyCode) {
-                sendMessage({
-                    type: 'joinLobby',
-                    clientId: clientIdRef.current,
-                    code: lobbyCode,
-                    name: lastPlayerNameRef.current || ''
-                });
-            }
-        };
-
-        socket.onmessage = event => {
+        function connect() {
             if (!isMounted) return;
 
-            const message = parseServerMessage(event.data);
-            if (!message) {
-                setLastError('Failed to process server message');
-                return;
-            }
+            setConnectionState('connecting');
+            setLastError(null);
 
-            switch (message.type) {
-                case 'session': {
-                    if (message.clientId && message.clientId !== clientIdRef.current) {
-                        clientIdRef.current = message.clientId;
-                        setStorageItem(CLIENT_ID_STORAGE_KEY, message.clientId);
+            const socket = new WebSocket(DEFAULT_SERVER_URL);
+            socketRef.current = socket;
+
+            console.log('[useGameEngine] Attempting WebSocket connection to', DEFAULT_SERVER_URL, 'attempt:', reconnectAttempts);
+
+            socket.onopen = () => {
+                if (!isMounted) {
+                    console.log('[useGameEngine] WebSocket opened but effect unmounted, closing');
+                    socket.close();
+                    return;
+                }
+                console.log('[useGameEngine] WebSocket connected successfully');
+                setConnectionState('connected');
+                setLastError(null);
+                reconnectAttempts = 0;
+
+                const lobbyCode = lastLobbyCodeRef.current;
+                if (lobbyCode) {
+                    sendMessage({
+                        type: 'joinLobby',
+                        clientId: clientIdRef.current,
+                        code: lobbyCode,
+                        name: lastPlayerNameRef.current || ''
+                    });
+                }
+
+                // Start heartbeat to keep connection alive through proxies like Fly.io
+                pingInterval = setInterval(() => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({ type: 'ping' }));
+                    }
+                }, 30000);
+            };
+
+            socket.onmessage = event => {
+                if (!isMounted) return;
+
+                const message = parseServerMessage(event.data);
+                if (!message) {
+                    setLastError('Failed to process server message');
+                    return;
+                }
+
+                switch (message.type) {
+                    case 'session': {
+                        if (message.clientId && message.clientId !== clientIdRef.current) {
+                            clientIdRef.current = message.clientId;
+                            setStorageItem(CLIENT_ID_STORAGE_KEY, message.clientId);
+                        }
+
+                        if (message.lobby) {
+                            setLobby(message.lobby);
+                            setMode('remote');
+                            lastLobbyCodeRef.current = message.lobby.code;
+                            setStorageItem(LAST_LOBBY_STORAGE_KEY, message.lobby.code);
+                        } else {
+                            setLobby(null);
+                            setSelfPlayer(null);
+                            lastLobbyCodeRef.current = null;
+                            removeStorageItem(LAST_LOBBY_STORAGE_KEY);
+                            if (mode === 'remote') {
+                                setMode('local');
+                            }
+                        }
+
+                        if (message.state) {
+                            setGameState(message.state);
+                            setMode('remote');
+                        }
+
+                        break;
                     }
 
-                    if (message.lobby) {
+                    case 'lobbyUpdate': {
                         setLobby(message.lobby);
                         setMode('remote');
                         lastLobbyCodeRef.current = message.lobby.code;
                         setStorageItem(LAST_LOBBY_STORAGE_KEY, message.lobby.code);
-                    } else {
-                        setLobby(null);
-                        setSelfPlayer(null);
-                        lastLobbyCodeRef.current = null;
-                        removeStorageItem(LAST_LOBBY_STORAGE_KEY);
-                        if (mode === 'remote') {
-                            setMode('local');
+
+                        if (message.self) {
+                            setSelfPlayer(message.self);
+                            lastPlayerNameRef.current = message.self.name;
+                            setStorageItem(LAST_NAME_STORAGE_KEY, message.self.name);
+                        } else {
+                            setSelfPlayer(null);
                         }
+                        break;
                     }
 
-                    if (message.state) {
+                    case 'state': {
+                        // console.log('Game state update', message.state);
                         setGameState(message.state);
                         setMode('remote');
+                        break;
                     }
 
-                    break;
-                }
+                    case 'error': {
+                        setLastError(message.message);
+                        break;
+                    }
 
-                case 'lobbyUpdate': {
-                    setLobby(message.lobby);
-                    setMode('remote');
-                    lastLobbyCodeRef.current = message.lobby.code;
-                    setStorageItem(LAST_LOBBY_STORAGE_KEY, message.lobby.code);
+                    case 'ack': {
+                        setLastError(null);
+                        break;
+                    }
 
-                    if (message.self) {
-                        setSelfPlayer(message.self);
-                        lastPlayerNameRef.current = message.self.name;
-                        setStorageItem(LAST_NAME_STORAGE_KEY, message.self.name);
-                    } else {
+                    case 'gameSaved': {
+                        // Show success message for 3 seconds
+                        setSaveSuccess('Game saved successfully!');
+                        setTimeout(() => setSaveSuccess(null), 3000);
+                        setLastError(null);
+                        break;
+                    }
+
+                    case 'lobbyDisbanded': {
+                        // Another player left during game - kicked back to landing
+                        const disbandedMsg = message as { type: 'lobbyDisbanded'; reason: string };
+                        console.log('[useGameEngine] Lobby disbanded:', disbandedMsg.reason);
+                        setDisbandedReason(disbandedMsg.reason);
+                        setLobby(null);
                         setSelfPlayer(null);
+                        setMode('local');
+                        setGameState(createInitialGameState());
+                        removeStorageItem(LAST_LOBBY_STORAGE_KEY);
+                        // Clear the reason after 5 seconds
+                        setTimeout(() => setDisbandedReason(null), 5000);
+                        break;
                     }
-                    break;
+
+                    default:
+                        break;
+                }
+            };
+
+            socket.onerror = event => {
+                if (!isMounted) return;
+                console.error('WebSocket error', event);
+                console.log('[useGameEngine] Socket readyState:', socket.readyState);
+                setConnectionState('disconnected');
+                setLastError('Connection error');
+            };
+
+            socket.onclose = () => {
+                clearInterval(pingInterval);
+                if (!isMounted) return;
+                console.log('[useGameEngine] WebSocket closed');
+                setConnectionState('disconnected');
+                if (socketRef.current === socket) {
+                    socketRef.current = null;
                 }
 
-                case 'state': {
-                    // console.log('Game state update', message.state);
-                    setGameState(message.state);
-                    setMode('remote');
-                    break;
-                }
+                // Auto reconnect with exponential backoff
+                reconnectAttempts++;
+                const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000);
+                console.log(`[useGameEngine] Reconnecting in ${delay}ms...`);
+                reconnectTimeout = setTimeout(connect, delay);
+            };
+        }
 
-                case 'error': {
-                    setLastError(message.message);
-                    break;
-                }
-
-                case 'ack': {
-                    setLastError(null);
-                    break;
-                }
-
-                case 'gameSaved': {
-                    // Show success message for 3 seconds
-                    setSaveSuccess('Game saved successfully!');
-                    setTimeout(() => setSaveSuccess(null), 3000);
-                    setLastError(null);
-                    break;
-                }
-
-                case 'lobbyDisbanded': {
-                    // Another player left during game - kicked back to landing
-                    const disbandedMsg = message as { type: 'lobbyDisbanded'; reason: string };
-                    console.log('[useGameEngine] Lobby disbanded:', disbandedMsg.reason);
-                    setDisbandedReason(disbandedMsg.reason);
-                    setLobby(null);
-                    setSelfPlayer(null);
-                    setMode('local');
-                    setGameState(createInitialGameState());
-                    removeStorageItem(LAST_LOBBY_STORAGE_KEY);
-                    // Clear the reason after 5 seconds
-                    setTimeout(() => setDisbandedReason(null), 5000);
-                    break;
-                }
-
-                default:
-                    break;
-            }
-        };
-
-        socket.onerror = event => {
-            if (!isMounted) return;
-            console.error('WebSocket error', event);
-            console.log('[useGameEngine] Socket readyState:', socket.readyState);
-            setConnectionState('disconnected');
-            setLastError('Connection error');
-        };
-
-        socket.onclose = () => {
-            if (!isMounted) return;
-            console.log('[useGameEngine] WebSocket closed');
-            setConnectionState('disconnected');
-            if (socketRef.current === socket) {
-                socketRef.current = null;
-            }
-        };
+        connect();
 
         return () => {
             console.log('[useGameEngine] Cleanup called, closing WebSocket');
             isMounted = false;
-            if (socketRef.current === socket) {
+            clearInterval(pingInterval);
+            clearTimeout(reconnectTimeout);
+            const socket = socketRef.current;
+            if (socket) {
                 socketRef.current = null;
-            }
-            // Only close if the socket was opened or is connecting
-            if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-                socket.close();
+                // Only close if the socket was opened or is connecting
+                if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                    socket.close();
+                }
             }
         };
     }, []);
