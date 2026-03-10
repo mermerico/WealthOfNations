@@ -1361,6 +1361,10 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
             const { id, type, orientation, force } = payload;
             const industryType = type as IndustryType;
 
+            if (state.tilesRemaining[industryType] <= 0) {
+                return { success: false, message: 'No more tiles of this type available' };
+            }
+
             const player = state.players[state.currentTurnPlayerIndex];
 
             const validation = isValidPlacement(state.board, id, industryType, orientation || 0, player, force);

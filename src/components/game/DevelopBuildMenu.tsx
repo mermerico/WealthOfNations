@@ -173,7 +173,8 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                     const def = TILE_DEFINITIONS[type];
 
                     const costComponents = Object.entries(def.costStruct || {}).map(([costType, amount]) => ({ amount, type: costType }));
-                    const affordable = canAfford(type, forceMode);
+                    const isAvailable = gameState.tilesRemaining[type] > 0;
+                    const affordable = canAfford(type, forceMode) && isAvailable;
 
                     return (
                         <button
@@ -192,7 +193,10 @@ export const DevelopBuildMenu: React.FC<DevelopBuildMenuProps> = ({
                         >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <TileIcon type={type} size={20} />
-                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>{type}</span>
+                                <span style={{ fontWeight: 'bold', fontSize: '13px' }}>
+                                    {type}
+                                    {!isAvailable && <span style={{ color: '#ef4444', fontSize: '10px', marginLeft: '4px' }}>(0 left)</span>}
+                                </span>
                             </div>
                             <div style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>
                                 {costComponents.map((c, i) => (
