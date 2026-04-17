@@ -20,20 +20,20 @@ describe('Promissory Note Interest Fees', () => {
             }
         });
 
-        // Set phase to Produce with all players ready to transition
+        // Set phase to Produce with all players ready to transition EXCEPT the last one
         const players = state.players.map((p, i) => ({
             ...p,
             loans: options.playerLoans?.[i] ?? 0,
             money: options.playerMoney?.[i] ?? 0,
             hasPassed: false,
-            hasProduced: true
+            hasProduced: i < playerCount - 1
         }));
 
         return {
             ...state,
             phase: 'Produce',
             players,
-            consecutivePasses: playerCount - 1 // One more pass will trigger transition
+            currentTurnPlayerIndex: playerCount - 1 // It's the last player's turn to confirm
         };
     }
 
@@ -45,8 +45,8 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            // Trigger transition by having last player pass
-            const result = applyGameAction(state, 'pass');
+            // Trigger transition by having last player confirm production
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
             expect(result.newState?.phase).toBe('Trade');
 
@@ -70,7 +70,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: false
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
             expect(result.newState?.phase).toBe('Trade');
 
@@ -89,7 +89,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             // Player 0 needs $5 interest but only has $2
@@ -106,7 +106,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             // Player 0 needs $10 interest but has $0
@@ -129,7 +129,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             expect(result.newState?.players[0].loans).toBe(20);
@@ -143,7 +143,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             // Player 0 needs $15 interest but has $0
@@ -171,7 +171,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             expect(result.newState?.players[0].loans).toBe(20);
@@ -184,7 +184,7 @@ describe('Promissory Note Interest Fees', () => {
                 interestFeesEnabled: true
             });
 
-            const result = applyGameAction(state, 'pass');
+            const result = applyGameAction(state, 'confirmProduction', { activeTiles: [], playerId: state.players[state.players.length - 1].id });
             expect(result.success).toBe(true);
 
             // No interest charged, money unchanged

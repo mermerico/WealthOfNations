@@ -1800,11 +1800,19 @@ export function gameReducer(state: GameState, action: string, payload?: any): Ac
                     hasProduced: false
                 }));
 
+                // Apply interest fees if setting is enabled
+                const playersForTrade = state.settings?.promissoryNoteInterestFees
+                    ? applyInterestFees(resetPlayers)
+                    : resetPlayers;
+
+                // Clear auto-pass flags when starting a new round
+                const finalPlayers = playersForTrade.map(p => ({ ...p, autoPass: false }));
+
                 return {
                     success: true,
                     newState: {
                         ...state,
-                        players: resetPlayers,
+                        players: finalPlayers,
                         phase: 'Trade',
                         round: state.round + 1,
                         currentTurnPlayerIndex: nextFirstPlayerIndex,
