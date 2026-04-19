@@ -42,7 +42,9 @@ export const Game: React.FC = () => {
         saveGame,
         saveSuccess,
         lastError,
-        clearLastError
+        clearLastError,
+        connectionState,
+        lagState
     } = useGameEngineContext();
 
     // UI State
@@ -1315,6 +1317,8 @@ export const Game: React.FC = () => {
                 onLeave={() => setShowLeaveConfirmation(true)}
                 onSave={mode === 'remote' && lobby?.phase === 'inGame' ? saveGame : undefined}
                 onOpenPlayerAid={handleOpenPlayerAid}
+                connectionState={mode === 'remote' ? connectionState : undefined}
+                lagState={mode === 'remote' ? lagState : undefined}
             />
 
             {/* Main Layout - 4 Columns */}

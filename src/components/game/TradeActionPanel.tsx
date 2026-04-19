@@ -116,15 +116,9 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
         return needs;
     });
 
+    const lastEditTimestampRef = React.useRef<number>(0);
     const playerNeeds = allPlayerNeeds[selectedPlayer.id] || { ...selectedPlayer.resources };
-
-    const [isReady, setIsReady] = useState(() => {
-        // Initialize from gameState.tradeIntents if in remote mode
-        if (mode === 'remote' && gameState.tradeIntents?.[player.id]) {
-            return gameState.tradeIntents[player.id].ready;
-        }
-        return false;
-    });
+    const isReady = gameState.tradeIntents?.[selectedPlayerId]?.ready || false;
 
     // Handle player selection change for local mode
     const handlePlayerSelect = (playerId: string) => {
@@ -134,14 +128,30 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
         }
     };
 
-    // Keep isReady in sync with the selected player's intent
+    // Synchronize allPlayerNeeds with server state if no local edits have happened recently
     useEffect(() => {
-        if (gameState.tradeIntents?.[selectedPlayerId]) {
-            setIsReady(gameState.tradeIntents[selectedPlayerId].ready);
-        } else {
-            setIsReady(false);
-        }
-    }, [selectedPlayerId, gameState.tradeIntents]);
+        if (!gameState.tradeIntents) return;
+        if (Date.now() - lastEditTimestampRef.current < 1000) return;
+
+        setAllPlayerNeeds(prev => {
+            const next = { ...prev };
+            let hasChanges = false;
+            
+            gameState.players.forEach(p => {
+                const intent = gameState.tradeIntents?.[p.id];
+                if (intent?.desiredInventory) {
+                    const currentLocal = prev[p.id];
+                    // Deep compare to prevent unnecessary rerenders
+                    if (!currentLocal || JSON.stringify(currentLocal) !== JSON.stringify(intent.desiredInventory)) {
+                        next[p.id] = { ...intent.desiredInventory };
+                        hasChanges = true;
+                    }
+                }
+            });
+
+            return hasChanges ? next : prev;
+        });
+    }, [gameState.tradeIntents, gameState.players]);
 
     // Track other players' ready state
     const otherPlayersReady = useMemo(() => {
@@ -225,6 +235,7 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                 [commodity]: newValue
             }
         };
+        lastEditTimestampRef.current = Date.now();
         setAllPlayerNeeds(newNeeds);
 
         // Always sync with engine/server when editing needs
@@ -406,8 +417,6 @@ export const TradeActionPanel: React.FC<TradeActionPanelProps> = ({ gameState, p
                     data-testid="trade-ready-button"
                     onClick={() => {
                         const newReady = !isReady;
-                        setIsReady(newReady);
-
                         onAction('setTradeIntent', {
                             playerId: selectedPlayer.id,
                             desiredInventory: allPlayerNeeds[selectedPlayer.id] || selectedPlayer.resources,

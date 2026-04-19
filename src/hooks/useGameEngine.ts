@@ -3,7 +3,7 @@ import type { GameState, GameSettings } from '../types/gameState';
 import { createInitialGameState, applyGameAction } from '../shared/gameEngine';
 import type { LobbySnapshot, LobbyPlayer, ClientMessage, ServerMessage } from '../shared/networkTypes';
 
-type ConnectionState = 'connecting' | 'connected' | 'disconnected';
+
 type EngineMode = 'local' | 'remote';
 
 const CLIENT_ID_STORAGE_KEY = 'won-client-id';
@@ -91,7 +91,8 @@ function parseServerMessage(raw: MessageEvent['data']): ServerMessage | null {
 
 export function useGameEngine() {
     const [gameState, setGameState] = useState<GameState>(() => createInitialGameState());
-    const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+    const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+    const [lagState, setLagState] = useState<'green' | 'yellow' | 'red'>('green');
     const [lastError, setLastError] = useState<string | null>(null);
     const [mode, setMode] = useState<EngineMode>('local');
     const [lobby, setLobby] = useState<LobbySnapshot | null>(null);
@@ -100,6 +101,7 @@ export function useGameEngine() {
     const [disbandedReason, setDisbandedReason] = useState<string | null>(null);
 
     const socketRef = useRef<WebSocket | null>(null);
+    const lastPongTimestampRef = useRef<number>(Date.now());
     const clientIdRef = useRef<string>(getPersistentClientId());
     const lastLobbyCodeRef = useRef<string | null>(getStorageItem(LAST_LOBBY_STORAGE_KEY));
     const lastPlayerNameRef = useRef<string | null>(getStorageItem(LAST_NAME_STORAGE_KEY));
@@ -126,10 +128,10 @@ export function useGameEngine() {
     }, []);
 
     useEffect(() => {
-        // Track if effect is still mounted to prevent state updates after cleanup
         let isMounted = true;
         let pingInterval: ReturnType<typeof setInterval>;
         let reconnectTimeout: ReturnType<typeof setTimeout>;
+        let lagCheckInterval: ReturnType<typeof setInterval>;
         let reconnectAttempts = 0;
 
         if (typeof window === 'undefined' || typeof WebSocket === 'undefined') {
@@ -170,12 +172,29 @@ export function useGameEngine() {
                     });
                 }
 
-                // Start heartbeat to keep connection alive through proxies like Fly.io
+                // Start heartbeat to keep connection alive and measure lag
+                lastPongTimestampRef.current = Date.now();
                 pingInterval = setInterval(() => {
                     if (socket.readyState === WebSocket.OPEN) {
                         socket.send(JSON.stringify({ type: 'ping' }));
                     }
-                }, 30000);
+                }, 1000);
+
+                lagCheckInterval = setInterval(() => {
+                    if (socket.readyState !== WebSocket.OPEN) {
+                        setLagState('red');
+                        return;
+                    }
+                    const timeSince = Date.now() - lastPongTimestampRef.current;
+                    if (timeSince > 10000) {
+                        console.log('[useGameEngine] Pong timeout, closing dead socket');
+                        socket.close();
+                    } else if (timeSince > 2500) {
+                        setLagState('yellow');
+                    } else {
+                        setLagState('green');
+                    }
+                }, 500);
             };
 
             socket.onmessage = event => {
@@ -288,6 +307,7 @@ export function useGameEngine() {
 
             socket.onclose = () => {
                 clearInterval(pingInterval);
+                clearInterval(lagCheckInterval);
                 if (!isMounted) return;
                 console.log('[useGameEngine] WebSocket closed');
                 setConnectionState('disconnected');
@@ -309,6 +329,7 @@ export function useGameEngine() {
             console.log('[useGameEngine] Cleanup called, closing WebSocket');
             isMounted = false;
             clearInterval(pingInterval);
+            clearInterval(lagCheckInterval);
             clearTimeout(reconnectTimeout);
             const socket = socketRef.current;
             if (socket) {
@@ -554,6 +575,7 @@ export function useGameEngine() {
         unclaimSeat,
         updateSettings,
         connectionState,
+        lagState,
         lastError,
         clearLastError,
         saveSuccess,

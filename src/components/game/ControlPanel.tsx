@@ -9,9 +9,11 @@ interface ControlPanelProps {
     onLeave?: () => void;
     onSave?: () => void;
     onOpenPlayerAid?: () => void;
+    connectionState?: 'disconnected' | 'connecting' | 'connected';
+    lagState?: 'green' | 'yellow' | 'red';
 }
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode, onLeave, onSave, onOpenPlayerAid }) => {
+export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode, onLeave, onSave, onOpenPlayerAid, connectionState, lagState }) => {
     // During setup, show the current drafter; otherwise show the current turn player
     const displayPlayerIndex = gameState.phase === 'Setup' && gameState.setupPhase?.currentDrafterIndex !== undefined
         ? gameState.setupPhase.currentDrafterIndex
@@ -31,6 +33,20 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({ gameState, lobbyCode
         }}>
             {/* Status Info */}
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                {connectionState && lagState && (
+                    <div
+                        title={connectionState !== 'connected' ? 'Disconnected' : (lagState === 'yellow' ? 'Experiencing Lag' : 'Connected')}
+                        style={{
+                            width: '12px',
+                            height: '12px',
+                            borderRadius: '50%',
+                            background: connectionState !== 'connected' ? '#ef4444' : (lagState === 'yellow' ? '#facc15' : '#4ade80'),
+                            boxShadow: `0 0 8px ${connectionState !== 'connected' ? '#ef4444' : (lagState === 'yellow' ? '#facc15' : '#4ade80')}`,
+                            marginRight: '8px',
+                            transition: 'background 0.3s, box-shadow 0.3s'
+                        }}
+                    />
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '10px', color: '#888' }}>PHASE</span>
                     <span data-testid="phase-display" style={{ fontWeight: 'bold', color: '#facc15' }}>{gameState.phase.toUpperCase()}</span>
